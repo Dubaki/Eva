@@ -63,6 +63,23 @@ export default function ResultPage() {
     if (stored) {
       try { setResult(JSON.parse(stored)) } catch { /* ignore */ }
     }
+
+    // Fallback: если в sessionStorage нет, пробуем получить с сервера
+    if (!stored) {
+      const token = localStorage.getItem('eva_token')
+      if (token) {
+        fetch('/api/test/results', { headers: { Authorization: `Bearer ${token}` } })
+          .then((r) => r.json())
+          .then((json: { success: boolean; data?: ResultData }) => {
+            if (json.success && json.data) {
+              setResult(json.data)
+              sessionStorage.setItem('eva_result', JSON.stringify(json.data))
+            }
+          })
+          .catch(() => { /* stays null */ })
+      }
+    }
+
     setLoading(false)
 
     // Load tg_id for referral link generation
@@ -216,9 +233,15 @@ export default function ResultPage() {
           <p className="text-text-primary text-lg font-medium">
             Результат не найден
           </p>
-          <p className="text-text-secondary text-sm mt-2">
+          <p className="text-text-secondary text-sm mt-2 mb-4">
             Пройдите тест, чтобы увидеть свою доминирующую опору.
           </p>
+          <a
+            href="/test"
+            className="inline-block py-3 px-6 bg-accent text-white rounded-xl font-semibold text-sm active:scale-[0.97] transition-transform"
+          >
+            Пройти тест
+          </a>
         </div>
       </main>
     )
