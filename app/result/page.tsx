@@ -65,19 +65,22 @@ export default function ResultPage() {
     }
 
     // Fallback: если в sessionStorage нет, пробуем получить с сервера
-    if (!stored) {
+    const fetchResult = () => {
       const token = localStorage.getItem('eva_token')
-      if (token) {
-        fetch('/api/test/results', { headers: { Authorization: `Bearer ${token}` } })
-          .then((r) => r.json())
-          .then((json: { success: boolean; data?: ResultData }) => {
-            if (json.success && json.data) {
-              setResult(json.data)
-              sessionStorage.setItem('eva_result', JSON.stringify(json.data))
-            }
-          })
-          .catch(() => { /* stays null */ })
-      }
+      if (!token) return
+      fetch('/api/test/results', { headers: { Authorization: 'Bearer ' + token } })
+        .then((r) => r.json())
+        .then((json: { success: boolean; data?: ResultData }) => {
+          if (json.success && json.data) {
+            setResult(json.data)
+            sessionStorage.setItem('eva_result', JSON.stringify(json.data))
+          }
+        })
+        .catch(() => { /* stays null */ })
+    }
+
+    if (!stored) {
+      fetchResult()
     }
 
     setLoading(false)
@@ -94,9 +97,9 @@ export default function ResultPage() {
     }
 
     // Fetch referral count
-    const token = localStorage.getItem('eva_token')
-    if (!token) return
-    fetch('/api/referrals', { headers: { Authorization: `Bearer ${token}` } })
+    const tkn = localStorage.getItem('eva_token')
+    if (!tkn) return
+    fetch('/api/referrals', { headers: { Authorization: 'Bearer ' + tkn } })
       .then((r) => r.json())
       .then((json: { success: boolean; data?: { count: number } }) => {
         if (json.success && typeof json.data?.count === 'number') {

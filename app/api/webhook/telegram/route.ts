@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
   sendMessage,
+  sendPhoto,
   extractReferralCode,
   getTmaUrl,
   type InlineKeyboard,
@@ -57,17 +58,12 @@ interface TelegramUpdate {
 }
 
 async function handleStart(chatId: number, refCode: number | null, firstName?: string): Promise<boolean> {
-  const name = firstName ? ` ${firstName}` : ''
   const refInfo = refCode
     ? `\n\nВы перешли по приглашению друга!`
     : ''
 
   const text =
-    `🌿 Привет,${name}!\n\n` +
-    `Я — EVA, бот для теста на искажённые опоры.\n\n` +
-    `Этот тест поможет увидеть, на что вы опираетесь в сложных ситуациях, ` +
-    `и почему иногда кажется, что опора уходит из-под ног.\n\n` +
-    `Нажмите кнопку ниже, чтобы начать.${refInfo}`
+    `Привет — это канал СПРОСИ ЕВУ! Сегодня мы прекрасно проведём время вместе!${refInfo}`
 
   const tmaUrl = getTmaUrl(refCode ?? undefined)
 
@@ -82,7 +78,18 @@ async function handleStart(chatId: number, refCode: number | null, firstName?: s
     ],
   }
 
-  return sendMessage({ chatId, text, replyMarkup })
+  // Send photo first, then message with button
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+
+  await sendPhoto({
+    chatId,
+    photo: `${baseUrl}/pleaser.png`,
+    caption: text,
+  })
+
+  return sendMessage({ chatId, text: 'Нажмите кнопку ниже, чтобы начать тест:', replyMarkup })
 }
 
 async function handleDefaultMessage(chatId: number, firstName?: string): Promise<boolean> {

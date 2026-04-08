@@ -132,7 +132,7 @@ export default function TestPage() {
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
               />
-              <p className="text-text-secondary text-sm">Analyzing answers...</p>
+              <p className="text-text-secondary text-sm">Анализируем ответы…</p>
             </div>
           </motion.div>
         )}
@@ -177,13 +177,13 @@ export default function TestPage() {
               <button
                 type="button"
                 onClick={handleBack}
-                className="flex items-center gap-1 text-[13px] font-medium text-text-muted hover:text-accent transition-colors select-none"
+                className="flex items-center gap-1 bg-white/10 p-2 rounded text-[14px] font-medium text-text-primary hover:bg-white/20 transition-colors select-none"
                 aria-label="Previous question"
               >
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
                   <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                Back
+                Назад
               </button>
             ) : (
               <span className="w-16" />
@@ -235,10 +235,10 @@ export default function TestPage() {
           </div>
           <div className="flex items-center justify-between px-0.5">
             <span className="text-[11px] text-text-muted leading-none">
-              Not me
+              Совсем не про меня
             </span>
             <span className="text-[11px] text-text-muted leading-none">
-              Definitely me
+              Это точно я
             </span>
           </div>
         </div>

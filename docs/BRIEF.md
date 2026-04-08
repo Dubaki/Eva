@@ -1,7 +1,7 @@
 # BRIEF — EVA
 
 > Telegram Mini App «Тест на искажённые опоры»
-> Версия: 1.0 | Дата: 08.04.2026 | Статус: **UI/UX Development**
+> Версия: 1.0 | Дата: 08.04.2026 | Статус: **Beta Testing / Debugging**
 
 ---
 
@@ -26,6 +26,8 @@
 - **Styling:** Tailwind CSS + Framer Motion
 - **Database / Auth:** Supabase (PostgreSQL + RLS)
 - **Bot Logic:** Next.js API Route (`/api/webhook/telegram`)
+- **SDK:** Telegram Mini Apps SDK (@twa-dev/sdk)
+- **Infrastructure:** Vercel (Deployment + GitHub CI/CD)
 - **UI Quality:** Impeccable Skill (Дизайн-система заложена в `.impeccable.md`)
 
 ---
@@ -43,7 +45,7 @@
 - [x] **Phase 5c: Bug Fixes** — Кнопка "5" контрастна, квалификация работает, вторичная опора скрыта (08.04.2026).
 - [x] **Phase 5d: Hero Images & Referral** — Картинки без обрезки, share работает (navigator.share → Telegram → clipboard) (08.04.2026).
 - [x] **Phase 5e: Telegram Webhook** — `/start` с рефералами, inline кнопка TMA, валидация секрет-токена (08.04.2026).
-- [x] **Phase 5f: Deployment** — Скрипт `set-webhook.js` для регистрации webhook, инструкция по деплою (08.04.2026).
+- [x] **Phase 5 (Deployment)** — Задеплоено на Vercel, привязан домен, настроен GitHub CI/CD (08.04.2026).
 - [ ] **Phase 6: Referral System** — В процессе.
 
 ---
@@ -56,6 +58,7 @@
 4. ~~**[Task 007]** Реализация `/api/auth`~~ — **ВЫПОЛНЕНО**
 5. ~~**[Task 008]** Логика подсчета баллов и экран результатов~~ — **ВЫПОЛНЕНО**
 6. ~~**[Task 010]** Фиксы UI: контраст кнопок, квалификация, скрытие опоры~~ — **ВЫПОЛНЕНО**
+7. **[Next]** Оптимизация UX (кнопка Назад) и исправление логики гостевого доступа.
 
 ---
 

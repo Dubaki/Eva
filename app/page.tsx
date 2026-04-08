@@ -29,16 +29,6 @@ export default function Home() {
           />
         </motion.div>
 
-        {/* Brand glyph */}
-        <motion.div {...fadeUp(0.1)}>
-          <div className="w-12 h-12 rounded-2xl bg-accent-light flex items-center justify-center">
-            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden>
-              <circle cx="11" cy="11" r="4" fill="var(--accent)" />
-              <circle cx="11" cy="11" r="8.5" stroke="var(--accent)" strokeWidth="1.5" strokeOpacity="0.3" />
-            </svg>
-          </div>
-        </motion.div>
-
         {/* Heading + body */}
         <motion.div {...fadeUp(0.22)} className="flex flex-col gap-4">
           <h1 className="text-[28px] font-bold leading-[1.25] tracking-[-0.02em] text-text-primary">
@@ -63,7 +53,7 @@ export default function Home() {
 
       <div className="flex-[0.6]" />
 
-      {/* CTA button — Link для мгновенной навигации на уровне браузера */}
+      {/* CTA button */}
       <motion.div
         {...fadeUp(0.52)}
         className="max-w-sm mx-auto w-full pb-10"
@@ -74,7 +64,7 @@ export default function Home() {
             className="w-full py-[18px] px-6 bg-accent text-white rounded-xl font-semibold text-[17px] tracking-[-0.01em] active:scale-[0.97] transition-all duration-150 select-none"
             style={{ boxShadow: '0 6px 24px color-mix(in srgb, var(--accent) 38%, transparent)' }}
           >
-            Посмотреть
+            Пройти тест
           </button>
         </Link>
       </motion.div>

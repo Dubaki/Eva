@@ -66,6 +66,47 @@ export async function sendMessage(params: {
 }
 
 /**
+ * Send a photo with optional caption and inline keyboard.
+ */
+export async function sendPhoto(params: {
+  chatId: number
+  photo: string
+  caption?: string
+  replyMarkup?: InlineKeyboard
+  parseMode?: 'HTML' | 'MarkdownV2'
+}): Promise<boolean> {
+  if (!BOT_TOKEN) return false
+
+  const body: Record<string, unknown> = {
+    chat_id: params.chatId,
+    photo: params.photo,
+  }
+
+  if (params.caption) {
+    body.caption = params.caption
+    body.parse_mode = params.parseMode ?? 'HTML'
+  }
+
+  if (params.replyMarkup) {
+    body.reply_markup = params.replyMarkup
+  }
+
+  const res = await fetch(`${BASE}/bot${BOT_TOKEN}/sendPhoto`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    console.error(`[telegram] sendPhoto failed (${res.status}):`, err)
+    return false
+  }
+
+  return true
+}
+
+/**
  * Answer a WebApp query — opens the Mini App for the user.
  * Used in response to /start with web_app data.
  */
