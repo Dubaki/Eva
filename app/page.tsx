@@ -1,7 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 
 const fadeUp = (delay: number) => ({
@@ -11,31 +10,6 @@ const fadeUp = (delay: number) => ({
 })
 
 export default function Home() {
-  const router = useRouter()
-  const [starting, setStarting] = useState(false)
-
-  const handleStart = useCallback(async () => {
-    if (starting) return // защита от двойного клика
-    setStarting(true)
-
-    try {
-      // В будущем здесь может быть проверка авторизации
-      // или инициализация сессии через /api/auth.
-      // Если API недоступен — всё равно переходим на /test
-      // (Graceful Degradation: пользователь не должен застревать).
-      router.push('/test')
-    } catch (error) {
-      // Критично для отладки внутри Telegram — показываем ошибку
-      const message = error instanceof Error ? error.message : 'Неизвестная ошибка'
-      alert('Ошибка старта: ' + message)
-
-      // Fallback: всё равно переходим, чтобы пользователь не застрял
-      router.push('/test')
-    } finally {
-      setStarting(false)
-    }
-  }, [starting, router])
-
   return (
     <main className="flex min-h-screen flex-col bg-bg-primary px-5">
       <div className="flex-1" />
@@ -76,20 +50,20 @@ export default function Home() {
 
       <div className="flex-[0.6]" />
 
-      {/* CTA button */}
+      {/* CTA button — Link для мгновенной навигации на уровне браузера */}
       <motion.div
         {...fadeUp(0.52)}
         className="max-w-sm mx-auto w-full pb-10"
       >
-        <button
-          type="button"
-          disabled={starting}
-          onClick={handleStart}
-          className="w-full py-[18px] px-6 bg-accent text-white rounded-xl font-semibold text-[17px] tracking-[-0.01em] active:scale-[0.97] transition-all duration-150 select-none disabled:opacity-60 disabled:cursor-not-allowed"
-          style={{ boxShadow: starting ? 'none' : '0 6px 24px color-mix(in srgb, var(--accent) 38%, transparent)' }}
-        >
-          {starting ? 'Загрузка…' : 'Посмотреть'}
-        </button>
+        <Link href="/test" prefetch={true}>
+          <button
+            type="button"
+            className="w-full py-[18px] px-6 bg-accent text-white rounded-xl font-semibold text-[17px] tracking-[-0.01em] active:scale-[0.97] transition-all duration-150 select-none"
+            style={{ boxShadow: '0 6px 24px color-mix(in srgb, var(--accent) 38%, transparent)' }}
+          >
+            Посмотреть
+          </button>
+        </Link>
       </motion.div>
     </main>
   )
