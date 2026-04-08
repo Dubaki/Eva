@@ -1,0 +1,30 @@
+# VibeCraft — Universal .gitignore
+
+# Секреты
+.env
+.env.*
+!.env.example
+
+# Зависимости
+node_modules/
+__pycache__/
+.venv/
+venv/
+
+# Сборка
+.next/
+dist/
+build/
+*.pyc
+
+# Системные файлы
+.DS_Store
+Thumbs.db
+*.log
+*.swp
+*.bak
+
+# IDE
+.vscode/settings.json
+.idea/
+*.iml

@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(move *)",
+      "Bash(node *)",
+      "Bash(npx *)",
+      "Bash(npm install)",
+      "Bash(mkdir *)",
+      "Bash(del *)",
+      "Bash(npm run *)",
+      "Bash(npm *)",
+      "Bash(git init)",
+      "Bash(git add *)"
+    ]
+  },
+  "$version": 3
+}
