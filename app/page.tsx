@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 
 const fadeUp = (delay: number) => ({
@@ -15,6 +16,18 @@ export default function Home() {
       <div className="flex-1" />
 
       <div className="flex flex-col gap-7 max-w-sm mx-auto w-full">
+
+        {/* Welcome image */}
+        <motion.div {...fadeUp(0.05)}>
+          <Image
+            src="/hero.png"
+            alt="EVA Welcome"
+            width={350}
+            height={350}
+            priority={true}
+            className="mx-auto mb-6 rounded-2xl"
+          />
+        </motion.div>
 
         {/* Brand glyph */}
         <motion.div {...fadeUp(0.1)}>
