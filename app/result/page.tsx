@@ -327,7 +327,9 @@ export default function ResultPage() {
               <h1 className="text-[28px] font-bold tracking-[-0.02em] leading-tight" style={{ color: 'var(--accent)' }}>
                 {traitInfo.title}
               </h1>
-              <p className="text-text-secondary text-sm mt-2 leading-relaxed">{traitInfo.subtitle}</p>
+              {traitInfo.subtitle && (
+                <p className="text-text-secondary text-sm mt-2 leading-relaxed">{traitInfo.subtitle}</p>
+              )}
             </motion.div>
 
             {/* Description */}
@@ -337,7 +339,7 @@ export default function ResultPage() {
               transition={{ duration: 0.4, delay: 0.3 }}
               className="bg-bg-secondary rounded-xl p-5 border border-border"
             >
-              <p className="text-text-primary text-[15px] leading-relaxed">{traitInfo.description}</p>
+              <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap">{traitInfo.description}</p>
             </motion.div>
 
             {/* ════════════ REFERRAL: Теневая опора (BEFORE surprise) ════════════ */}
@@ -362,9 +364,6 @@ export default function ResultPage() {
                     <h2 className="text-[20px] font-bold" style={{ color: 'var(--accent)' }}>
                       {secTraitInfo.title}
                     </h2>
-                    <p className="text-text-secondary text-[14px] leading-relaxed mt-1">
-                      {secTraitInfo.subtitle}
-                    </p>
                   </motion.div>
                 ) : (
                   <motion.div
@@ -461,7 +460,6 @@ export default function ResultPage() {
               </div>
 
               <h1 className="text-[24px] font-bold" style={{ color: 'var(--accent)' }}>{traitInfo.title}</h1>
-              <p className="text-text-secondary text-sm mt-2">{traitInfo.subtitle}</p>
             </motion.div>
 
             <motion.div
@@ -470,7 +468,7 @@ export default function ResultPage() {
               transition={{ duration: 0.4, delay: 0.2 }}
               className="bg-bg-secondary rounded-xl p-5 border border-border"
             >
-              <p className="text-text-primary text-[15px] leading-relaxed">{traitInfo.description}</p>
+              <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap">{traitInfo.description}</p>
             </motion.div>
 
             {/* Response text + single "Далее ➔" button */}

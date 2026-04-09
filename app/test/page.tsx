@@ -145,7 +145,8 @@ export default function TestPage() {
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
               />
-              <p className="text-text-secondary text-sm">Анализируем ответы…</p>
+              <p className="text-text-secondary text-sm">Сейчас посчитаю.</p>
+              <p className="text-text-muted text-xs mt-1">Это не совсем то, что ты думаешь.</p>
             </div>
           </motion.div>
         )}
