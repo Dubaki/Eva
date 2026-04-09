@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getTraitInfo } from '@/lib/scoring'
+import ConfirmModal from '@/components/ConfirmModal'
 
 type ResultData = {
   dominantTrait: string
@@ -57,6 +58,9 @@ export default function ResultPage() {
     previous_attempts: string
   }>({ tension_sphere: '', tension_level: '', previous_attempts: '' })
   const [qualSubmitting, setQualSubmitting] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [pendingAnswer, setPendingAnswer] = useState<'yes' | 'no' | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     const stored = sessionStorage.getItem('eva_result')
@@ -81,6 +85,15 @@ export default function ResultPage() {
     if (!stored) fetchResult()
     setLoading(false)
 
+    // Check if admin
+    const profileRaw = localStorage.getItem('eva_profile')
+    if (profileRaw) {
+      try {
+        const p = JSON.parse(profileRaw) as StoredProfile
+        if (p.tg_id === 1149371967) setIsAdmin(true)
+      } catch { /* ignore */ }
+    }
+
     // Fetch referral count
     const tkn = localStorage.getItem('eva_token')
     if (!tkn) return
@@ -97,30 +110,23 @@ export default function ResultPage() {
   // ── Surprise answer handler ───────────────────────────────────────────
   const handleSurpriseAnswer = useCallback((answer: 'yes' | 'no') => {
     if (surpriseAnswer) return // already answered once
-
-    const proceed = () => {
-      setSurpriseAnswer(answer)
-      setFunnelStep('surprise-response')
-    }
-
-    // Use Telegram WebApp popup if available, fallback to browser confirm
-    if (typeof window !== 'undefined' && (window as unknown as { Telegram?: { WebApp?: { showPopup?: Function } } }).Telegram?.WebApp?.showPopup) {
-      const tgWebApp = (window as unknown as { Telegram: { WebApp: { showPopup: Function } } }).Telegram.WebApp
-      tgWebApp.showPopup({
-        title: 'Уверена?',
-        message: 'Ты не сможешь изменить свой ответ.',
-        buttons: [
-          { id: 'yes', type: 'default', text: 'Да' },
-          { type: 'cancel' },
-        ],
-      }, (buttonId: string) => {
-        if (buttonId === 'yes') proceed()
-      })
-    } else {
-      const isOk = window.confirm('Уверена?\n\nТы не сможешь изменить свой ответ.')
-      if (isOk) proceed()
-    }
+    setPendingAnswer(answer)
+    setShowConfirm(true)
   }, [surpriseAnswer])
+
+  const handleConfirmProceed = useCallback(() => {
+    setShowConfirm(false)
+    if (pendingAnswer) {
+      setSurpriseAnswer(pendingAnswer)
+      setFunnelStep('surprise-response')
+      setPendingAnswer(null)
+    }
+  }, [pendingAnswer])
+
+  const handleConfirmCancel = useCallback(() => {
+    setShowConfirm(false)
+    setPendingAnswer(null)
+  }, [])
 
   // ── Go to qualification (Stage 5) ─────────────────────────────────────
   const goToQualification = useCallback(() => {
@@ -652,6 +658,27 @@ export default function ResultPage() {
         )}
 
         <div className="flex-1" />
+
+        {/* Confirm Modal */}
+        <ConfirmModal
+          open={showConfirm}
+          title="Уверена?"
+          message="Ты не сможешь изменить свой ответ."
+          confirmText="Подтвердить"
+          cancelText="Отмена"
+          onConfirm={handleConfirmProceed}
+          onCancel={handleConfirmCancel}
+        />
+
+        {/* Admin button (only for author) */}
+        {isAdmin && (
+          <a
+            href="/admin"
+            className="block w-full py-2.5 rounded-xl text-center text-[12px] font-medium text-text-muted border border-border hover:text-accent hover:border-accent transition-colors select-none"
+          >
+            👑 Админ-панель
+          </a>
+        )}
       </div>
     </main>
   )
