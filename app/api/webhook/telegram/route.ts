@@ -117,7 +117,9 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
 
     const refInfo = refCode ? `\n\nВы перешли по приглашению друга!` : ''
 
-    const successText = `Отлично! Добро пожаловать!${refInfo}\n\nНажмите кнопку ниже, чтобы начать тест.`
+    const successText =
+      `У каждого человека есть внутренняя «опора» — набор убеждений, которые помогают жить и развиваться. Но иногда эти установки начинают искажаться, и мы теряем связь с собой.${refInfo}\n\n` +
+      `Нажмите кнопку ниже, чтобы посмотреть свой результат.`
 
     const tmaUrl = getTmaUrl(refCode ?? undefined)
 
@@ -125,7 +127,7 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
       inline_keyboard: [
         [
           {
-            text: '✨ Начать тест',
+            text: '✨ Посмотреть',
             web_app: { url: tmaUrl },
           },
         ],
