@@ -86,11 +86,8 @@ async function handleStart(chatId: number, userId: number, refCode: number | nul
     ],
   }
 
-  const baseUrl = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-
-  const photoUrl = `${baseUrl}/hero.png`
+  // Hard-coded production domain for reliable photo delivery
+  const photoUrl = `https://eva-9udm.vercel.app/start.png`
 
   try {
     const success = await sendPhoto({
@@ -126,6 +123,7 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
   }
 
   const status = await getChatMember(CHANNEL_ID, userId)
+  console.log('Check sub for channel:', process.env.TELEGRAM_CHANNEL_ID, 'Status:', status)
 
   const isSubscribed = status === 'member' || status === 'administrator' || status === 'creator'
 
