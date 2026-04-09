@@ -8,6 +8,7 @@ import {
   answerCallbackQuery,
   type InlineKeyboard,
 } from '@/lib/telegram-bot'
+import { getSupabaseServer } from '@/lib/supabase/server'
 
 /**
  * Telegram Webhook Handler
@@ -65,12 +66,12 @@ interface TelegramUpdate {
 async function handleStart(chatId: number, userId: number, refCode: number | null, _firstName?: string): Promise<boolean> {
   // MarkdownV2 formatted text with proper escaping
   const caption =
-    `\\*\\*ТВОЯ ВНУТРЕННЯЯ ОПОРА\\*\\* 💎\\n\n` +
-    `Привет\\! Я создала этого бота\\, чтобы помочь тебе найти ответы\\, которые уже есть внутри тебя\\.\n\n` +
-    `✦ \\*\\*Почему это важно\\?\\*\\*\\n\n` +
-    `В мире хаоса единственное\\, на что можно опереться \\— это *ты сама*\\.\n\n` +
-    `▹ \\*\\*Твой первый шаг:\\*\\*\\n\n` +
-    `Подпишись на мой канал\\. Там я даю эксклюзивные практики и знания\\, которых нет в открытом доступе\\.`
+    `\\*ТВОЯ ВНУТРЕННЯЯ ОПОРА\\* 💎\\n\n` +
+    `Привет\\! Я создала этого бота, чтобы помочь тебе найти ответы, которые уже есть внутри тебя\\.\n\n` +
+    `✦ \\*Почему это важно\\?\\*\\n\n` +
+    `В мире хаоса единственное, на что можно опереться \\— это \\*ты сама\\*\\.\n\n` +
+    `▹ \\*Твой первый шаг:\\*\\n\n` +
+    `Подпишись на мой канал\\. Там я даю эксклюзивные практики и знания, которых нет в открытом доступе\\.`
 
   // Encode refCode in callback_data so we can recover it on button press
   const callbackData = refCode ? `check_sub_${refCode}` : 'check_subscription'
@@ -110,7 +111,6 @@ async function handleStart(chatId: number, userId: number, refCode: number | nul
         chatId,
         text: caption.replace(/\\([\\*_\\[\\]\\(\\)\\~`>#+\\-=|{}.!])/g, '$1').replace(/\\n/g, '\n'),
         replyMarkup,
-        parseMode: 'HTML',
       })
     }
     return true
@@ -160,12 +160,14 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
       console.error('[webhook] Failed to update is_subscribed status:', dbErr)
     }
 
-    const refInfo = refCode ? `\n\nВы перешли по приглашению друга!` : ''
+    const refInfo = refCode ? `\\n\\nВы перешли по приглашению друга\\!` : ''
 
-    const successText =
-      `Подписка подтверждена! 🎉${refInfo}\n\n` +
-      `У каждого человека есть внутренняя «опора» — набор убеждений, которые помогают жить и развиваться. Но иногда эти установки начинают искажаться, и мы теряем связь с собой.\n\n` +
-      `Нажмите кнопку ниже, чтобы посмотреть свой результат.`
+    const successCaption =
+      `🎉 \\*Подписка подтверждена\\!\\*\\n\\n` +
+      `У каждого человека есть внутренняя «опора» — набор убеждений, которые помогают жить и развиваться\\.` +
+      refInfo +
+      `\\nНо иногда эти установки начинают искажаться, и мы теряем связь с собой\\.` +
+      `\\n\\n👇 \\*Нажми кнопку ниже, чтобы начать тест\\.`
 
     const tmaUrl = getTmaUrl(refCode ?? undefined)
 
@@ -173,14 +175,31 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
       inline_keyboard: [
         [
           {
-            text: '✨ Посмотреть',
+            text: '✨ Пройти тест',
             web_app: { url: tmaUrl },
           },
         ],
       ],
     }
 
-    await sendMessage({ chatId, text: successText, replyMarkup })
+    const photoUrl = `https://eva-9udm.vercel.app/start1.png`
+
+    const sent = await sendPhoto({
+      chatId,
+      photo: photoUrl,
+      caption: successCaption,
+      replyMarkup,
+      parseMode: 'MarkdownV2',
+    })
+
+    if (!sent) {
+      const plainText =
+        `🎉 Подписка подтверждена!${refCode ? '\n\nВы перешли по приглашению друга!' : ''}\n\n` +
+        `У каждого человека есть внутренняя «опора» — набор убеждений, которые помогают жить и развиваться.\n` +
+        `Но иногда эти установки начинают искажаться, и мы теряем связь с собой.\n\n` +
+        `👇 Нажми кнопку ниже, чтобы начать тест.`
+      await sendMessage({ chatId, text: plainText, replyMarkup })
+    }
   } else {
     await answerCallbackQuery({
       callbackQueryId,
