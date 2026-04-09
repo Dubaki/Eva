@@ -9,6 +9,7 @@ import {
   type InlineKeyboard,
 } from '@/lib/telegram-bot'
 import { getSupabaseServer } from '@/lib/supabase/server'
+import { MIXED_TRAIT_TEXTS } from '@/lib/telegram'
 
 /**
  * Telegram Webhook Handler
@@ -170,8 +171,26 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
 
           const newCount = (currentCount ?? 0) + 1
 
-          // If exactly 2, send notification to referrer
+          // If exactly 2, send notification to referrer with mixed trait text
           if (newCount === 2) {
+            // Get referrer's test results
+            const { data: referrerResults } = await supabase
+              .from('test_results')
+              .select('dominant_trait, secondary_trait')
+              .eq('profile_id', referrer.id)
+              .single()
+
+            let mixedTraitText = ''
+            if (referrerResults?.dominant_trait && referrerResults?.secondary_trait) {
+              // Sort traits alphabetically to form the key
+              const traits = [
+                referrerResults.dominant_trait.toUpperCase(),
+                referrerResults.secondary_trait.toUpperCase(),
+              ].sort()
+              const key = traits.join('')
+              mixedTraitText = MIXED_TRAIT_TEXTS[key] ?? ''
+            }
+
             const tmaUrl = getTmaUrl()
             const notifyMarkup: InlineKeyboard = {
               inline_keyboard: [
@@ -179,11 +198,13 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
               ],
             }
 
+            const notificationText = mixedTraitText
+              ? `🎉 <b>Твой второй уровень открыт!</b>\n\nПришло время узнать твою теневую опору:\n\n${mixedTraitText.replace(/\n/g, '\n')}`
+              : '🎉 <b>Бинго!</b> Две твои подруги зашли в бота. Твоя скрытая (теневая) опора разблокирована!\n\nЗаходи в приложение, чтобы посмотреть результат.'
+
             await sendMessage({
               chatId: referrer.tg_id,
-              text:
-                '🎉 <b>Бинго!</b> Две твои подруги зашли в бота. Твоя скрытая (теневая) опора разблокирована!\n\n' +
-                'Заходи в приложение, чтобы посмотреть результат.',
+              text: notificationText,
               replyMarkup: notifyMarkup,
               parseMode: 'HTML',
             })

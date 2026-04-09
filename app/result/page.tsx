@@ -438,10 +438,12 @@ export default function ResultPage() {
           >
             <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap">
               Я обычно открываю этот слой только тем, кто идёт в работу. Потому что важно не просто увидеть, а понять, как это устроено и что с этим делать.
+              {'\n\n'}Есть два варианта, как получить доступ:
             </p>
 
             {/* Вариант 1 — Пробой */}
             <div className="bg-bg-secondary rounded-xl p-5 border border-border">
+              <p className="text-accent text-[13px] font-semibold uppercase tracking-widest mb-2">Вариант 1:</p>
               <p className="text-text-primary text-[14px] leading-relaxed whitespace-pre-wrap mb-4">
                 В группе «Пробой» мы:
                 — разбираем все конфигурации
@@ -461,6 +463,7 @@ export default function ResultPage() {
 
             {/* Вариант 2 — Открыть через участие */}
             <div className="bg-bg-secondary rounded-xl p-5 border border-border">
+              <p className="text-accent text-[13px] font-semibold uppercase tracking-widest mb-2">Вариант 2:</p>
               <p className="text-text-secondary text-[14px] leading-relaxed whitespace-pre-wrap mb-4">
                 Ты можешь получить разбор своей второй опоры, если пригласишь 2 человек в бота и они подпишутся на канал. Я даю этот доступ в обмен на расширение проекта.
               </p>
@@ -491,12 +494,24 @@ export default function ResultPage() {
             <p className="text-text-secondary text-[14px] leading-relaxed mb-4">
               Когда 2 человека перейдут по ней и подпишутся, я открою тебе второй слой.
             </p>
-            <motion.button type="button" whileTap={{ scale: 0.97 }}
-              className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
-              style={{ background: 'var(--accent)' }}
-              onClick={handleCopyLink}>
-              {copied ? 'Ссылка скопирована! ✓' : '📋 Копировать ссылку'}
-            </motion.button>
+            <div className="flex flex-col gap-3">
+              <motion.button type="button" whileTap={{ scale: 0.97 }}
+                className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
+                style={{ background: 'var(--accent)' }}
+                onClick={handleCopyLink}>
+                {copied ? 'Ссылка скопирована! ✓' : '📋 Копировать ссылку'}
+              </motion.button>
+              <motion.button type="button" whileTap={{ scale: 0.97 }}
+                className="w-full py-3 rounded-xl text-[14px] text-text-muted border border-border"
+                onClick={() => {
+                  const tgWebApp = (window as unknown as { Telegram?: { WebApp?: { close?: () => void } } }).Telegram?.WebApp
+                  if (tgWebApp?.close) {
+                    tgWebApp.close()
+                  }
+                }}>
+                Закрыть приложение
+              </motion.button>
+            </div>
           </motion.div>
         )}
 

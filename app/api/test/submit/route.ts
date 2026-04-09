@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServer } from '@/lib/supabase/server'
 import { calculateScores, type Answer } from '@/lib/scoring'
+import { sendPhotoToUser, MIXED_TRAIT_TEXTS } from '@/lib/telegram'
 
 const COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000 // 60 days in ms
 const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
@@ -90,6 +91,10 @@ export async function POST(request: NextRequest) {
     // Рассчитываем баллы
     const scores = calculateScores(answers)
 
+    // Get trait description for Telegram
+    const { getTraitInfo } = await import('@/lib/scoring')
+    const traitInfo = getTraitInfo(scores.dominantTrait)
+
     console.log('=== ТЕСТ ЗАВЕРШЕН ===')
     console.log('Баллы:', { S: scores.scoreS, U: scores.scoreU, P: scores.scoreP, R: scores.scoreR, K: scores.scoreK })
     console.log('Доминирующая:', scores.dominantTrait, 'Теневая:', scores.secondaryTrait)
@@ -133,6 +138,18 @@ export async function POST(request: NextRequest) {
             last_test_date: new Date().toISOString(),
           })
           .eq('id', profileId)
+
+        // Fire-and-forget: get user's tg_id and send to Telegram
+        const { data: userProfile } = await supabase
+          .from('profiles')
+          .select('tg_id')
+          .eq('id', profileId)
+          .single()
+
+        if (userProfile?.tg_id) {
+          // Don't await — fire and forget
+          sendResultToTelegram(userProfile.tg_id, scores.dominantTrait, traitInfo.description)
+        }
       } catch (error) {
         console.error('ОШИБКА СОХРАНЕНИЯ В БД:', error)
         return NextResponse.json(
@@ -166,5 +183,38 @@ export async function POST(request: NextRequest) {
       { success: false, error: 'Внутренняя ошибка сервера' },
       { status: 500 }
     )
+  }
+}
+
+/**
+ * Fire-and-forget: send result to user's Telegram.
+ * Called after successful DB save, does NOT block the response.
+ */
+async function sendResultToTelegram(tgId: number, dominantTrait: string, description: string) {
+  try {
+    const baseUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+
+    const imgMap: Record<string, string> = {
+      S: `${baseUrl}/hero.png`,
+      U: `${baseUrl}/pleaser.png`,
+      P: `${baseUrl}/perfectionist.png`,
+      R: `${baseUrl}/stayer.png`,
+      K: `${baseUrl}/controller.png`,
+    }
+
+    const photoUrl = imgMap[dominantTrait.toUpperCase()] ?? `${baseUrl}/hero.png`
+
+    // Send photo with caption (truncated if too long)
+    const caption = description.length > 800 ? description.slice(0, 800) + '…' : description
+    await sendPhotoToUser({
+      chatId: tgId,
+      photo: photoUrl,
+      caption,
+    })
+  } catch (err) {
+    // Never throw — this is fire-and-forget
+    console.error('[test/submit] sendResultToTelegram error (non-fatal):', err)
   }
 }
