@@ -153,20 +153,22 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
         .single()
 
       if (currentUser?.referrer_id) {
-        // Get referrer's current referrals_count and tg_id
+        // Get referrer's tg_id
         const { data: referrer } = await supabase
           .from('profiles')
-          .select('id, tg_id, referrals_count')
+          .select('id, tg_id')
           .eq('id', currentUser.referrer_id)
           .single()
 
         if (referrer) {
-          // Increment count
-          const newCount = (referrer.referrals_count ?? 0) + 1
-          await supabase
-            .from('profiles')
-            .update({ referrals_count: newCount })
-            .eq('id', referrer.id)
+          // Count current referrals for this referrer (where status = 'pending')
+          const { count: currentCount } = await supabase
+            .from('referrals')
+            .select('*', { count: 'exact', head: true })
+            .eq('owner_id', referrer.id)
+            .eq('status', 'pending')
+
+          const newCount = (currentCount ?? 0) + 1
 
           // If exactly 2, send notification to referrer
           if (newCount === 2) {

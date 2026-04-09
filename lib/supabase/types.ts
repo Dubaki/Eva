@@ -18,6 +18,7 @@ export interface Database {
           referrer_id: string | null
           is_subscribed: boolean
           subscription_checked_at: string | null
+          last_test_date: string | null
           created_at: string
           updated_at: string
         }
@@ -29,6 +30,7 @@ export interface Database {
           referrer_id?: string | null
           is_subscribed?: boolean
           subscription_checked_at?: string | null
+          last_test_date?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -40,6 +42,7 @@ export interface Database {
           referrer_id?: string | null
           is_subscribed?: boolean
           subscription_checked_at?: string | null
+          last_test_date?: string | null
           created_at?: string
           updated_at?: string
         }
