@@ -95,6 +95,7 @@ async function handleStart(chatId: number, userId: number, refCode: number | nul
   // Hard-coded production domain for reliable photo delivery
   const photoUrl = `https://eva-9udm.vercel.app/start.png`
 
+  // ALWAYS try sendPhoto first, but FALLBACK to sendMessage — never leave user hanging
   try {
     const success = await sendPhoto({
       chatId,
@@ -105,12 +106,13 @@ async function handleStart(chatId: number, userId: number, refCode: number | nul
     })
 
     if (!success) {
-      console.error('[webhook] sendPhoto failed for handleStart. PhotoUrl:', photoUrl)
+      console.log('[webhook] sendPhoto returned false, using sendMessage fallback')
+      return await sendMessage({ chatId, text: caption, replyMarkup, parseMode: 'HTML' })
     }
-    return success
+    return true
   } catch (err) {
-    console.error('[webhook] sendPhoto crashed in handleStart:', err)
-    return false
+    console.error('[webhook] sendPhoto threw error, using sendMessage fallback:', err)
+    return await sendMessage({ chatId, text: caption, replyMarkup, parseMode: 'HTML' })
   }
 }
 
@@ -181,10 +183,12 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
       })
 
       if (!sent) {
-        console.error('[webhook] sendPhoto failed for handleSubscriptionCheck. PhotoUrl:', photoUrl)
+        console.log('[webhook] sendPhoto returned false in success, using sendMessage fallback')
+        await sendMessage({ chatId, text: successCaption, replyMarkup, parseMode: 'HTML' })
       }
     } catch (err) {
-      console.error('[webhook] sendPhoto crashed in handleSubscriptionCheck:', err)
+      console.error('[webhook] sendPhoto threw in success, using sendMessage fallback:', err)
+      await sendMessage({ chatId, text: successCaption, replyMarkup, parseMode: 'HTML' })
     }
   } else {
     await answerCallbackQuery({
