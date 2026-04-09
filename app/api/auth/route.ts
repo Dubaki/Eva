@@ -172,41 +172,85 @@ export async function POST(req: NextRequest) {
     updated_at: new Date().toISOString(),
   }
 
+  let profile: {
+    id: string
+    tg_id: number
+    username: string | null
+    avatar_url: string | null
+    is_subscribed: boolean
+    referrer_id: string | null
+    created_at: string
+  } | null = null
+
   const supabase = getSupabaseServer()
-  const { data: profile, error: dbError } = await supabase
+  const { data: profileData, error: dbError } = await supabase
     .from('profiles')
     .upsert(upsertData, { onConflict: 'tg_id', ignoreDuplicates: false })
     .select('id, tg_id, username, avatar_url, is_subscribed, referrer_id, created_at')
     .single()
 
-  if (dbError || !profile) {
-    console.error('[auth] DB upsert error:', dbError)
-    return fail('Database error', 500)
+  if (dbError || !profileData) {
+    // DB unavailable — generate a temporary in-memory profile so the user can still enter
+    console.error('[auth] DB upsert error (graceful degradation):', JSON.stringify(dbError))
+
+    // Still try to process referral silently (will fail, that's OK)
+    // Issue a JWT with a synthetic UUID so the TMA can load
+    const syntheticId = `offline-${user.id}-${Date.now()}`
+    const now = Math.floor(Date.now() / 1000)
+    const token = signJwt(
+      {
+        sub: syntheticId,
+        role: 'authenticated',
+        aud: 'authenticated',
+        iss: 'supabase',
+        iat: now,
+        exp: now + 60 * 60 * 24 * 7,
+      },
+      jwtSecret,
+    )
+
+    return ok({
+      profile: {
+        id: syntheticId,
+        tg_id: user.id,
+        username: user.username ?? null,
+        avatar_url: user.photo_url ?? null,
+        is_subscribed: false,
+        referrer_id: null,
+        created_at: new Date().toISOString(),
+      },
+      token,
+    })
   }
+
+  profile = profileData
 
   // 3. Process referral if this is a new user (no referrer_id yet)
   // Supports both formats: "ref_123" (startapp) and "ref123" (legacy /start)
-  if (startParam?.startsWith('ref') && !profile.referrer_id) {
+  if (profile && startParam?.startsWith('ref') && !profile.referrer_id) {
     const raw = startParam.startsWith('ref_') ? startParam.slice(4) : startParam.slice(3)
     const refTgId = parseInt(raw, 10)
-    if (!isNaN(refTgId) && refTgId !== user.id) {
-      const { data: referrer } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('tg_id', refTgId)
-        .single()
-
-      if (referrer) {
-        // Mark referrer on the new user's profile
-        await supabase
+    if (!isNaN(refTgId) && refTgId !== profile.tg_id) {
+      try {
+        const { data: referrer } = await supabase
           .from('profiles')
-          .update({ referrer_id: referrer.id })
-          .eq('id', profile.id)
+          .select('id')
+          .eq('tg_id', refTgId)
+          .single()
 
-        // Insert referral record (ignore duplicate errors)
-        await supabase
-          .from('referrals')
-          .insert({ owner_id: referrer.id, invited_id: profile.id, status: 'pending' })
+        if (referrer) {
+          await supabase
+            .from('profiles')
+            .update({ referrer_id: referrer.id })
+            .eq('id', profile.id)
+
+          await supabase
+            .from('referrals')
+            .insert({ owner_id: referrer.id, invited_id: profile.id, status: 'pending' })
+        }
+      } catch (refErr) {
+        console.error('[auth] Referral processing error (non-fatal):', refErr)
+        // Non-critical — user can still proceed
       }
     }
   }
