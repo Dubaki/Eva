@@ -192,13 +192,17 @@ export default function ResultPage() {
   // ── Open Telegram DM ─────────────────────────────────────────────────
   const openTelegramDM = useCallback((prefill: string) => {
     const tgWebApp = (window as unknown as {
-      Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } }
+      Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void; close?: () => void } }
     }).Telegram?.WebApp
 
     const dmUrl = `https://t.me/${AUTHOR_USERNAME}${prefill ? `?text=${encodeURIComponent(prefill)}` : ''}`
 
     if (tgWebApp?.openTelegramLink) {
       tgWebApp.openTelegramLink(dmUrl)
+      // Auto-close after short delay
+      setTimeout(() => {
+        tgWebApp?.close?.()
+      }, 200)
     } else {
       window.open(dmUrl, '_blank')
     }
@@ -253,15 +257,19 @@ export default function ResultPage() {
       }).catch((err) => console.error('[send-gift-message] Error:', err))
     }
 
-    // Redirect to author's DM
+    // Redirect to author's DM and close
     const tgWebApp = (window as unknown as {
-      Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } }
+      Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void; close?: () => void } }
     }).Telegram?.WebApp
 
     const dmUrl = `https://t.me/${AUTHOR_USERNAME}?text=${encodeURIComponent('Забрать подарок')}`
 
     if (tgWebApp?.openTelegramLink) {
       tgWebApp.openTelegramLink(dmUrl)
+      // Auto-close after short delay
+      setTimeout(() => {
+        tgWebApp?.close?.()
+      }, 200)
     } else {
       window.open(dmUrl, '_blank')
     }
@@ -555,10 +563,29 @@ export default function ResultPage() {
               <i>Я даю этот доступ в обмен на расширение проекта</i>
             </p>
             <div className="bg-bg-secondary rounded-xl p-4 border border-border mb-4">
-              <p className="text-accent text-[13px] break-all select-all">{refLink}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-accent text-[13px] break-all select-all flex-1">{refLink}</p>
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.9 }}
+                  className="flex-shrink-0 p-2 rounded-lg bg-bg-primary border border-border hover:border-accent transition-colors"
+                  onClick={handleCopyLink}
+                  title="Скопировать"
+                >
+                  {copied ? (
+                    <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  )}
+                </motion.button>
+              </div>
             </div>
             <p className="text-text-secondary text-[14px] leading-relaxed mb-5">
-              Когда 2 человека перейдут по ней и подпишутся, я открою тебе второй слой.
+              Когда 2 человека перейдут по ней и пройдут тест, я открою тебе второй слой — твою теневую опору.
             </p>
             <div className="flex flex-col gap-3">
               <motion.button type="button" whileTap={{ scale: 0.97 }}
@@ -566,12 +593,6 @@ export default function ResultPage() {
                 style={{ background: 'var(--accent)' }}
                 onClick={handleShare}>
                 Поделиться
-              </motion.button>
-              <motion.button type="button" whileTap={{ scale: 0.97 }}
-                className="w-full py-3 rounded-xl font-semibold text-[15px] border"
-                style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                onClick={handleCopyLink}>
-                {copied ? 'Ссылка скопирована! ✓' : 'Скопировать ссылку'}
               </motion.button>
               <motion.button type="button" whileTap={{ scale: 0.97 }}
                 className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
