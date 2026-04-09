@@ -14,7 +14,8 @@ type ResultData = {
 type StoredProfile = { id: string; tg_id: number; username: string | null }
 
 const REFERRALS_NEEDED = 2
-const ADMIN_USERNAME = process.env.NEXT_PUBLIC_ADMIN_USERNAME ?? 'eva_admin_bot'
+const AUTHOR_USERNAME = 'evapatrakhina'
+const TESTER_IDS = [1149371967, 5930269100, 1419397753]
 
 // Result images mapping per task spec
 const RESULT_IMG: Record<string, string> = {
@@ -204,7 +205,7 @@ export default function ResultPage() {
       Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } }
     }).Telegram?.WebApp
 
-    const dmUrl = `https://t.me/${ADMIN_USERNAME}?text=${encodeURIComponent(prefill)}`
+    const dmUrl = `https://t.me/${AUTHOR_USERNAME}${prefill ? `?text=${encodeURIComponent(prefill)}` : ''}`
 
     if (tgWebApp?.openTelegramLink) {
       tgWebApp.openTelegramLink(dmUrl)

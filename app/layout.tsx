@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
 import { Inter } from 'next/font/google'
 import { AuthProvider } from '@/components/providers/AuthProvider'
+import Gatekeeper from '@/components/Gatekeeper'
 import './globals.css'
 
 const inter = Inter({
@@ -27,6 +28,8 @@ export const viewport: Viewport = {
   userScalable: false,
 }
 
+const TESTER_IDS = [1149371967, 5930269100, 1419397753]
+
 export default function RootLayout({
   children,
 }: {
@@ -40,7 +43,9 @@ export default function RootLayout({
             src="https://telegram.org/js/telegram-web-app.js"
             strategy="beforeInteractive"
           />
-          {children}
+          <Gatekeeper>
+            {children}
+          </Gatekeeper>
         </AuthProvider>
       </body>
     </html>

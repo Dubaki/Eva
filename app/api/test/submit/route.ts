@@ -3,6 +3,7 @@ import { getSupabaseServer } from '@/lib/supabase/server'
 import { calculateScores, type Answer } from '@/lib/scoring'
 
 const COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000 // 60 days in ms
+const TESTER_IDS = [1149371967, 5930269100, 1419397753]
 
 export async function POST(request: NextRequest) {
   let profileId: string | undefined
@@ -63,14 +64,15 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Cooldown check: if user already has a result, check last_test_date ──
+    // Skip for tester IDs (God mode)
     if (profileId) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('last_test_date')
+        .select('last_test_date, tg_id')
         .eq('id', profileId)
         .single()
 
-      if (profile?.last_test_date) {
+      if (profile?.tg_id && !TESTER_IDS.includes(profile.tg_id) && profile?.last_test_date) {
         const lastTest = new Date(profile.last_test_date).getTime()
         const now = Date.now()
         const elapsed = now - lastTest
