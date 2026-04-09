@@ -1,7 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
+
+const TESTER_IDS = [1149371967, 5930269100, 1419397753]
 
 type AdminStats = {
   totalUsers: number
@@ -27,8 +30,26 @@ const TRAIT_LABELS: Record<string, string> = {
 export default function AdminPanel() {
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [unauthorized, setUnauthorized] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
+    // Check authorization
+    const profileRaw = localStorage.getItem('eva_profile')
+    let authorized = false
+    if (profileRaw) {
+      try {
+        const p = JSON.parse(profileRaw) as { tg_id?: number }
+        authorized = TESTER_IDS.includes(Number(p.tg_id))
+      } catch { /* ignore */ }
+    }
+
+    if (!authorized) {
+      setUnauthorized(true)
+      setLoading(false)
+      return
+    }
+
     const token = localStorage.getItem('eva_token')
     if (!token) {
       setLoading(false)
@@ -39,10 +60,29 @@ export default function AdminPanel() {
       .then((r) => r.json())
       .then((json) => {
         if (json.success) setStats(json.data)
+        else if (json.error === 'Unauthorized') setUnauthorized(true)
       })
       .catch((err) => console.error('[admin] Error:', err))
       .finally(() => setLoading(false))
   }, [])
+
+  if (unauthorized) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-bg-primary px-6">
+        <div className="text-center">
+          <p className="text-4xl mb-4">🔒</p>
+          <p className="text-text-primary text-lg font-medium mb-2">Доступ ограничен</p>
+          <p className="text-text-muted text-sm mb-4">Эта панель доступна только авторизованным тестировщикам.</p>
+          <button
+            onClick={() => router.push('/result')}
+            className="inline-block py-3 px-6 bg-accent text-white rounded-xl font-semibold text-sm"
+          >
+            🔙 Назад в приложение
+          </button>
+        </div>
+      </main>
+    )
+  }
 
   if (loading) {
     return (

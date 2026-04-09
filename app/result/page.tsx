@@ -85,12 +85,12 @@ export default function ResultPage() {
     if (!stored) fetchResult()
     setLoading(false)
 
-    // Check if admin
+    // Check if admin (any tester can access admin panel)
     const profileRaw = localStorage.getItem('eva_profile')
     if (profileRaw) {
       try {
         const p = JSON.parse(profileRaw) as StoredProfile
-        if (p.tg_id === 1149371967) setIsAdmin(true)
+        if (TESTER_IDS.includes(Number(p.tg_id))) setIsAdmin(true)
       } catch { /* ignore */ }
     }
 
