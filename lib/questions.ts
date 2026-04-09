@@ -38,7 +38,7 @@ export const QUESTIONS: Question[] = [
   { id: 17, text: 'Мне сложно оставаться спокойной, если вокруг конфликт', scale: 'control' },
   { id: 18, text: 'Я бессознательно сглаживаю, чтобы стало "нормально"', scale: 'control' },
   { id: 19, text: 'Моё состояние зависит от настроения других', scale: 'control' },
-  { id: 20, text: 'Я чаще думаю, как всем, чем как мне', scale: 'control' },
+  { id: 20, text: "Я чаще думаю 'как всем?', чем 'как мне?'", scale: 'control' },
 
   // === hyper-vigilance (K — Сверхбдительность) ===
   { id: 21, text: 'Мне трудно отпустить ситуацию', scale: 'hyper-vigilance' },
