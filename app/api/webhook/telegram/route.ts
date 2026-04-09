@@ -4,6 +4,8 @@ import {
   sendPhoto,
   extractReferralCode,
   getTmaUrl,
+  getChatMember,
+  answerCallbackQuery,
   type InlineKeyboard,
 } from '@/lib/telegram-bot'
 
@@ -12,7 +14,8 @@ import {
  *
  * Receives POST requests from Telegram Bot API.
  * Handles:
- *   - /start (with optional referral code)
+ *   - /start → subscription check funnel
+ *   - callback_query → "I subscribed" verification
  *   - Any other message → redirect to TMA
  *
  * Security:
@@ -22,6 +25,8 @@ import {
 
 const SECRET_TOKEN = process.env.TELEGRAM_WEBHOOK_SECRET
 const BOT_USERNAME = process.env.NEXT_PUBLIC_BOT_USERNAME ?? 'test_opor_bot'
+const CHANNEL_ID = process.env.TELEGRAM_CHANNEL_ID
+const CHANNEL_URL = process.env.TELEGRAM_CHANNEL_URL ?? 'https://t.me/your_channel'
 
 // ── Webhook Secret Validation ──────────────────────────────────────────────
 
@@ -57,39 +62,84 @@ interface TelegramUpdate {
   }
 }
 
-async function handleStart(chatId: number, refCode: number | null, firstName?: string): Promise<boolean> {
+async function handleStart(chatId: number, userId: number, refCode: number | null, _firstName?: string): Promise<boolean> {
   const refInfo = refCode
     ? `\n\nВы перешли по приглашению друга!`
     : ''
 
   const text =
-    `Привет — это канал СПРОСИ ЕВУ! Сегодня мы прекрасно проведём время вместе!${refInfo}`
+    `Привет! Перед тем как начать, подпишись на канал. Там я даю информацию, которую не даю больше нигде.${refInfo}`
 
-  const tmaUrl = getTmaUrl(refCode ?? undefined)
+  // Encode refCode in callback_data so we can recover it on button press
+  const callbackData = refCode ? `check_sub_${refCode}` : 'check_subscription'
 
   const replyMarkup: InlineKeyboard = {
     inline_keyboard: [
       [
         {
-          text: '✨ Начать тест',
-          web_app: { url: tmaUrl },
+          text: '📢 Подписаться',
+          url: CHANNEL_URL,
+        },
+      ],
+      [
+        {
+          text: '✅ Я подписалась',
+          callback_data: callbackData,
         },
       ],
     ],
   }
 
-  // Send photo first, then message with button
   const baseUrl = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
     : process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
-  await sendPhoto({
+  return sendPhoto({
     chatId,
     photo: `${baseUrl}/pleaser.png`,
     caption: text,
+    replyMarkup,
   })
+}
 
-  return sendMessage({ chatId, text: 'Нажмите кнопку ниже, чтобы начать тест:', replyMarkup })
+async function handleSubscriptionCheck(callbackQueryId: string, userId: number, chatId: number, refCode: number | null): Promise<void> {
+  if (!CHANNEL_ID) {
+    await answerCallbackQuery({ callbackQueryId, text: 'Канал не настроен. Обратитесь к администратору.', showAlert: true })
+    return
+  }
+
+  const status = await getChatMember(CHANNEL_ID, userId)
+
+  const isSubscribed = status === 'member' || status === 'administrator' || status === 'creator'
+
+  if (isSubscribed) {
+    await answerCallbackQuery({ callbackQueryId })
+
+    const refInfo = refCode ? `\n\nВы перешли по приглашению друга!` : ''
+
+    const successText = `Отлично! Добро пожаловать!${refInfo}\n\nНажмите кнопку ниже, чтобы начать тест.`
+
+    const tmaUrl = getTmaUrl(refCode ?? undefined)
+
+    const replyMarkup: InlineKeyboard = {
+      inline_keyboard: [
+        [
+          {
+            text: '✨ Начать тест',
+            web_app: { url: tmaUrl },
+          },
+        ],
+      ],
+    }
+
+    await sendMessage({ chatId, text: successText, replyMarkup })
+  } else {
+    await answerCallbackQuery({
+      callbackQueryId,
+      text: 'Подписка не найдена. Пожалуйста, подпишитесь на канал и попробуйте снова.',
+      showAlert: true,
+    })
+  }
 }
 
 async function handleDefaultMessage(chatId: number, firstName?: string): Promise<boolean> {
@@ -164,7 +214,8 @@ export async function POST(req: NextRequest) {
         if (refCode) {
           console.log(`[webhook] /start with referral code: ${refCode}`)
         }
-        await handleStart(chat.id, refCode, from?.first_name)
+        const userId = from?.id ?? 0
+        await handleStart(chat.id, userId, refCode, from?.first_name)
       } else {
         // Any other message — show welcome with TMA button
         await handleDefaultMessage(chat.id, from?.first_name)
@@ -173,13 +224,25 @@ export async function POST(req: NextRequest) {
 
     // — Callback Query (inline button presses) —
     else if (update.callback_query) {
-      const { from, message, data } = update.callback_query
+      const { id: callbackId, from, message, data } = update.callback_query
       const chatId = message?.chat?.id
 
       if (chatId && from) {
         console.log(`[webhook] Callback: ${data} from user ${from.id}`)
-        // For now, redirect to TMA
-        await handleDefaultMessage(chatId, undefined)
+
+        // Parse callback data: "check_subscription" or "check_sub_<refCode>"
+        let refCode: number | null = null
+        const refMatch = data?.match(/^check_sub_(\d+)$/)
+        if (refMatch) {
+          refCode = parseInt(refMatch[1], 10)
+        }
+
+        if (data === 'check_subscription' || refMatch) {
+          await handleSubscriptionCheck(callbackId, from.id, chatId, refCode)
+        } else {
+          // Unknown callback — just respond with default message
+          await handleDefaultMessage(chatId, undefined)
+        }
       }
     }
 

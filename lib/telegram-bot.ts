@@ -107,6 +107,64 @@ export async function sendPhoto(params: {
 }
 
 /**
+ * Check if a user is a member of a channel.
+ * Returns the member status: "creator" | "administrator" | "member" | "restricted" | "left" | "kicked"
+ */
+export async function getChatMember(chatId: string | number, userId: number): Promise<string | null> {
+  if (!BOT_TOKEN) return null
+
+  const res = await fetch(`${BASE}/bot${BOT_TOKEN}/getChatMember`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, user_id: userId }),
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    console.error(`[telegram] getChatMember failed (${res.status}):`, err)
+    return null
+  }
+
+  const data = await res.json()
+  if (data.ok) {
+    return data.result.status
+  }
+  return null
+}
+
+/**
+ * Answer a callback query (shows a toast notification to the user).
+ */
+export async function answerCallbackQuery(params: {
+  callbackQueryId: string
+  text?: string
+  showAlert?: boolean
+}): Promise<boolean> {
+  if (!BOT_TOKEN) return false
+
+  const body: Record<string, unknown> = {
+    callback_query_id: params.callbackQueryId,
+  }
+
+  if (params.text) body.text = params.text
+  if (params.showAlert) body.show_alert = params.showAlert
+
+  const res = await fetch(`${BASE}/bot${BOT_TOKEN}/answerCallbackQuery`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    console.error(`[telegram] answerCallbackQuery failed (${res.status}):`, err)
+    return false
+  }
+
+  return true
+}
+
+/**
  * Answer a WebApp query — opens the Mini App for the user.
  * Used in response to /start with web_app data.
  */
