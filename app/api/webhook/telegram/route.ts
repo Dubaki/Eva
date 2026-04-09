@@ -64,14 +64,13 @@ interface TelegramUpdate {
 }
 
 async function handleStart(chatId: number, userId: number, refCode: number | null, _firstName?: string): Promise<boolean> {
-  // MarkdownV2 formatted text with proper escaping
   const caption =
-    `\\*ТВОЯ ВНУТРЕННЯЯ ОПОРА\\* 💎\\n\n` +
-    `Привет\\! Я создала этого бота, чтобы помочь тебе найти ответы, которые уже есть внутри тебя\\.\n\n` +
-    `✦ \\*Почему это важно\\?\\*\\n\n` +
-    `В мире хаоса единственное, на что можно опереться \\— это \\*ты сама\\*\\.\n\n` +
-    `▹ \\*Твой первый шаг:\\*\\n\n` +
-    `Подпишись на мой канал\\. Там я даю эксклюзивные практики и знания, которых нет в открытом доступе\\.`
+    `<b>ТВОЯ ВНУТРЕННЯЯ ОПОРА</b> 💎\n\n` +
+    `Привет! Я создала этого бота, чтобы помочь тебе найти ответы, которые уже есть внутри тебя.\n\n` +
+    `✦ <b>Почему это важно?</b>\n` +
+    `В мире хаоса единственное, на что можно опереться — это <i>ты сама</i>.\n\n` +
+    `▹ <b>Твой первый шаг:</b>\n` +
+    `Подпишись на мой канал. Там я даю эксклюзивные практики и знания, которых нет в открытом доступе.`
 
   // Encode refCode in callback_data so we can recover it on button press
   const callbackData = refCode ? `check_sub_${refCode}` : 'check_subscription'
@@ -102,25 +101,16 @@ async function handleStart(chatId: number, userId: number, refCode: number | nul
       photo: photoUrl,
       caption,
       replyMarkup,
-      parseMode: 'MarkdownV2',
+      parseMode: 'HTML',
     })
 
     if (!success) {
-      console.error('[webhook] sendPhoto failed, falling back to sendMessage')
-      return await sendMessage({
-        chatId,
-        text: caption.replace(/\\([\\*_\\[\\]\\(\\)\\~`>#+\\-=|{}.!])/g, '$1').replace(/\\n/g, '\n'),
-        replyMarkup,
-      })
+      console.error('[webhook] sendPhoto failed for handleStart. PhotoUrl:', photoUrl)
     }
-    return true
+    return success
   } catch (err) {
-    console.error('[webhook] sendPhoto crashed, falling back to sendMessage:', err)
-    return await sendMessage({
-      chatId,
-      text: `ТВОЯ ВНУТРЕННЯЯ ОПОРА 💎\n\nПривет! Я создала этого бота, чтобы помочь тебе найти ответы, которые уже есть внутри тебя.\n\n✦ Почему это важно?\nВ мире хаоса единственное, на что можно опереться — это ты сама.\n\n▹ Твой первый шаг:\nПодпишись на мой канал. Там я даю эксклюзивные практики и знания, которых нет в открытом доступе.`,
-      replyMarkup,
-    })
+    console.error('[webhook] sendPhoto crashed in handleStart:', err)
+    return false
   }
 }
 
@@ -160,14 +150,11 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
       console.error('[webhook] Failed to update is_subscribed status:', dbErr)
     }
 
-    const refInfo = refCode ? `\\n\\nВы перешли по приглашению друга\\!` : ''
-
     const successCaption =
-      `🎉 \\*Подписка подтверждена\\!\\*\\n\\n` +
-      `У каждого человека есть внутренняя «опора» — набор убеждений, которые помогают жить и развиваться\\.` +
-      refInfo +
-      `\\nНо иногда эти установки начинают искажаться, и мы теряем связь с собой\\.` +
-      `\\n\\n👇 \\*Нажми кнопку ниже, чтобы начать тест\\.`
+      `🎉 <b>Подписка подтверждена!</b>\n\n` +
+      `У каждого человека есть внутренняя «опора» — набор убеждений, которые помогают жить и развиваться.\n` +
+      `Но иногда эти установки начинают искажаться, и мы теряем связь с собой.\n\n` +
+      `👇 <i>Нажми кнопку ниже, чтобы начать тест.</i>`
 
     const tmaUrl = getTmaUrl(refCode ?? undefined)
 
@@ -184,21 +171,20 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
 
     const photoUrl = `https://eva-9udm.vercel.app/start1.png`
 
-    const sent = await sendPhoto({
-      chatId,
-      photo: photoUrl,
-      caption: successCaption,
-      replyMarkup,
-      parseMode: 'MarkdownV2',
-    })
+    try {
+      const sent = await sendPhoto({
+        chatId,
+        photo: photoUrl,
+        caption: successCaption,
+        replyMarkup,
+        parseMode: 'HTML',
+      })
 
-    if (!sent) {
-      const plainText =
-        `🎉 Подписка подтверждена!${refCode ? '\n\nВы перешли по приглашению друга!' : ''}\n\n` +
-        `У каждого человека есть внутренняя «опора» — набор убеждений, которые помогают жить и развиваться.\n` +
-        `Но иногда эти установки начинают искажаться, и мы теряем связь с собой.\n\n` +
-        `👇 Нажми кнопку ниже, чтобы начать тест.`
-      await sendMessage({ chatId, text: plainText, replyMarkup })
+      if (!sent) {
+        console.error('[webhook] sendPhoto failed for handleSubscriptionCheck. PhotoUrl:', photoUrl)
+      }
+    } catch (err) {
+      console.error('[webhook] sendPhoto crashed in handleSubscriptionCheck:', err)
     }
   } else {
     await answerCallbackQuery({
