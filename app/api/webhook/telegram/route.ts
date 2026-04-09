@@ -297,10 +297,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Always respond with 200 to Telegram — even if handler crashed
-    return new NextResponse('OK')
+    return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('WEBHOOK CRASH (top-level):', err)
-    return new NextResponse('OK')
+    return NextResponse.json({ ok: true })
   }
 }
 
