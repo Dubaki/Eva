@@ -205,14 +205,25 @@ async function sendResultToTelegram(tgId: number, dominantTrait: string, descrip
     }
 
     const photoUrl = imgMap[dominantTrait.toUpperCase()] ?? `${baseUrl}/hero.png`
-
-    // Send photo with caption (truncated if too long)
     const caption = description.length > 800 ? description.slice(0, 800) + '…' : description
-    await sendPhotoToUser({
+
+    console.log(`[sendResultToTelegram] Sending photo to tgId=${tgId}, photoUrl=${photoUrl}`)
+
+    const photoSent = await sendPhotoToUser({
       chatId: tgId,
       photo: photoUrl,
       caption,
     })
+
+    if (!photoSent) {
+      // Fallback: send text only
+      console.error('[sendResultToTelegram] sendPhoto failed, falling back to sendMessage')
+      const { sendMessageToUser } = await import('@/lib/telegram')
+      await sendMessageToUser({
+        chatId: tgId,
+        text: `<b>${dominantTrait}</b>\n\n${caption}`,
+      })
+    }
   } catch (err) {
     // Never throw — this is fire-and-forget
     console.error('[test/submit] sendResultToTelegram error (non-fatal):', err)

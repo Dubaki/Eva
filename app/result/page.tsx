@@ -16,6 +16,28 @@ type StoredProfile = { id: string; tg_id: number; username: string | null }
 
 const AUTHOR_USERNAME = 'evapatrakhina'
 
+// Mixed trait names (client-side, for sending to author)
+const MIXED_TRAIT_NAMES: Record<string, string> = {
+  SU: 'S+U — Тихий тащитель',
+  SP: 'S+P — Машина результата',
+  RS: 'R+S — Опора для всех',
+  KS: 'K+S — Железная система',
+  PU: 'P+U — Идеальная для всех',
+  RU: 'R+U — Спасатель',
+  KU: 'K+U — Тревожный угодник',
+  PR: 'P+R — Социальный идеал',
+  KP: 'K+P — Тревожный достигатор',
+  KR: 'K+R — Сканер угроз',
+}
+
+// Helper: get mixed trait key from scores
+function getMixedTraitKey(scores: Record<string, number>): string {
+  const entries = Object.entries(scores).sort((a, b) => b[1] - a[1])
+  if (entries.length < 2) return ''
+  const [first, second] = entries
+  return [first[0], second[0]].sort().join('')
+}
+
 // Result images mapping
 const RESULT_IMG: Record<string, string> = {
   S: '/hero.png',
@@ -143,25 +165,6 @@ export default function ResultPage() {
     }
   }, [surveyAnswers, surveyStep])
 
-  // ── Referral link ────────────────────────────────────────────────────
-  const handleShowReferralLink = useCallback(() => {
-    const link = userTgId
-      ? `https://t.me/sprosievubot?start=ref_${userTgId}`
-      : 'https://t.me/sprosievubot'
-    setRefLink(link)
-    setFunnelStep('referral-link')
-  }, [userTgId])
-
-  const handleCopyLink = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(refLink)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 3000)
-    } catch {
-      alert(`Скопируйте: ${refLink}`)
-    }
-  }, [refLink])
-
   // ── Open Telegram DM ─────────────────────────────────────────────────
   const openTelegramDM = useCallback((prefill: string) => {
     const tgWebApp = (window as unknown as {
@@ -176,6 +179,71 @@ export default function ResultPage() {
       window.open(dmUrl, '_blank')
     }
   }, [])
+
+  // ── Referral link ────────────────────────────────────────────────────
+  const handleShowReferralLink = useCallback(async () => {
+    const link = userTgId
+      ? `https://t.me/sprosievubot?start=ref_${userTgId}`
+      : 'https://t.me/sprosievubot'
+    setRefLink(link)
+
+    // Cheat code: trigger mixed trait send to user's Telegram
+    const token = localStorage.getItem('eva_token')
+    if (token) {
+      fetch('/api/test/debug-mixed-trait', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch((err) => console.error('[debug-mixed-trait] Error:', err))
+    }
+
+    setFunnelStep('referral-link')
+  }, [userTgId])
+
+  // ── Proboy click: notify author then open Telegram ───────────────────
+  const handleProboyClick = useCallback(() => {
+    const profileRaw = localStorage.getItem('eva_profile')
+    let userId: number | null = null
+    let firstName: string | null = null
+    let username: string | null = null
+    if (profileRaw) {
+      try {
+        const p = JSON.parse(profileRaw) as StoredProfile
+        userId = p.tg_id ?? null
+        username = p.username ?? null
+      } catch { /* ignore */ }
+    }
+
+    // Compute mixed trait from result scores
+    const mixedKey = result ? getMixedTraitKey(result.scores) : ''
+    const mixedTraitName = MIXED_TRAIT_NAMES[mixedKey] || 'Не определено'
+
+    // Fire-and-forget: notify author
+    fetch('/api/notify-author', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId,
+        firstName,
+        username,
+        selectedFormat: 'Пробой',
+        mixedTraitName,
+      }),
+    }).catch((err) => console.error('[notify-author] Error:', err))
+
+    // Immediately open Telegram DM (don't wait for fetch)
+    openTelegramDM('Пробой')
+  }, [result, openTelegramDM])
+
+  // ── Copy link ────────────────────────────────────────────────────────
+  const handleCopyLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(refLink)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 3000)
+    } catch {
+      alert(`Скопируйте: ${refLink}`)
+    }
+  }, [refLink])
 
   // ── Loading / No result ──────────────────────────────────────────────
   if (loading) {
@@ -456,7 +524,7 @@ export default function ResultPage() {
               <motion.button type="button" whileTap={{ scale: 0.97 }}
                 className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
                 style={{ background: 'var(--accent)' }}
-                onClick={() => openTelegramDM('Пробой')}>
+                onClick={handleProboyClick}>
                 Хочу в Пробой
               </motion.button>
             </div>

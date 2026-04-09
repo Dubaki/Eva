@@ -15,11 +15,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { userId, firstName, username, selectedFormat } = body as {
+  const { userId, firstName, username, selectedFormat, mixedTraitName } = body as {
     userId?: number
     firstName?: string
     username?: string
     selectedFormat?: string
+    mixedTraitName?: string
   }
 
   if (!userId || !selectedFormat) {
@@ -30,12 +31,15 @@ export async function POST(req: NextRequest) {
     ? `@${username}`
     : `<a href="tg://user?id=${userId}">Ссылка на аккаунт</a>`
 
+  const mixedTraitLine = mixedTraitName
+    ? `\nСмешанная опора: <b>${escapeHtml(mixedTraitName)}</b>\n`
+    : ''
+
   const text =
-    `🔥 <b>Горячий лид!</b>\n` +
-    `Пользователь только что выбрал формат: <b>${escapeHtml(selectedFormat)}</b>\n\n` +
-    `👤 Имя: ${escapeHtml(firstName ?? 'Неизвестно')}\n` +
-    `🔗 Профиль: ${userLink}\n\n` +
-    `<i>Если он не написал сам в течение пары минут — напиши ему первая!</i>`
+    `🔥 <b>Заявка в Пробой!</b>\n` +
+    `Пользователь: ${escapeHtml(firstName ?? 'Неизвестно')} (${userLink})\n` +
+    `Формат: <b>${escapeHtml(selectedFormat)}</b>${mixedTraitLine}\n` +
+    `\n<i>Если он не написал сам в течение пары минут — напиши ему первая!</i>`
 
   try {
     const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
