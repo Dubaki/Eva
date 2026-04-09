@@ -141,6 +141,59 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
   if (isSubscribed) {
     await answerCallbackQuery({ callbackQueryId })
 
+    // ── Referral engine: increment referrer's count, notify at 2 ──
+    try {
+      const supabase = getSupabaseServer()
+
+      // Find current user's profile
+      const { data: currentUser } = await supabase
+        .from('profiles')
+        .select('id, referrer_id')
+        .eq('tg_id', userId)
+        .single()
+
+      if (currentUser?.referrer_id) {
+        // Get referrer's current referrals_count and tg_id
+        const { data: referrer } = await supabase
+          .from('profiles')
+          .select('id, tg_id, referrals_count')
+          .eq('id', currentUser.referrer_id)
+          .single()
+
+        if (referrer) {
+          // Increment count
+          const newCount = (referrer.referrals_count ?? 0) + 1
+          await supabase
+            .from('profiles')
+            .update({ referrals_count: newCount })
+            .eq('id', referrer.id)
+
+          // If exactly 2, send notification to referrer
+          if (newCount === 2) {
+            const tmaUrl = getTmaUrl()
+            const notifyMarkup: InlineKeyboard = {
+              inline_keyboard: [
+                [{ text: '✨ Посмотреть', web_app: { url: tmaUrl } }],
+              ],
+            }
+
+            await sendMessage({
+              chatId: referrer.tg_id,
+              text:
+                '🎉 <b>Бинго!</b> Две твои подруги зашли в бота. Твоя скрытая (теневая) опора разблокирована!\n\n' +
+                'Заходи в приложение, чтобы посмотреть результат.',
+              replyMarkup: notifyMarkup,
+              parseMode: 'HTML',
+            })
+
+            console.log(`[webhook] Referral notification sent to referrer tg_id=${referrer.tg_id}`)
+          }
+        }
+      }
+    } catch (refErr) {
+      console.error('[webhook] Referral engine error (non-fatal):', refErr)
+    }
+
     // Force update is_subscribed in Supabase
     try {
       const supabase = getSupabaseServer()

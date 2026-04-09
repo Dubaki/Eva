@@ -302,6 +302,73 @@ export default function ResultPage() {
               <p className="text-text-primary text-[15px] leading-relaxed">{traitInfo.description}</p>
             </motion.div>
 
+            {/* ════════════ REFERRAL: Теневая опора (BEFORE surprise) ════════════ */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.35 }}
+            >
+              <AnimatePresence mode="wait">
+                {isUnlocked ? (
+                  <motion.div
+                    key="unlocked"
+                    initial={{ opacity: 0, scale: 0.97 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="rounded-xl p-5 border bg-bg-secondary"
+                    style={{ borderColor: 'color-mix(in srgb, var(--accent) 40%, var(--border))' }}
+                  >
+                    <p className="text-text-muted text-xs uppercase tracking-widest mb-2">
+                      Теневая опора
+                    </p>
+                    <h2 className="text-[20px] font-bold" style={{ color: 'var(--accent)' }}>
+                      {secTraitInfo.title}
+                    </h2>
+                    <p className="text-text-secondary text-[14px] leading-relaxed mt-1">
+                      {secTraitInfo.subtitle}
+                    </p>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="locked"
+                    initial={{ opacity: 0, scale: 0.97 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="rounded-xl p-5 border border-border bg-bg-secondary text-center"
+                  >
+                    <p className="text-4xl mb-2">🔒</p>
+                    <p className="text-text-muted text-xs uppercase tracking-widest mb-2">
+                      Теневая опора
+                    </p>
+                    <p className="text-text-secondary text-[14px] leading-relaxed mb-3">
+                      Пригласи 2 друзей, чтобы узнать свою теневую опору!
+                    </p>
+                    <div className="flex gap-1.5 mb-3 justify-center">
+                      {Array.from({ length: REFERRALS_NEEDED }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="w-10 h-1.5 rounded-full transition-colors duration-500"
+                          style={{ background: i < refCount ? 'var(--accent)' : 'var(--bg-tertiary)' }}
+                        />
+                      ))}
+                    </div>
+                    <p className="text-text-muted text-[12px] mb-3">
+                      Приглашено: {refCount}/{REFERRALS_NEEDED}
+                    </p>
+                    <motion.button
+                      type="button"
+                      whileTap={{ scale: 0.97 }}
+                      onClick={handleShare}
+                      className="w-full py-3 rounded-xl font-semibold text-[15px] text-white select-none"
+                      style={{ background: 'var(--accent)' }}
+                    >
+                      {copied ? 'Ссылка скопирована! ✓' : '🔗 Пригласить друзей'}
+                    </motion.button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+
             {/* Surprise question */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
@@ -333,46 +400,6 @@ export default function ResultPage() {
                 </motion.button>
               </div>
             </motion.div>
-
-            {/* Referral block */}
-            {!isUnlocked && (
-              <motion.div
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.5 }}
-                className="rounded-xl p-5 border border-border bg-bg-secondary"
-              >
-                <p className="text-text-muted text-xs uppercase tracking-widest mb-2">
-                  Вторичная опора
-                </p>
-                <div className="flex gap-1.5 mb-3">
-                  {Array.from({ length: REFERRALS_NEEDED }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="flex-1 h-1.5 rounded-full transition-colors duration-500"
-                      style={{ background: i < refCount ? 'var(--accent)' : 'var(--bg-tertiary)' }}
-                    />
-                  ))}
-                </div>
-                <p className="text-text-secondary text-[14px] leading-relaxed mb-4">
-                  Пригласите{' '}
-                  <span className="text-text-primary font-medium">
-                    {REFERRALS_NEEDED - refCount}{' '}
-                    {REFERRALS_NEEDED - refCount === 1 ? 'друга' : 'друзей'}
-                  </span>
-                  , чтобы увидеть вторичную опору — <span className="font-semibold text-text-muted">???</span>.
-                </p>
-                <motion.button
-                  type="button"
-                  whileTap={{ scale: 0.97 }}
-                  onClick={handleShare}
-                  className="w-full py-3 rounded-xl font-semibold text-[15px] text-white select-none"
-                  style={{ background: 'var(--accent)' }}
-                >
-                  {copied ? 'Ссылка скопирована!' : 'Пригласить друзей'}
-                </motion.button>
-              </motion.div>
-            )}
           </>
         )}
 
@@ -385,7 +412,6 @@ export default function ResultPage() {
               transition={{ duration: 0.4 }}
               className="text-center"
             >
-              {/* Mini result image */}
               <div className="relative w-full max-h-[30vh] mb-4 rounded-2xl overflow-hidden" style={{ minHeight: '160px' }}>
                 <Image
                   src={resultImgSrc}
@@ -409,34 +435,24 @@ export default function ResultPage() {
               <p className="text-text-primary text-[15px] leading-relaxed">{traitInfo.description}</p>
             </motion.div>
 
+            {/* Response text + single "Далее ➔" button */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.3 }}
               className="text-center"
             >
-              <p className="text-text-primary text-[15px] leading-relaxed italic mb-4">{surpriseResponseText}</p>
+              <p className="text-text-primary text-[15px] leading-relaxed italic mb-5">{surpriseResponseText}</p>
 
-              <div className="flex flex-col gap-2.5">
-                <motion.button
-                  type="button"
-                  whileTap={{ scale: 0.97 }}
-                  className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
-                  style={{ background: 'var(--accent)' }}
-                  onClick={() => openTelegramDM('')}
-                >
-                  💬 Напиши мне
-                </motion.button>
-                <motion.button
-                  type="button"
-                  whileTap={{ scale: 0.97 }}
-                  className="w-full py-3 rounded-xl font-semibold text-[15px] border"
-                  style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                  onClick={goToQualification}
-                >
-                  Далее ➔
-                </motion.button>
-              </div>
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.97 }}
+                className="w-full py-4 rounded-xl font-semibold text-[16px] text-white"
+                style={{ background: 'var(--accent)' }}
+                onClick={goToQualification}
+              >
+                Далее ➔
+              </motion.button>
             </motion.div>
           </>
         )}
