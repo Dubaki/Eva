@@ -31,13 +31,19 @@ export default function Home() {
         <div className="flex flex-col gap-6">
           {/* Heading + body — no image */}
           <motion.div {...fadeUp(0.22)} className="flex flex-col gap-3">
-            <h1 className="text-[28px] font-bold leading-[1.2] tracking-[-0.02em] text-text-primary">
-              У каждого человека есть внутренняя{' '}
-              <span className="text-accent">«опора»</span>
+            <h1 className="text-[24px] font-bold leading-[1.2] tracking-[-0.02em] text-text-primary">
+              У каждого человека есть внутренняя <span className="text-accent">«опора»</span>
             </h1>
-            <p className="text-[16px] leading-[1.6] text-text-secondary opacity-90">
-              Этот короткий тест покажет механизм, через который ты сейчас живёшь.{' '}
-              <b>Проходи тест очень внимательно, следующая попытка будет через 2 месяца!</b>
+            <p className="text-[15px] leading-[1.6] text-text-secondary opacity-90">
+              — способ держать себя в жизни. Часто эта опора искажается. Снаружи это выглядит как характер или привычки, а на деле — устойчивый механизм, который:
+            </p>
+            <p className="text-[15px] leading-[1.7] text-text-secondary opacity-90">
+              — повторяет одни и те же сценарии{'\n'}
+              — создаёт одни и те же проблемы{'\n'}
+              — не даёт выйти из замкнутого круга
+            </p>
+            <p className="text-[15px] leading-[1.6] text-text-primary font-medium opacity-90">
+              Сейчас ты увидишь, какая опора у тебя доминирует.
             </p>
           </motion.div>
 

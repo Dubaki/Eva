@@ -178,14 +178,6 @@ export default function ResultPage() {
     }
   }, [refLink])
 
-  // ── Close app ────────────────────────────────────────────────────────
-  const handleCloseApp = useCallback(() => {
-    const tgWebApp = (window as unknown as { Telegram?: { WebApp?: { close?: () => void } } }).Telegram?.WebApp
-    if (tgWebApp?.close) {
-      tgWebApp.close()
-    }
-  }, [])
-
   // ── Survey ───────────────────────────────────────────────────────────
   const handleSurveyAnswer = useCallback((value: string) => {
     const next = [...surveyAnswers, value]
@@ -245,7 +237,13 @@ export default function ResultPage() {
   }, [result, openTelegramDM])
 
   // ── "Пока не готова" handler ─────────────────────────────────────────
-  const handleNotReady = useCallback(async () => {
+  const handleNotReady = useCallback(() => {
+    // Show intermediate gift screen
+    setFunnelStep('gift')
+  }, [])
+
+  // ── "Забрать подарок" handler ────────────────────────────────────────
+  const handleClaimGift = useCallback(async () => {
     // Send gift message via bot
     const token = localStorage.getItem('eva_token')
     if (token) {
@@ -529,8 +527,10 @@ export default function ResultPage() {
             className="text-center"
           >
             <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap mb-5">
-              Я обычно открываю этот слой только тем, кто идёт в работу. Потому что важно не просто увидеть, а понять, как это устроено и что с этим делать.
-              {'\n\n'}Сейчас у тебя есть возможность открыть свою теневую опору через участие. Я даю этот доступ в обмен на расширение проекта.
+              <b>Я обычно открываю этот слой только тем, кто идёт в работу.</b>{'\n'}
+              Потому что важно не просто увидеть, а понять, как это устроено и что с этим делать.
+              {'\n\n'}
+              🔥 <b>Сейчас у тебя есть возможность открыть свою теневую опору через участие</b>
             </p>
             <motion.button type="button" whileTap={{ scale: 0.97 }}
               className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
@@ -550,7 +550,9 @@ export default function ResultPage() {
             className="text-center"
           >
             <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap mb-4">
-              Ты можешь получить разбор своей второй опоры, если поделишься тестом с 2 подругами. Вот твоя персональная ссылка:
+              Ты можешь получить разбор своей второй опоры, если поделишься тестом с 2 подругами. Для этого тебе нужно скопировать ссылку и отправить подругам. Когда они пройдут тест, тебе придёт ответ.
+              {'\n\n'}
+              <i>Я даю этот доступ в обмен на расширение проекта</i>
             </p>
             <div className="bg-bg-secondary rounded-xl p-4 border border-border mb-4">
               <p className="text-accent text-[13px] break-all select-all">{refLink}</p>
@@ -572,9 +574,10 @@ export default function ResultPage() {
                 {copied ? 'Ссылка скопирована! ✓' : 'Скопировать ссылку'}
               </motion.button>
               <motion.button type="button" whileTap={{ scale: 0.97 }}
-                className="w-full py-3 rounded-xl text-[14px] text-text-muted border border-border"
-                onClick={handleCloseApp}>
-                Закрыть приложение
+                className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
+                style={{ background: 'var(--accent)' }}
+                onClick={() => setFunnelStep('survey')}>
+                Дальше — больше
               </motion.button>
             </div>
           </motion.div>
@@ -684,6 +687,31 @@ export default function ResultPage() {
                 Пока не готова
               </motion.button>
             </div>
+          </motion.div>
+        )}
+
+        {/* ════════════ GIFT SCREEN ════════════ */}
+        {funnelStep === 'gift' && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4 }}
+            className="bg-bg-secondary rounded-xl p-5 border text-center"
+            style={{ borderColor: 'color-mix(in srgb, var(--success) 40%, var(--border))' }}
+          >
+            <p className="text-success text-[17px] font-medium mb-3">
+              ♡ Благодарю тебя за честность!
+            </p>
+            <p className="text-text-secondary text-[14px] leading-relaxed whitespace-pre-wrap mb-5">
+              Честность — это то, на чем строятся все мои методы работы.{'\n\n'}
+              Чтобы тест не остался просто тестом, я дарю тебе практику по твоей напряжённой сфере. Ты можешь начать изменения уже сегодня.
+            </p>
+            <motion.button type="button" whileTap={{ scale: 0.97 }}
+              className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
+              style={{ background: 'var(--accent)' }}
+              onClick={handleClaimGift}>
+              🎁 Забрать подарок
+            </motion.button>
           </motion.div>
         )}
 
