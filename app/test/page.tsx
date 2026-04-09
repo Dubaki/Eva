@@ -14,9 +14,6 @@ const SCALE_COLOR: Record<Scale, string> = {
   'hyper-vigilance': 'var(--scale-k)',
 }
 
-const FILL_PCT = [3, 8, 16, 28, 100] as const
-const BORDER_PCT = [20, 38, 58, 78, 100] as const
-
 function ProgressBar({
   current,
   total,
@@ -65,33 +62,9 @@ function ProgressBar({
   )
 }
 
-function answerStyle(
-  value: number,
-  isSelected: boolean,
-  accentColor: string,
-): React.CSSProperties {
-  if (isSelected) {
-    return {
-      background: accentColor,
-      border: '1.5px solid ' + accentColor,
-      color: '#ffffff',
-      textShadow: '0 1px 2px rgba(0,0,0,0.3)',
-    }
-  }
-  const i = value - 1
-  const isMax = value === 5
-  return {
-    background: 'color-mix(in srgb, ' + accentColor + ' ' + FILL_PCT[i] + '%, var(--bg-secondary))',
-    border: '1.5px solid color-mix(in srgb, ' + accentColor + ' ' + BORDER_PCT[i] + '%, var(--border))',
-    color: isMax
-      ? '#ffffff'
-      : 'color-mix(in srgb, ' + accentColor + ' ' + (40 + i * 15) + '%, var(--text-secondary))',
-  }
-}
-
 export default function TestPage() {
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [selected, setSelected] = useState<number | null>(null)
+  const [selected, setSelected] = useState<'yes' | 'no' | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [answersMap, setAnswersMap] = useState<Record<number, number>>({})
   const router = useRouter()
@@ -128,18 +101,19 @@ export default function TestPage() {
   }, [router])
 
   const handleAnswer = useCallback(
-    (value: number) => {
+    (value: 'yes' | 'no') => {
       if (selected !== null) return
       setSelected(value)
-      setAnswersMap((prev) => ({ ...prev, [question.id]: value }))
+      const score = value === 'yes' ? 1 : 0
+      setAnswersMap((prev) => ({ ...prev, [question.id]: score }))
       setTimeout(() => {
         setSelected(null)
         if (currentIndex >= QUESTIONS.length - 1) {
           setSubmitting(true)
           const answers: Answer[] = Object.entries(answersMap).map(
-            ([qId, score]) => ({ questionId: Number(qId), score })
+            ([qId, s]) => ({ questionId: Number(qId), score: s })
           )
-          answers.push({ questionId: question.id, score: value })
+          answers.push({ questionId: question.id, score })
           submitAnswers(answers)
         } else {
           setCurrentIndex((i) => i + 1)
@@ -202,30 +176,37 @@ export default function TestPage() {
           </AnimatePresence>
         </div>
 
-        <div className="flex flex-col gap-2.5">
-          <div className="flex items-stretch gap-2">
-            {([1, 2, 3, 4, 5] as const).map((value) => (
-              <motion.button
-                key={value}
-                type="button"
-                whileTap={{ scale: 0.91 }}
-                transition={{ duration: 0.1 }}
-                onClick={() => handleAnswer(value)}
-                className="flex-1 aspect-square rounded-xl flex items-center justify-center text-[15px] font-semibold select-none focus:outline-none"
-                style={answerStyle(value, selected === value || currentAnswer === value, accentColor)}
-              >
-                {value}
-              </motion.button>
-            ))}
-          </div>
-          <div className="flex items-center justify-between px-0.5">
-            <span className="text-[11px] text-text-muted leading-none">
-              Совсем не про меня
-            </span>
-            <span className="text-[11px] text-text-muted leading-none">
-              Это точно я
-            </span>
-          </div>
+        {/* Yes / No buttons */}
+        <div className="flex gap-3">
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.95 }}
+            transition={{ duration: 0.1 }}
+            onClick={() => handleAnswer('yes')}
+            className="flex-1 py-4 rounded-xl font-semibold text-[16px] text-white select-none focus:outline-none"
+            style={{
+              background:
+                selected === 'yes' || currentAnswer === 1
+                  ? accentColor
+                  : 'color-mix(in srgb, ' + accentColor + ' 20%, var(--bg-secondary))',
+              border: `1.5px solid ${selected === 'yes' || currentAnswer === 1 ? accentColor : 'var(--border)'}`,
+            }}
+          >
+            Да
+          </motion.button>
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.95 }}
+            transition={{ duration: 0.1 }}
+            onClick={() => handleAnswer('no')}
+            className="flex-1 py-4 rounded-xl font-semibold text-[16px] text-text-primary select-none focus:outline-none"
+            style={{
+              background: 'var(--bg-secondary)',
+              border: `1.5px solid ${selected === 'no' || currentAnswer === 0 ? accentColor : 'var(--border)'}`,
+            }}
+          >
+            Нет
+          </motion.button>
         </div>
       </div>
     </main>
