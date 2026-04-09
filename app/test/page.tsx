@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { QUESTIONS, type Scale } from '@/lib/questions'
 import type { Answer } from '@/lib/scoring'
@@ -24,6 +25,54 @@ const SCALE_COLOR: Record<Scale, string> = {
 
 const FILL_PCT = [3, 8, 16, 28, 100] as const
 const BORDER_PCT = [20, 38, 58, 78, 100] as const
+
+function ProgressBar({
+  current,
+  total,
+  color,
+  canGoBack,
+  onBack,
+}: {
+  current: number
+  total: number
+  color: string
+  canGoBack: boolean
+  onBack: () => void
+}) {
+  const progress = ((current + 1) / total) * 100
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        {canGoBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex items-center gap-1 bg-white/10 p-2 rounded-lg text-[14px] font-medium text-text-primary hover:bg-white/20 transition-colors select-none"
+            aria-label="Previous question"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+              <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Назад
+          </button>
+        ) : (
+          <span className="w-16" />
+        )}
+        <span className="text-[13px] font-medium text-text-muted tabular-nums">
+          {current + 1}/{total}
+        </span>
+      </div>
+      <div className="h-1.5 bg-bg-tertiary rounded-full overflow-hidden">
+        <motion.div
+          className="h-full rounded-full"
+          style={{ background: color }}
+          animate={{ width: progress + '%' }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+        />
+      </div>
+    </div>
+  )
+}
 
 function answerStyle(
   value: number,
@@ -58,7 +107,6 @@ export default function TestPage() {
 
   const question = QUESTIONS[currentIndex]
   const accentColor = SCALE_COLOR[question.scale]
-  const progress = ((currentIndex + 1) / QUESTIONS.length) * 100
   const canGoBack = currentIndex > 0
   const currentAnswer = answersMap[question.id] ?? null
 
@@ -138,30 +186,26 @@ export default function TestPage() {
         )}
       </AnimatePresence>
 
-      <div className="relative w-full flex-shrink-0 px-3 pt-4 pb-2">
+      <div className="relative w-full flex-shrink-0 h-[220px] overflow-hidden">
         <AnimatePresence>
           <motion.div
             key={question.scale}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.45, ease: 'easeInOut' }}
-            className="relative flex items-center justify-center"
-            style={{ minHeight: '180px' }}
+            transition={{ duration: 0.35, ease: 'easeInOut' }}
+            className="absolute inset-0 flex items-center justify-center rounded-xl overflow-hidden"
+            style={{
+              background: 'linear-gradient(180deg, color-mix(in srgb, ' + accentColor + ' 20%, var(--bg-primary)) 0%, var(--bg-primary) 100%)',
+            }}
           >
-            <div
-              className="absolute inset-0 rounded-xl"
-              style={{
-                background: 'linear-gradient(180deg, color-mix(in srgb, ' + accentColor + ' 20%, var(--bg-primary)) 0%, var(--bg-primary) 100%)',
-              }}
-            />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <Image
               src={HERO_SRC[question.scale]}
               alt=""
               aria-hidden
-              className="relative z-10 max-h-[45vh] w-auto rounded-xl"
-              style={{ objectFit: 'contain' }}
+              fill
+              priority
+              className="object-cover"
               onError={(e) => {
                 ;(e.currentTarget as HTMLImageElement).style.display = 'none'
               }}
@@ -171,49 +215,28 @@ export default function TestPage() {
       </div>
 
       <div className="flex flex-col flex-1 px-5 pt-4 pb-8 gap-5 max-w-sm mx-auto w-full">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            {canGoBack ? (
-              <button
-                type="button"
-                onClick={handleBack}
-                className="flex items-center gap-1 bg-white/10 p-2 rounded text-[14px] font-medium text-text-primary hover:bg-white/20 transition-colors select-none"
-                aria-label="Previous question"
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-                  <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                Назад
-              </button>
-            ) : (
-              <span className="w-16" />
-            )}
-            <span className="text-[13px] font-medium text-text-muted tabular-nums">
-              {currentIndex + 1}/{QUESTIONS.length}
-            </span>
-          </div>
-          <div className="h-1.5 bg-bg-tertiary rounded-full overflow-hidden">
-            <motion.div
-              className="h-full rounded-full"
-              style={{ background: accentColor }}
-              animate={{ width: progress + '%' }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
-            />
-          </div>
-        </div>
+        <ProgressBar
+          current={currentIndex}
+          total={QUESTIONS.length}
+          color={accentColor}
+          canGoBack={canGoBack}
+          onBack={handleBack}
+        />
 
-        <AnimatePresence mode="wait">
-          <motion.p
-            key={question.id}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
-            className="text-[17px] font-medium leading-[1.55] tracking-[-0.01em] text-text-primary"
-          >
-            {question.text}
-          </motion.p>
-        </AnimatePresence>
+        <div className="min-h-[5.5rem]">
+          <AnimatePresence mode="wait">
+            <motion.p
+              key={question.id}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="text-[17px] font-medium leading-[1.55] tracking-[-0.01em] text-text-primary"
+            >
+              {question.text}
+            </motion.p>
+          </AnimatePresence>
+        </div>
 
         <div className="flex-1" />
 

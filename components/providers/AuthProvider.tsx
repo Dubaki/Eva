@@ -17,11 +17,11 @@ function isTokenValid(token: string): boolean {
   }
 }
 
-async function doAuth(initData: string): Promise<void> {
+async function doAuth(initData: string, startParam?: string): Promise<void> {
   const res = await fetch('/api/auth', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ initData }),
+    body: JSON.stringify({ initData, startParam }),
   })
 
   if (!res.ok) return
@@ -57,13 +57,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // ── Normal flow: Telegram TMA ─────────────────────────────────────────
-    const initData: string =
-      (window as unknown as { Telegram?: { WebApp?: { initData?: string } } })
-        .Telegram?.WebApp?.initData ?? ''
+    const tgWebApp = (window as unknown as {
+      Telegram?: {
+        WebApp?: {
+          initData?: string
+          initDataUnsafe?: { start_param?: string }
+        }
+      }
+    }).Telegram?.WebApp
+
+    const initData: string = tgWebApp?.initData ?? ''
 
     if (!initData) return // not running inside Telegram — skip silently
 
-    doAuth(initData).catch(() => {})
+    const startParam = tgWebApp?.initDataUnsafe?.start_param
+    doAuth(initData, startParam).catch(() => {})
   }, [])
 
   return <>{children}</>

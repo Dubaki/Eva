@@ -46,6 +46,7 @@ export default function ResultPage() {
   const [refCount, setRefCount] = useState(0)
   const [refLink, setRefLink]   = useState('')
   const [copied, setCopied]     = useState(false)
+  const [debugStartParam, setDebugStartParam] = useState<string>('—')
 
   // Qualification state
   const [showQualification, setShowQualification] = useState(false)
@@ -84,6 +85,12 @@ export default function ResultPage() {
     }
 
     setLoading(false)
+
+    // Read start_param from Telegram WebApp for debug display
+    const sp = (window as unknown as {
+      Telegram?: { WebApp?: { initDataUnsafe?: { start_param?: string } } }
+    }).Telegram?.WebApp?.initDataUnsafe?.start_param
+    setDebugStartParam(sp ?? '—')
 
     // Load tg_id for referral link generation
     const profileRaw = localStorage.getItem('eva_profile')
@@ -133,8 +140,13 @@ export default function ResultPage() {
   )
 
   const handleShare = useCallback(async () => {
-    if (!refLink) {
-      console.warn('[handleShare] refLink is empty')
+    // Fallback для appName, если env не загрузился
+    const botUsername = process.env.NEXT_PUBLIC_APP_NAME ?? 'sprosievubot'
+    const link = refLink || `https://t.me/${botUsername}`
+
+    if (!link) {
+      console.warn('[handleShare] link is empty')
+      alert('Ошибка: не удалось сформировать ссылку')
       return
     }
 
@@ -147,7 +159,7 @@ export default function ResultPage() {
         await navigator.share({
           title: 'EVA — Тест на искажённые опоры',
           text: shareText,
-          url: refLink,
+          url: link,
         })
         return
       } catch (err) {
@@ -166,21 +178,35 @@ export default function ResultPage() {
 
     if (tgWebApp?.openTelegramLink) {
       console.log('[handleShare] Using Telegram.WebApp.openTelegramLink')
-      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(shareText)}`
-      tgWebApp.openTelegramLink(shareUrl)
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(shareText)}`
+      try {
+        tgWebApp.openTelegramLink(shareUrl)
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Неизвестная ошибка'
+        console.error('[handleShare] openTelegramLink error:', err)
+        alert('Ошибка: ' + message)
+        // Fallback — копируем в буфер
+        try {
+          await navigator.clipboard.writeText(link)
+          setCopied(true)
+          setTimeout(() => setCopied(false), 3000)
+        } catch {
+          alert(`Ссылка скопирована: ${link}`)
+        }
+      }
       return
     }
 
     // 3. Fallback: копируем в буфер + уведомление
     console.log('[handleShare] Fallback: clipboard')
     try {
-      await navigator.clipboard.writeText(refLink)
+      await navigator.clipboard.writeText(link)
       setCopied(true)
       setTimeout(() => setCopied(false), 3000)
     } catch {
       // Clipboard API недоступен — последний resort: alert
       console.log('[handleShare] Clipboard unavailable, showing alert')
-      alert(`Ссылка скопирована: ${refLink}`)
+      alert(`Ссылка скопирована: ${link}`)
     }
   }, [refLink])
 
@@ -582,6 +608,11 @@ export default function ResultPage() {
         )}
 
         <div className="flex-1" />
+
+        {/* debug strip — remove after testing */}
+        <p className="text-[10px] text-text-muted text-center pb-2 select-none">
+          Start Param: {debugStartParam} | Invites: {refCount}
+        </p>
       </div>
     </main>
   )

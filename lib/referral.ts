@@ -1,18 +1,22 @@
 const BOT_USERNAME =
-  process.env.NEXT_PUBLIC_BOT_USERNAME ?? 'eva_bot'
+  process.env.NEXT_PUBLIC_BOT_USERNAME ?? 'test_opor_bot'
+
+const APP_NAME =
+  process.env.NEXT_PUBLIC_APP_NAME ?? ''
 
 /**
- * Generates a Telegram deep link that passes the user's tg_id as a start param.
- * When a friend opens this link, the bot receives /start ref{tgId}.
+ * Generates a Telegram Mini App deep link with startapp param.
+ * Format: https://t.me/<BOT>/<APP>?startapp=ref_<tgId>
  */
 export function getReferralLink(tgId: number): string {
-  return `https://t.me/${BOT_USERNAME}?start=ref${tgId}`
+  const base = APP_NAME
+    ? `https://t.me/${BOT_USERNAME}/${APP_NAME}`
+    : `https://t.me/${BOT_USERNAME}`
+  return `${base}?startapp=ref_${tgId}`
 }
 
 /**
  * Opens the Telegram share sheet for the referral link.
- * In TMA: uses WebApp.openTelegramLink (native share).
- * In browser (dev/desktop): falls back to clipboard.
  */
 export function shareReferralLink(
   link: string,
@@ -35,7 +39,6 @@ export function shareReferralLink(
     // not in TMA
   }
 
-  // Fallback for dev / desktop browser
   navigator.clipboard.writeText(link).catch(() => {
     window.open(shareUrl, '_blank')
   })

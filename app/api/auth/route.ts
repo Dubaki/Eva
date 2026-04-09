@@ -125,7 +125,8 @@ export async function POST(req: NextRequest) {
     return fail('Missing initData', 400)
   }
 
-  const initData = (body as { initData: string }).initData
+  const initData = (body as { initData: string; startParam?: string }).initData
+  const startParam = (body as { initData: string; startParam?: string }).startParam
 
   // ── Debug bypass (development only, never runs in production) ───────────
   if (process.env.NODE_ENV === 'development' && initData === 'debug') {
@@ -175,7 +176,7 @@ export async function POST(req: NextRequest) {
   const { data: profile, error: dbError } = await supabase
     .from('profiles')
     .upsert(upsertData, { onConflict: 'tg_id', ignoreDuplicates: false })
-    .select('id, tg_id, username, avatar_url, is_subscribed, created_at')
+    .select('id, tg_id, username, avatar_url, is_subscribed, referrer_id, created_at')
     .single()
 
   if (dbError || !profile) {
@@ -183,7 +184,34 @@ export async function POST(req: NextRequest) {
     return fail('Database error', 500)
   }
 
-  // 3. Issue 7-day Supabase-compatible JWT
+  // 3. Process referral if this is a new user (no referrer_id yet)
+  // Supports both formats: "ref_123" (startapp) and "ref123" (legacy /start)
+  if (startParam?.startsWith('ref') && !profile.referrer_id) {
+    const raw = startParam.startsWith('ref_') ? startParam.slice(4) : startParam.slice(3)
+    const refTgId = parseInt(raw, 10)
+    if (!isNaN(refTgId) && refTgId !== user.id) {
+      const { data: referrer } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('tg_id', refTgId)
+        .single()
+
+      if (referrer) {
+        // Mark referrer on the new user's profile
+        await supabase
+          .from('profiles')
+          .update({ referrer_id: referrer.id })
+          .eq('id', profile.id)
+
+        // Insert referral record (ignore duplicate errors)
+        await supabase
+          .from('referrals')
+          .insert({ owner_id: referrer.id, invited_id: profile.id, status: 'pending' })
+      }
+    }
+  }
+
+  // 5. Issue 7-day Supabase-compatible JWT
   const now = Math.floor(Date.now() / 1000)
   const token = signJwt(
     {
