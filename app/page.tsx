@@ -1,7 +1,10 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+
+const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
 
 const fadeUp = (delay: number) => ({
   initial: { opacity: 0, y: 20 },
@@ -10,6 +13,18 @@ const fadeUp = (delay: number) => ({
 })
 
 export default function Home() {
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    const profileRaw = localStorage.getItem('eva_profile')
+    if (profileRaw) {
+      try {
+        const p = JSON.parse(profileRaw) as { tg_id?: number }
+        if (TESTER_IDS.includes(String(p.tg_id))) setIsAdmin(true)
+      } catch { /* ignore */ }
+    }
+  }, [])
+
   return (
     <main className="flex h-screen flex-col bg-bg-primary overflow-hidden">
       <div className="flex flex-col flex-1 px-6 pt-12 pb-10 justify-between">
@@ -37,10 +52,10 @@ export default function Home() {
           </motion.div>
         </div>
 
-        {/* CTA button — with extra air above */}
+        {/* CTA button + Admin link */}
         <motion.div
           {...fadeUp(0.52)}
-          className="w-full mt-auto"
+          className="w-full mt-auto flex flex-col gap-3"
         >
           <Link href="/test" prefetch={true} className="block w-full">
             <button
@@ -50,6 +65,17 @@ export default function Home() {
               ✨ Пройти тест
             </button>
           </Link>
+
+          {isAdmin && (
+            <Link href="/admin" className="block w-full">
+              <button
+                type="button"
+                className="w-full py-2.5 rounded-xl text-[12px] font-medium text-text-muted border border-border hover:text-accent hover:border-accent transition-colors select-none"
+              >
+                👑 Админ-панель
+              </button>
+            </Link>
+          )}
         </motion.div>
       </div>
     </main>

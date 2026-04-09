@@ -3,7 +3,7 @@ import { getSupabaseServer } from '@/lib/supabase/server'
 import { calculateScores, type Answer } from '@/lib/scoring'
 
 const COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000 // 60 days in ms
-const TESTER_IDS = [1149371967, 5930269100, 1419397753]
+const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
 
 export async function POST(request: NextRequest) {
   let profileId: string | undefined
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
         .eq('id', profileId)
         .single()
 
-      if (profile?.tg_id && !TESTER_IDS.includes(profile.tg_id) && profile?.last_test_date) {
+      if (profile?.tg_id && !TESTER_IDS.includes(String(profile.tg_id)) && profile?.last_test_date) {
         const lastTest = new Date(profile.last_test_date).getTime()
         const now = Date.now()
         const elapsed = now - lastTest

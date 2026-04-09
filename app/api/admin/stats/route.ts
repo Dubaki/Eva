@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyJwt } from '@/lib/jwt'
 import { getSupabaseServer } from '@/lib/supabase/server'
 
-const TESTER_IDS = [1149371967, 5930269100, 1419397753]
+const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
 
 export async function GET(req: NextRequest) {
   const jwtSecret = process.env.SUPABASE_JWT_SECRET
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     .eq('id', payload.sub)
     .single()
 
-  if (!profile || !TESTER_IDS.includes(Number(profile.tg_id))) {
+  if (!profile || !TESTER_IDS.includes(String(profile.tg_id))) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 })
   }
 

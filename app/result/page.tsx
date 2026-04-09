@@ -16,7 +16,7 @@ type StoredProfile = { id: string; tg_id: number; username: string | null }
 
 const REFERRALS_NEEDED = 2
 const AUTHOR_USERNAME = 'evapatrakhina'
-const TESTER_IDS = [1149371967, 5930269100, 1419397753]
+const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
 
 // Result images mapping per task spec
 const RESULT_IMG: Record<string, string> = {
@@ -60,7 +60,6 @@ export default function ResultPage() {
   const [qualSubmitting, setQualSubmitting] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [pendingAnswer, setPendingAnswer] = useState<'yes' | 'no' | null>(null)
-  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     const stored = sessionStorage.getItem('eva_result')
@@ -84,15 +83,6 @@ export default function ResultPage() {
 
     if (!stored) fetchResult()
     setLoading(false)
-
-    // Check if admin (any tester can access admin panel)
-    const profileRaw = localStorage.getItem('eva_profile')
-    if (profileRaw) {
-      try {
-        const p = JSON.parse(profileRaw) as StoredProfile
-        if (TESTER_IDS.includes(Number(p.tg_id))) setIsAdmin(true)
-      } catch { /* ignore */ }
-    }
 
     // Fetch referral count
     const tkn = localStorage.getItem('eva_token')
@@ -669,16 +659,6 @@ export default function ResultPage() {
           onConfirm={handleConfirmProceed}
           onCancel={handleConfirmCancel}
         />
-
-        {/* Admin button (only for author) */}
-        {isAdmin && (
-          <a
-            href="/admin"
-            className="block w-full py-2.5 rounded-xl text-center text-[12px] font-medium text-text-muted border border-border hover:text-accent hover:border-accent transition-colors select-none"
-          >
-            👑 Админ-панель
-          </a>
-        )}
       </div>
     </main>
   )

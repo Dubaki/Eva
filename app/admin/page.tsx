@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 
-const TESTER_IDS = [1149371967, 5930269100, 1419397753]
+const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
 
 type AdminStats = {
   totalUsers: number
@@ -40,7 +40,7 @@ export default function AdminPanel() {
     if (profileRaw) {
       try {
         const p = JSON.parse(profileRaw) as { tg_id?: number }
-        authorized = TESTER_IDS.includes(Number(p.tg_id))
+        authorized = TESTER_IDS.includes(String(p.tg_id))
       } catch { /* ignore */ }
     }
 

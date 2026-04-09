@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 
-const TESTER_IDS = [1149371967, 5930269100, 1419397753]
+const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
 
 export default function Gatekeeper({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true)
@@ -41,7 +41,7 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
           } catch { /* ignore */ }
         }
 
-        const isTester = tgId !== null && TESTER_IDS.includes(tgId)
+        const isTester = tgId !== null && TESTER_IDS.includes(String(tgId))
 
         // God mode: testers bypass all checks
         if (isTester) {
