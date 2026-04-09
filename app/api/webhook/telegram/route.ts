@@ -172,6 +172,16 @@ async function handleDefaultMessage(chatId: number, firstName?: string): Promise
 
 export async function POST(req: NextRequest) {
   try {
+    // ── AGGRESSIVE LOGGING: dump entire incoming request ──
+    let rawBody: string
+    try {
+      rawBody = await req.text()
+      console.log('=== WEBHOOK RECEIVED ===', rawBody)
+    } catch (e) {
+      console.error('=== WEBHOOK RECEIVED (failed to read body) ===', e)
+      rawBody = ''
+    }
+
     // 1. Validate secret token
     if (!validateSecretToken(req)) {
       console.warn('[webhook] Invalid secret token')
@@ -181,7 +191,7 @@ export async function POST(req: NextRequest) {
     // 2. Parse body — handle unexpected formats gracefully
     let update: TelegramUpdate | undefined
     try {
-      update = await req.json()
+      update = JSON.parse(rawBody)
     } catch {
       console.warn('[webhook] Invalid JSON body')
       return new NextResponse('Bad Request', { status: 400 })
@@ -193,82 +203,84 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Handle different update types
+    try {
+      // — Message —
+      if (update.message) {
+        const { chat, text, from, web_app_data } = update.message
 
-    // — Message —
-    if (update.message) {
-      const { chat, text, from, web_app_data } = update.message
-
-      if (!chat || typeof chat.id !== 'number') {
-        console.warn('[webhook] Message without chat id')
-        return new NextResponse('OK')
-      }
-
-      // Handle WebApp data submission (if any)
-      if (web_app_data) {
-        console.log('[webhook] WebApp data received:', web_app_data.data)
-        return new NextResponse('OK')
-      }
-
-      const msgText = text?.trim() ?? ''
-
-      if (msgText === '/start' || msgText.startsWith('/start ')) {
-        const refCode = extractReferralCode(msgText)
-        if (refCode) {
-          console.log(`[webhook] /start with referral code: ${refCode}`)
-        }
-        const userId = from?.id ?? 0
-        await handleStart(chat.id, userId, refCode, from?.first_name)
-      } else {
-        // Any other message — show welcome with TMA button
-        await handleDefaultMessage(chat.id, from?.first_name)
-      }
-    }
-
-    // — Callback Query (inline button presses) —
-    else if (update.callback_query) {
-      const { id: callbackId, from, message, data } = update.callback_query
-      const chatId = message?.chat?.id
-
-      if (chatId && from) {
-        console.log(`[webhook] Callback: ${data} from user ${from.id}`)
-
-        // Parse callback data: "check_subscription" or "check_sub_<refCode>"
-        let refCode: number | null = null
-        const refMatch = data?.match(/^check_sub_(\d+)$/)
-        if (refMatch) {
-          refCode = parseInt(refMatch[1], 10)
+        if (!chat || typeof chat.id !== 'number') {
+          console.warn('[webhook] Message without chat id')
+          return new NextResponse('OK')
         }
 
-        if (data === 'check_subscription' || refMatch) {
-          await handleSubscriptionCheck(callbackId, from.id, chatId, refCode)
+        // Handle WebApp data submission (if any)
+        if (web_app_data) {
+          console.log('[webhook] WebApp data received:', web_app_data.data)
+          return new NextResponse('OK')
+        }
+
+        const msgText = text?.trim() ?? ''
+
+        if (msgText === '/start' || msgText.startsWith('/start ')) {
+          const refCode = extractReferralCode(msgText)
+          if (refCode) {
+            console.log(`[webhook] /start with referral code: ${refCode}`)
+          }
+          const userId = from?.id ?? 0
+          await handleStart(chat.id, userId, refCode, from?.first_name)
         } else {
-          // Unknown callback — just respond with default message
-          await handleDefaultMessage(chatId, undefined)
+          // Any other message — show welcome with TMA button
+          await handleDefaultMessage(chat.id, from?.first_name)
         }
       }
+
+      // — Callback Query (inline button presses) —
+      else if (update.callback_query) {
+        const { id: callbackId, from, message, data } = update.callback_query
+        const chatId = message?.chat?.id
+
+        if (chatId && from) {
+          console.log(`[webhook] Callback: ${data} from user ${from.id}`)
+
+          // Parse callback data: "check_subscription" or "check_sub_<refCode>"
+          let refCode: number | null = null
+          const refMatch = data?.match(/^check_sub_(\d+)$/)
+          if (refMatch) {
+            refCode = parseInt(refMatch[1], 10)
+          }
+
+          if (data === 'check_subscription' || refMatch) {
+            await handleSubscriptionCheck(callbackId, from.id, chatId, refCode)
+          } else {
+            // Unknown callback — just respond with default message
+            await handleDefaultMessage(chatId, undefined)
+          }
+        }
+      }
+
+      // — Chat Member Updates (subscription tracking) —
+      else if (update.my_chat_member) {
+        const { chat, from, new_chat_member, old_chat_member } = update.my_chat_member
+        console.log(
+          `[webhook] Chat member: user ${from.id} in chat ${chat.id} ` +
+          `${old_chat_member.status} → ${new_chat_member.status}`
+        )
+        // TODO: Update profiles.is_subscribed in Supabase
+      }
+
+      // — Unknown update type —
+      else {
+        console.log('[webhook] Unknown update type, ignoring')
+      }
+    } catch (handlerErr) {
+      console.error('WEBHOOK CRASH:', handlerErr)
     }
 
-    // — Chat Member Updates (subscription tracking) —
-    else if (update.my_chat_member) {
-      const { chat, from, new_chat_member, old_chat_member } = update.my_chat_member
-      console.log(
-        `[webhook] Chat member: user ${from.id} in chat ${chat.id} ` +
-        `${old_chat_member.status} → ${new_chat_member.status}`
-      )
-      // TODO: Update profiles.is_subscribed in Supabase
-    }
-
-    // — Unknown update type —
-    else {
-      console.log('[webhook] Unknown update type, ignoring')
-    }
-
-    // Always respond with 200 to Telegram
+    // Always respond with 200 to Telegram — even if handler crashed
     return new NextResponse('OK')
   } catch (err) {
-    console.error('[webhook] Unexpected error:', err)
-    // Still respond with 200 — Telegram will retry on 5xx
-    return new NextResponse('Internal Server Error', { status: 500 })
+    console.error('WEBHOOK CRASH (top-level):', err)
+    return new NextResponse('OK')
   }
 }
 
