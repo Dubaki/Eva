@@ -218,6 +218,28 @@ export default function ResultPage() {
     }
   }, [])
 
+  // ── Notify author (fire-and-forget) ─────────────────────────────────────
+  const notifyAuthor = useCallback((selectedFormat: string) => {
+    const profileRaw = localStorage.getItem('eva_profile')
+    let userId: number | null = null
+    let firstName: string | null = null
+    let username: string | null = null
+    if (profileRaw) {
+      try {
+        const p = JSON.parse(profileRaw) as StoredProfile
+        userId = p.tg_id ?? null
+        username = p.username ?? null
+      } catch { /* ignore */ }
+    }
+
+    // Fire-and-forget: don't await, don't block the user
+    fetch('/api/notify-author', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, firstName, username, selectedFormat }),
+    }).catch((err) => console.error('[notify-author] Fetch error:', err))
+  }, [])
+
   // ── Open Telegram DM with pre-filled text ─────────────────────────────
   const openTelegramDM = useCallback((prefill: string) => {
     const tgWebApp = (window as unknown as {
@@ -569,7 +591,10 @@ export default function ResultPage() {
                 whileTap={{ scale: 0.97 }}
                 className="w-full py-4 rounded-xl font-semibold text-[16px] text-white"
                 style={{ background: 'var(--accent)' }}
-                onClick={() => openTelegramDM('Пробой')}
+                onClick={() => {
+                  notifyAuthor('Пробой')
+                  openTelegramDM('Пробой')
+                }}
               >
                 🔥 Быстрый формат работы
               </motion.button>
@@ -579,7 +604,10 @@ export default function ResultPage() {
                 whileTap={{ scale: 0.97 }}
                 className="w-full py-4 rounded-xl font-semibold text-[16px] border"
                 style={{ background: 'transparent', borderColor: 'var(--accent)', color: 'var(--accent)' }}
-                onClick={() => openTelegramDM('Пирамида')}
+                onClick={() => {
+                  notifyAuthor('Пирамида')
+                  openTelegramDM('Пирамида')
+                }}
               >
                 🌱 Мягкий формат работы
               </motion.button>
