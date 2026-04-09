@@ -33,7 +33,8 @@ export default function Home() {
               <span className="text-accent">«опора»</span>
             </h1>
             <p className="text-[16px] leading-[1.6] text-text-secondary opacity-90">
-              Этот короткий тест покажет механизм, через который ты сейчас живёшь.
+              Этот короткий тест покажет механизм, через который ты сейчас живёшь.{' '}
+              <b>Проходи тест очень внимательно, следующая попытка будет через 2 месяца!</b>
             </p>
           </motion.div>
 

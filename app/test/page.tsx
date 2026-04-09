@@ -2,18 +2,9 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { QUESTIONS, type Scale } from '@/lib/questions'
 import type { Answer } from '@/lib/scoring'
-
-const HERO_SRC: Record<Scale, string> = {
-  performance: '/hero.png',
-  pleasing: '/pleaser.png',
-  perfection: '/perfectionist.png',
-  'hyper-vigilance': '/stayer.png',
-  control: '/controller.png',
-}
 
 const SCALE_COLOR: Record<Scale, string> = {
   performance: 'var(--scale-s)',
@@ -186,35 +177,7 @@ export default function TestPage() {
         )}
       </AnimatePresence>
 
-      <div className="relative w-full flex-shrink-0 h-[220px] overflow-hidden">
-        <AnimatePresence>
-          <motion.div
-            key={question.scale}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.35, ease: 'easeInOut' }}
-            className="absolute inset-0 flex items-center justify-center rounded-xl overflow-hidden"
-            style={{
-              background: 'linear-gradient(180deg, color-mix(in srgb, ' + accentColor + ' 20%, var(--bg-primary)) 0%, var(--bg-primary) 100%)',
-            }}
-          >
-            <Image
-              src={HERO_SRC[question.scale]}
-              alt=""
-              aria-hidden
-              fill
-              priority
-              className="object-cover"
-              onError={(e) => {
-                ;(e.currentTarget as HTMLImageElement).style.display = 'none'
-              }}
-            />
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      <div className="flex flex-col flex-1 px-5 pt-4 pb-8 gap-5 max-w-sm mx-auto w-full">
+      <div className="flex flex-col flex-1 px-5 pt-6 pb-8 gap-5 max-w-sm mx-auto w-full">
         <ProgressBar
           current={currentIndex}
           total={QUESTIONS.length}

@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getTraitInfo } from '@/lib/scoring'
-import { getReferralLink, shareReferralLink } from '@/lib/referral'
 
 type ResultData = {
   dominantTrait: string
@@ -15,24 +15,13 @@ type StoredProfile = { id: string; tg_id: number; username: string | null }
 
 const REFERRALS_NEEDED = 2
 
-const TRAIT_LABELS: Record<string, string> = {
-  S: 'Самоценность',
-  U: 'Перфекционизм',
-  P: 'Угодничество',
-  R: 'Контроль',
-  K: 'Сверхбдительность',
+const RESULT_IMG: Record<string, string> = {
+  S: '/result_s.png',
+  U: '/result_u.png',
+  P: '/result_p.png',
+  R: '/result_r.png',
+  K: '/result_k.png',
 }
-
-const TRAIT_COLORS: Record<string, string> = {
-  S: 'var(--scale-s)',
-  U: 'var(--scale-u)',
-  P: 'var(--scale-p)',
-  R: 'var(--scale-r)',
-  K: 'var(--scale-k)',
-}
-
-const SCALE_ORDER = ['S', 'U', 'P', 'R', 'K'] as const
-const MAX_SCORE = 25
 
 // ── Qualification questions ────────────────────────────────────────────────
 
@@ -97,8 +86,8 @@ export default function ResultPage() {
     if (profileRaw) {
       try {
         const profile = JSON.parse(profileRaw) as StoredProfile
-        const link = profile.tg_id ? getReferralLink(profile.tg_id) : ''
-        const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME ?? 'eva_bot'
+        const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME ?? 'sprosievubot'
+        const link = profile.tg_id ? `https://t.me/${botUsername}?start=ref_${profile.tg_id}` : ''
         setRefLink(link || `https://t.me/${botUsername}`)
       } catch { /* ignore */ }
     }
@@ -140,75 +129,59 @@ export default function ResultPage() {
   )
 
   const handleShare = useCallback(async () => {
-    // Fallback для appName, если env не загрузился
-    const botUsername = process.env.NEXT_PUBLIC_APP_NAME ?? 'sprosievubot'
-    const link = refLink || `https://t.me/${botUsername}`
-
-    if (!link) {
-      console.warn('[handleShare] link is empty')
-      alert('Ошибка: не удалось сформировать ссылку')
-      return
+    // Build referral link: https://t.me/sprosievubot?start=ref_[USER_ID]
+    const profileRaw = localStorage.getItem('eva_profile')
+    let userId: number | null = null
+    if (profileRaw) {
+      try {
+        const p = JSON.parse(profileRaw) as StoredProfile
+        userId = p.tg_id
+      } catch { /* ignore */ }
     }
+    const shareUrl = userId
+      ? `https://t.me/share/url?url=${encodeURIComponent(`https://t.me/sprosievubot?start=ref_${userId}`)}&text=${encodeURIComponent('Пройди этот тест и узнай свою внутреннюю опору!')}`
+      : `https://t.me/share/url?url=${encodeURIComponent('https://t.me/sprosievubot')}&text=${encodeURIComponent('Пройди этот тест и узнай свою внутреннюю опору!')}`
 
-    const shareText = 'Пройди тест и узнай свою внутреннюю опору'
-
-    // 1. Пробуем нативный Web Share API (мобильные браузеры)
+    // 1. Пробуем нативный Web Share API
     if (navigator.share) {
-      console.log('[handleShare] Using navigator.share')
       try {
         await navigator.share({
           title: 'EVA — Тест на искажённые опоры',
-          text: shareText,
-          url: link,
+          text: 'Пройди этот тест и узнай свою внутреннюю опору!',
+          url: userId ? `https://t.me/sprosievubot?start=ref_${userId}` : 'https://t.me/sprosievubot',
         })
         return
-      } catch (err) {
-        // Пользователь отменил — не ошибка
-        console.log('[handleShare] navigator.share cancelled by user')
-        return
+      } catch {
+        // user cancelled — not an error
       }
     }
 
-    // 2. Пробуем Telegram WebApp
-    const tgWebApp = (
-      window as unknown as {
-        Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } }
-      }
-    ).Telegram?.WebApp
+    // 2. Telegram WebApp
+    const tgWebApp = (window as unknown as {
+      Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } }
+    }).Telegram?.WebApp
 
     if (tgWebApp?.openTelegramLink) {
-      console.log('[handleShare] Using Telegram.WebApp.openTelegramLink')
-      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(shareText)}`
       try {
         tgWebApp.openTelegramLink(shareUrl)
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Неизвестная ошибка'
+        const msg = err instanceof Error ? err.message : 'Неизвестная ошибка'
         console.error('[handleShare] openTelegramLink error:', err)
-        alert('Ошибка: ' + message)
-        // Fallback — копируем в буфер
-        try {
-          await navigator.clipboard.writeText(link)
-          setCopied(true)
-          setTimeout(() => setCopied(false), 3000)
-        } catch {
-          alert(`Ссылка скопирована: ${link}`)
-        }
+        alert('Ошибка: ' + msg)
       }
       return
     }
 
-    // 3. Fallback: копируем в буфер + уведомление
-    console.log('[handleShare] Fallback: clipboard')
+    // 3. Fallback: clipboard
     try {
+      const link = userId ? `https://t.me/sprosievubot?start=ref_${userId}` : 'https://t.me/sprosievubot'
       await navigator.clipboard.writeText(link)
       setCopied(true)
       setTimeout(() => setCopied(false), 3000)
     } catch {
-      // Clipboard API недоступен — последний resort: alert
-      console.log('[handleShare] Clipboard unavailable, showing alert')
-      alert(`Ссылка скопирована: ${link}`)
+      alert('Скопируйте ссылку: https://t.me/sprosievubot')
     }
-  }, [refLink])
+  }, [])
 
   async function submitQualification(finalAnswers: {
     tension_sphere: string
@@ -278,19 +251,39 @@ export default function ResultPage() {
 
   const traitInfo      = getTraitInfo(result.dominantTrait)
   const secTraitInfo   = getTraitInfo(result.secondaryTrait)
-  const dominantColor  = TRAIT_COLORS[result.dominantTrait]  ?? 'var(--accent)'
-  const secondaryColor = TRAIT_COLORS[result.secondaryTrait] ?? 'var(--text-muted)'
+  const dominantColor  = 'var(--accent)'
+  const secondaryColor = 'var(--text-muted)'
   const isUnlocked     = refCount >= REFERRALS_NEEDED
+  const resultImgSrc   = RESULT_IMG[result.dominantTrait] ?? '/hero.png'
 
   return (
     <main className="flex flex-col min-h-screen bg-bg-primary">
       <div className="flex flex-col flex-1 px-5 pt-10 pb-8 max-w-sm mx-auto w-full gap-6">
 
+        {/* ── Персонализированная картинка результата ─────────── */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className="relative w-full aspect-[4/5] rounded-2xl overflow-hidden"
+        >
+          <Image
+            src={resultImgSrc}
+            alt={`Результат: ${traitInfo.title}`}
+            fill
+            priority
+            className="object-contain"
+            onError={(e) => {
+              ;(e.currentTarget as HTMLImageElement).style.display = 'none'
+            }}
+          />
+        </motion.div>
+
         {/* ── Заголовок ─────────────────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
+          transition={{ duration: 0.4, ease: 'easeOut', delay: 0.2 }}
           className="text-center"
         >
           <p className="text-text-muted text-xs uppercase tracking-widest mb-3">
@@ -307,73 +300,48 @@ export default function ResultPage() {
           </p>
         </motion.div>
 
-        {/* ── WOW: анимированная визуализация шкал ──────────────── */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="flex flex-col gap-3 bg-bg-secondary rounded-xl p-5 border border-border"
-        >
-          <p className="text-text-muted text-xs uppercase tracking-widest text-center mb-1">
-            Все 5 шкал
-          </p>
-          {SCALE_ORDER.map((key, i) => {
-            const score = result.scores[key] ?? 0
-            const pct = Math.round((score / MAX_SCORE) * 100)
-            const isDominant = key === result.dominantTrait
-            const color = TRAIT_COLORS[key] ?? 'var(--text-muted)'
-
-            return (
-              <motion.div
-                key={key}
-                initial={{ opacity: 0, scaleX: 0 }}
-                animate={{ opacity: 1, scaleX: 1 }}
-                transition={{
-                  duration: 0.5,
-                  delay: 0.4 + i * 0.1,
-                  ease: 'easeOut',
-                }}
-                className="flex items-center gap-3"
-              >
-                <span
-                  className={`text-[13px] font-medium w-[120px] text-right flex-shrink-0 ${
-                    isDominant ? 'font-semibold' : 'text-text-secondary'
-                  }`}
-                  style={isDominant ? { color } : undefined}
-                >
-                  {TRAIT_LABELS[key]}
-                </span>
-                <div className="flex-1 h-2.5 bg-bg-tertiary rounded-full overflow-hidden">
-                  <motion.div
-                    className="h-full rounded-full"
-                    style={{ background: color }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${pct}%` }}
-                    transition={{
-                      duration: 0.6,
-                      delay: 0.5 + i * 0.1,
-                      ease: 'easeOut',
-                    }}
-                  />
-                </div>
-                <span className="text-[12px] text-text-muted tabular-nums w-8 flex-shrink-0">
-                  {score}
-                </span>
-              </motion.div>
-            )
-          })}
-        </motion.div>
-
         {/* ── Описание ──────────────────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.8 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
           className="bg-bg-secondary rounded-xl p-5 border border-border"
         >
           <p className="text-text-primary text-[15px] leading-relaxed">
             {traitInfo.description}
           </p>
+        </motion.div>
+
+        {/* ── Интерактив: Ты узнала? ────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.4 }}
+          className="text-center"
+        >
+          <p className="text-text-primary text-[16px] font-medium mb-3">
+            Ты узнала свою искажённую опору?
+          </p>
+          <div className="flex gap-3">
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.95 }}
+              className="flex-1 py-3 rounded-xl font-semibold text-[15px] text-white"
+              style={{ background: 'var(--accent)' }}
+              onClick={() => alert('Отлично! Переходим дальше...')}
+            >
+              Да
+            </motion.button>
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.95 }}
+              className="flex-1 py-3 rounded-xl font-semibold text-[15px] border"
+              style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+              onClick={() => alert('Поняла! Расскажу подробнее...')}
+            >
+              Нет
+            </motion.button>
+          </div>
         </motion.div>
 
         {/* ── Вторичная опора (locked / unlocked) ──────────────────── */}
