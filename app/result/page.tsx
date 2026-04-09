@@ -20,14 +20,14 @@ const AUTHOR_USERNAME = 'evapatrakhina'
 const MIXED_TRAIT_NAMES: Record<string, string> = {
   SU: 'S+U — Тихий тащитель',
   SP: 'S+P — Машина результата',
-  RS: 'R+S — Опора для всех',
-  KS: 'K+S — Железная система',
-  PU: 'P+U — Идеальная для всех',
-  RU: 'R+U — Спасатель',
-  KU: 'K+U — Тревожный угодник',
+  RS: 'S+R — Опора для всех',
+  KS: 'S+K — Железная система',
+  PU: 'U+P — Идеальная для всех',
+  RU: 'U+R — Спасатель',
+  KU: 'U+K — Тревожный угодник',
   PR: 'P+R — Социальный идеал',
-  KP: 'K+P — Тревожный достигатор',
-  KR: 'K+R — Сканер угроз',
+  KP: 'P+K — Тревожный достигатор',
+  KR: 'R+K — Сканер угроз',
 }
 
 // Helper: get mixed trait key from scores
@@ -47,7 +47,7 @@ const RESULT_IMG: Record<string, string> = {
   K: '/controller.png',
 }
 
-// Survey questions for soft path
+// Survey questions
 const SURVEY_Q1 = ['Деньги', 'Отношения', 'Здоровье', 'Другое', 'Везде']
 const SURVEY_Q2 = ['Сильно мешает', 'Пока терпимо', 'Фоново']
 const SURVEY_Q3 = ['Да, многое', 'Немного', 'Нет']
@@ -56,13 +56,12 @@ type FunnelStep =
   | 'result'
   | 'surprise-response-yes'
   | 'surprise-response-no'
-  | 'hook'                    // "Хочешь увидеть вторую..." Да/Не сегодня
-  | 'cooldown-message'        // "Сейчас нет смысла..."
-  | 'fast-path'               // Вариант 1 (Пробой) + Вариант 2 (рефералка)
-  | 'soft-path-survey'         // Анкета
-  | 'soft-path-offer'          // Оффер с двумя кнопками
-  | 'soft-path-gift'           // Забрать подарок
-  | 'referral-link'            // Показать реферальную ссылку
+  | 'cooldown-message'
+  | 'referral-gate'
+  | 'referral-link'
+  | 'survey'
+  | 'offer'
+  | 'gift'
 
 export default function ResultPage() {
   const [result, setResult] = useState<ResultData | null>(null)
@@ -136,21 +135,54 @@ export default function ResultPage() {
     setPendingAnswer(null)
   }, [])
 
-  // ── Hook answer (Да!!! / Не сегодня) ─────────────────────────────────
-  const handleHookAnswer = useCallback((wantSecond: boolean) => {
-    if (wantSecond) {
-      setFunnelStep('fast-path')
-    } else {
-      setFunnelStep('cooldown-message')
-    }
-  }, [])
-
   // ── Cooldown screen buttons ──────────────────────────────────────────
   const handleCooldownButton = useCallback((goFast: boolean) => {
     if (goFast) {
-      setFunnelStep('fast-path')
+      setFunnelStep('referral-gate')
     } else {
-      setFunnelStep('soft-path-survey')
+      setFunnelStep('survey')
+    }
+  }, [])
+
+  // ── Referral gate: "Открыть за рекомендацию" ─────────────────────────
+  const handleReferralGate = useCallback(() => {
+    const link = userTgId
+      ? `https://t.me/sprosievubot?start=ref_${userTgId}`
+      : 'https://t.me/sprosievubot'
+    setRefLink(link)
+    setFunnelStep('referral-link')
+  }, [userTgId])
+
+  // ── Share via Telegram ───────────────────────────────────────────────
+  const handleShare = useCallback(() => {
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('Пройди этот тест и узнай свою внутреннюю опору!')}`
+    const tgWebApp = (window as unknown as {
+      Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } }
+    }).Telegram?.WebApp
+
+    if (tgWebApp?.openTelegramLink) {
+      tgWebApp.openTelegramLink(shareUrl)
+    } else if (navigator.share) {
+      navigator.share({ title: 'EVA', text: 'Пройди этот тест!', url: refLink }).catch(() => { /* ignore */ })
+    }
+  }, [refLink])
+
+  // ── Copy link ────────────────────────────────────────────────────────
+  const handleCopyLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(refLink)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 3000)
+    } catch {
+      alert(`Скопируйте: ${refLink}`)
+    }
+  }, [refLink])
+
+  // ── Close app ────────────────────────────────────────────────────────
+  const handleCloseApp = useCallback(() => {
+    const tgWebApp = (window as unknown as { Telegram?: { WebApp?: { close?: () => void } } }).Telegram?.WebApp
+    if (tgWebApp?.close) {
+      tgWebApp.close()
     }
   }, [])
 
@@ -161,7 +193,7 @@ export default function ResultPage() {
     if (surveyStep < 2) {
       setSurveyStep(surveyStep + 1)
     } else {
-      setFunnelStep('soft-path-offer')
+      setFunnelStep('offer')
     }
   }, [surveyAnswers, surveyStep])
 
@@ -180,25 +212,6 @@ export default function ResultPage() {
     }
   }, [])
 
-  // ── Referral link ────────────────────────────────────────────────────
-  const handleShowReferralLink = useCallback(async () => {
-    const link = userTgId
-      ? `https://t.me/sprosievubot?start=ref_${userTgId}`
-      : 'https://t.me/sprosievubot'
-    setRefLink(link)
-
-    // Cheat code: trigger mixed trait send to user's Telegram
-    const token = localStorage.getItem('eva_token')
-    if (token) {
-      fetch('/api/test/debug-mixed-trait', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch((err) => console.error('[debug-mixed-trait] Error:', err))
-    }
-
-    setFunnelStep('referral-link')
-  }, [userTgId])
-
   // ── Proboy click: notify author then open Telegram ───────────────────
   const handleProboyClick = useCallback(() => {
     const profileRaw = localStorage.getItem('eva_profile')
@@ -213,11 +226,9 @@ export default function ResultPage() {
       } catch { /* ignore */ }
     }
 
-    // Compute mixed trait from result scores
     const mixedKey = result ? getMixedTraitKey(result.scores) : ''
     const mixedTraitName = MIXED_TRAIT_NAMES[mixedKey] || 'Не определено'
 
-    // Fire-and-forget: notify author
     fetch('/api/notify-author', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -230,20 +241,33 @@ export default function ResultPage() {
       }),
     }).catch((err) => console.error('[notify-author] Error:', err))
 
-    // Immediately open Telegram DM (don't wait for fetch)
     openTelegramDM('Пробой')
   }, [result, openTelegramDM])
 
-  // ── Copy link ────────────────────────────────────────────────────────
-  const handleCopyLink = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(refLink)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 3000)
-    } catch {
-      alert(`Скопируйте: ${refLink}`)
+  // ── "Пока не готова" handler ─────────────────────────────────────────
+  const handleNotReady = useCallback(async () => {
+    // Send gift message via bot
+    const token = localStorage.getItem('eva_token')
+    if (token) {
+      fetch('/api/bot/send-gift-message', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch((err) => console.error('[send-gift-message] Error:', err))
     }
-  }, [refLink])
+
+    // Redirect to author's DM
+    const tgWebApp = (window as unknown as {
+      Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } }
+    }).Telegram?.WebApp
+
+    const dmUrl = `https://t.me/${AUTHOR_USERNAME}?text=${encodeURIComponent('Забрать подарок')}`
+
+    if (tgWebApp?.openTelegramLink) {
+      tgWebApp.openTelegramLink(dmUrl)
+    } else {
+      window.open(dmUrl, '_blank')
+    }
+  }, [])
 
   // ── Loading / No result ──────────────────────────────────────────────
   if (loading) {
@@ -398,13 +422,13 @@ export default function ResultPage() {
                 <motion.button type="button" whileTap={{ scale: 0.95 }}
                   className="flex-1 py-3 rounded-xl font-semibold text-[15px] text-white"
                   style={{ background: 'var(--accent)' }}
-                  onClick={() => handleHookAnswer(true)}>
+                  onClick={() => setFunnelStep('referral-gate')}>
                   Да!!!
                 </motion.button>
                 <motion.button type="button" whileTap={{ scale: 0.95 }}
                   className="flex-1 py-3 rounded-xl font-semibold text-[15px] border"
                   style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                  onClick={() => handleHookAnswer(false)}>
+                  onClick={() => setFunnelStep('cooldown-message')}>
                   Не сегодня
                 </motion.button>
               </div>
@@ -454,13 +478,13 @@ export default function ResultPage() {
                 <motion.button type="button" whileTap={{ scale: 0.95 }}
                   className="flex-1 py-3 rounded-xl font-semibold text-[15px] text-white"
                   style={{ background: 'var(--accent)' }}
-                  onClick={() => handleHookAnswer(true)}>
+                  onClick={() => setFunnelStep('referral-gate')}>
                   Да!!!
                 </motion.button>
                 <motion.button type="button" whileTap={{ scale: 0.95 }}
                   className="flex-1 py-3 rounded-xl font-semibold text-[15px] border"
                   style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                  onClick={() => handleHookAnswer(false)}>
+                  onClick={() => setFunnelStep('cooldown-message')}>
                   Не сегодня
                 </motion.button>
               </div>
@@ -477,7 +501,7 @@ export default function ResultPage() {
             className="text-center"
           >
             <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap mb-6">
-              Сейчас нет смысла проходить тест повторно. У тебя есть 2 месяца что бы демонтировать доминирующую опору. Через 2 месяца ты сможешь пройти тест и увидеть динамику.
+              Сейчас нет смысла проходить тест повторно. У тебя есть 2 месяца, чтобы демонтировать текущую опору. Через 2 месяца ты сможешь увидеть изменения.
             </p>
             <div className="flex flex-col gap-3">
               <motion.button type="button" whileTap={{ scale: 0.97 }}
@@ -496,52 +520,24 @@ export default function ResultPage() {
           </motion.div>
         )}
 
-        {/* ════════════ FAST PATH (В работу / Рефералка) ════════════ */}
-        {funnelStep === 'fast-path' && (
+        {/* ════════════ REFERRAL GATE ════════════ */}
+        {funnelStep === 'referral-gate' && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="flex flex-col gap-5"
+            className="text-center"
           >
-            <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap">
+            <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap mb-5">
               Я обычно открываю этот слой только тем, кто идёт в работу. Потому что важно не просто увидеть, а понять, как это устроено и что с этим делать.
-              {'\n\n'}Есть два варианта, как получить доступ:
+              {'\n\n'}Сейчас у тебя есть возможность открыть свою теневую опору через участие. Я даю этот доступ в обмен на расширение проекта.
             </p>
-
-            {/* Вариант 1 — Пробой */}
-            <div className="bg-bg-secondary rounded-xl p-5 border border-border">
-              <p className="text-accent text-[13px] font-semibold uppercase tracking-widest mb-2">Вариант 1:</p>
-              <p className="text-text-primary text-[14px] leading-relaxed whitespace-pre-wrap mb-4">
-                В группе «Пробой» мы:
-                — разбираем все конфигурации
-                — показываем, как это работает
-                — демонтируем искаженную опору
-                — выстраиваем новый паттерн
-
-                Это позволяет перестать воспроизводить одну и ту же проблему снова и снова.
-              </p>
-              <motion.button type="button" whileTap={{ scale: 0.97 }}
-                className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
-                style={{ background: 'var(--accent)' }}
-                onClick={handleProboyClick}>
-                Хочу в Пробой
-              </motion.button>
-            </div>
-
-            {/* Вариант 2 — Открыть через участие */}
-            <div className="bg-bg-secondary rounded-xl p-5 border border-border">
-              <p className="text-accent text-[13px] font-semibold uppercase tracking-widest mb-2">Вариант 2:</p>
-              <p className="text-text-secondary text-[14px] leading-relaxed whitespace-pre-wrap mb-4">
-                Ты можешь получить разбор своей второй опоры, если пригласишь 2 человек в бота и они подпишутся на канал. Я даю этот доступ в обмен на расширение проекта.
-              </p>
-              <motion.button type="button" whileTap={{ scale: 0.97 }}
-                className="w-full py-3 rounded-xl font-semibold text-[15px] border"
-                style={{ background: 'transparent', borderColor: 'var(--accent)', color: 'var(--accent)' }}
-                onClick={handleShowReferralLink}>
-                Получить ссылку
-              </motion.button>
-            </div>
+            <motion.button type="button" whileTap={{ scale: 0.97 }}
+              className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
+              style={{ background: 'var(--accent)' }}
+              onClick={handleReferralGate}>
+              Открыть за рекомендацию
+            </motion.button>
           </motion.div>
         )}
 
@@ -554,37 +550,38 @@ export default function ResultPage() {
             className="text-center"
           >
             <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap mb-4">
-              Вот твоя персональная ссылка:
+              Ты можешь получить разбор своей второй опоры, если поделишься тестом с 2 подругами. Вот твоя персональная ссылка:
             </p>
             <div className="bg-bg-secondary rounded-xl p-4 border border-border mb-4">
               <p className="text-accent text-[13px] break-all select-all">{refLink}</p>
             </div>
-            <p className="text-text-secondary text-[14px] leading-relaxed mb-4">
+            <p className="text-text-secondary text-[14px] leading-relaxed mb-5">
               Когда 2 человека перейдут по ней и подпишутся, я открою тебе второй слой.
             </p>
             <div className="flex flex-col gap-3">
               <motion.button type="button" whileTap={{ scale: 0.97 }}
                 className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
                 style={{ background: 'var(--accent)' }}
+                onClick={handleShare}>
+                Поделиться
+              </motion.button>
+              <motion.button type="button" whileTap={{ scale: 0.97 }}
+                className="w-full py-3 rounded-xl font-semibold text-[15px] border"
+                style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                 onClick={handleCopyLink}>
-                {copied ? 'Ссылка скопирована! ✓' : '📋 Копировать ссылку'}
+                {copied ? 'Ссылка скопирована! ✓' : 'Скопировать ссылку'}
               </motion.button>
               <motion.button type="button" whileTap={{ scale: 0.97 }}
                 className="w-full py-3 rounded-xl text-[14px] text-text-muted border border-border"
-                onClick={() => {
-                  const tgWebApp = (window as unknown as { Telegram?: { WebApp?: { close?: () => void } } }).Telegram?.WebApp
-                  if (tgWebApp?.close) {
-                    tgWebApp.close()
-                  }
-                }}>
+                onClick={handleCloseApp}>
                 Закрыть приложение
               </motion.button>
             </div>
           </motion.div>
         )}
 
-        {/* ════════════ SOFT PATH — SURVEY ════════════ */}
-        {funnelStep === 'soft-path-survey' && surveyStep < 3 && (
+        {/* ════════════ SURVEY ════════════ */}
+        {funnelStep === 'survey' && surveyStep < 3 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -652,8 +649,8 @@ export default function ResultPage() {
           </motion.div>
         )}
 
-        {/* ════════════ SOFT PATH — OFFER ════════════ */}
-        {funnelStep === 'soft-path-offer' && (
+        {/* ════════════ OFFER ════════════ */}
+        {funnelStep === 'offer' && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -661,18 +658,18 @@ export default function ResultPage() {
             className="text-center"
           >
             <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap mb-6">
-              Есть 2 способа работы с искаженной опорой:
-
-              ✓ Жёсткий, но быстрый — это группа «Пробой»
-              ✓ Мягкий и постепенный — это «Пирамида Потенциала» или персональная работа
-
+              Есть 2 способа работы с искаженной опорой:{'\n\n'}
+              ✓ Жёсткий, но быстрый — это группа «Пробой»{'\n'}
+              ✓ Мягкий и постепенный — это «Пирамида Потенциала» или персональная работа{'\n\n'}
               Какой способ тебе ближе?
             </p>
             <div className="flex flex-col gap-3">
               <motion.button type="button" whileTap={{ scale: 0.97 }}
                 className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
                 style={{ background: 'var(--accent)' }}
-                onClick={() => openTelegramDM('Пробой')}>
+                onClick={() => {
+                  handleProboyClick()
+                }}>
                 Жёсткий быстрый
               </motion.button>
               <motion.button type="button" whileTap={{ scale: 0.97 }}
@@ -683,34 +680,10 @@ export default function ResultPage() {
               </motion.button>
               <motion.button type="button" whileTap={{ scale: 0.97 }}
                 className="w-full py-3 rounded-xl text-[14px] text-text-muted"
-                onClick={() => setFunnelStep('soft-path-gift')}>
+                onClick={handleNotReady}>
                 Пока не готова
               </motion.button>
             </div>
-          </motion.div>
-        )}
-
-        {/* ════════════ SOFT PATH — GIFT ════════════ */}
-        {funnelStep === 'soft-path-gift' && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4 }}
-            className="bg-bg-secondary rounded-xl p-5 border text-center"
-            style={{ borderColor: 'color-mix(in srgb, var(--success) 40%, var(--border))' }}
-          >
-            <p className="text-success text-[17px] font-medium mb-3">
-              ♡ Благодарю тебя за честность!
-            </p>
-            <p className="text-text-secondary text-[14px] leading-relaxed whitespace-pre-wrap mb-4">
-              Я ценю, что ты была искренней. В подарок дарю тебе практику по твоей напряжённой сфере. Ты можешь начать изменения уже сегодня.
-            </p>
-            <motion.button type="button" whileTap={{ scale: 0.97 }}
-              className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
-              style={{ background: 'var(--accent)' }}
-              onClick={() => openTelegramDM('Хочу забрать подарок')}>
-              🎁 Забрать подарок
-            </motion.button>
           </motion.div>
         )}
 
