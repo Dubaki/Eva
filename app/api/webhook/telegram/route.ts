@@ -63,8 +63,14 @@ interface TelegramUpdate {
 }
 
 async function handleStart(chatId: number, userId: number, refCode: number | null, _firstName?: string): Promise<boolean> {
-  const text =
-    `Привет! Перед тем как начать, подпишись на канал. Там я даю информацию, которую не даю больше нигде.`
+  // MarkdownV2 formatted text with proper escaping
+  const caption =
+    `\\*\\*ТВОЯ ВНУТРЕННЯЯ ОПОРА\\*\\* 💎\\n\n` +
+    `Привет\\! Я создала этого бота\\, чтобы помочь тебе найти ответы\\, которые уже есть внутри тебя\\.\n\n` +
+    `✦ \\*\\*Почему это важно\\?\\*\\*\\n\n` +
+    `В мире хаоса единственное\\, на что можно опереться \\— это *ты сама*\\.\n\n` +
+    `▹ \\*\\*Твой первый шаг:\\*\\*\\n\n` +
+    `Подпишись на мой канал\\. Там я даю эксклюзивные практики и знания\\, которых нет в открытом доступе\\.`
 
   // Encode refCode in callback_data so we can recover it on button press
   const callbackData = refCode ? `check_sub_${refCode}` : 'check_subscription'
@@ -93,16 +99,18 @@ async function handleStart(chatId: number, userId: number, refCode: number | nul
     const success = await sendPhoto({
       chatId,
       photo: photoUrl,
-      caption: text,
+      caption,
       replyMarkup,
+      parseMode: 'MarkdownV2',
     })
 
     if (!success) {
       console.error('[webhook] sendPhoto failed, falling back to sendMessage')
       return await sendMessage({
         chatId,
-        text,
+        text: caption.replace(/\\([\\*_\\[\\]\\(\\)\\~`>#+\\-=|{}.!])/g, '$1').replace(/\\n/g, '\n'),
         replyMarkup,
+        parseMode: 'HTML',
       })
     }
     return true
@@ -110,7 +118,7 @@ async function handleStart(chatId: number, userId: number, refCode: number | nul
     console.error('[webhook] sendPhoto crashed, falling back to sendMessage:', err)
     return await sendMessage({
       chatId,
-      text,
+      text: `ТВОЯ ВНУТРЕННЯЯ ОПОРА 💎\n\nПривет! Я создала этого бота, чтобы помочь тебе найти ответы, которые уже есть внутри тебя.\n\n✦ Почему это важно?\nВ мире хаоса единственное, на что можно опереться — это ты сама.\n\n▹ Твой первый шаг:\nПодпишись на мой канал. Там я даю эксклюзивные практики и знания, которых нет в открытом доступе.`,
       replyMarkup,
     })
   }
@@ -125,6 +133,17 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
   const status = await getChatMember(CHANNEL_ID, userId)
   console.log('Check sub for channel:', process.env.TELEGRAM_CHANNEL_ID, 'Status:', status)
 
+  // getChatMember returns null on API error (e.g. 400 Bad Request: chat not found)
+  if (status === null) {
+    console.error('[webhook] getChatMember returned null. CHANNEL_ID:', process.env.TELEGRAM_CHANNEL_ID)
+    await answerCallbackQuery({
+      callbackQueryId,
+      text: 'Ошибка: проверьте права бота в канале. Бот должен быть администратором канала.',
+      showAlert: true,
+    })
+    return
+  }
+
   const isSubscribed = status === 'member' || status === 'administrator' || status === 'creator'
 
   if (isSubscribed) {
@@ -133,7 +152,8 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
     const refInfo = refCode ? `\n\nВы перешли по приглашению друга!` : ''
 
     const successText =
-      `У каждого человека есть внутренняя «опора» — набор убеждений, которые помогают жить и развиваться. Но иногда эти установки начинают искажаться, и мы теряем связь с собой.${refInfo}\n\n` +
+      `Подписка подтверждена! 🎉${refInfo}\n\n` +
+      `У каждого человека есть внутренняя «опора» — набор убеждений, которые помогают жить и развиваться. Но иногда эти установки начинают искажаться, и мы теряем связь с собой.\n\n` +
       `Нажмите кнопку ниже, чтобы посмотреть свой результат.`
 
     const tmaUrl = getTmaUrl(refCode ?? undefined)
