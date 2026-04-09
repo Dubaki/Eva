@@ -47,6 +47,7 @@
 - [x] **Phase 5e: Telegram Webhook** — /start с рефералами, инлайн-кнопки подписки, отказоустойчивый sendPhoto, логирование входящих запросов (09.04.2026).
 - [x] **Phase 5f: Deployment** — Задеплоено на Vercel, привязан домен, настроен GitHub CI/CD (08.04.2026).
 - [x] **Phase 5g: API Robustness** — Квалификация (qualification/submit) теперь поддерживает Guest Mode (09.04.2026).
+- [x] **Phase 5h: Web App Entry** — Все кнопки в боте переведены на `web_app` (открываются внутри Telegram), внедрена синхронизация рефералов через `start_param` и принудительное обновление статуса подписки (09.04.2026).
 - [ ] **Phase 6: Referral System** — В процессе.
 
 ---

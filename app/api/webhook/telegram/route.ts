@@ -149,6 +149,17 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
   if (isSubscribed) {
     await answerCallbackQuery({ callbackQueryId })
 
+    // Force update is_subscribed in Supabase
+    try {
+      const supabase = getSupabaseServer()
+      await supabase
+        .from('profiles')
+        .update({ is_subscribed: true })
+        .eq('tg_id', userId)
+    } catch (dbErr) {
+      console.error('[webhook] Failed to update is_subscribed status:', dbErr)
+    }
+
     const refInfo = refCode ? `\n\nВы перешли по приглашению друга!` : ''
 
     const successText =
