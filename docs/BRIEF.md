@@ -44,8 +44,9 @@
 - [x] **Phase 5b: Logic & Backend** — `/api/test/submit` + scoring + страница результата (08.04.2026).
 - [x] **Phase 5c: Bug Fixes** — Кнопка "5" контрастна, квалификация работает, вторичная опора скрыта (08.04.2026).
 - [x] **Phase 5d: Hero Images & Referral** — Картинки без обрезки, share работает (navigator.share → Telegram → clipboard) (08.04.2026).
-- [x] **Phase 5e: Telegram Webhook** — `/start` с рефералами, inline кнопка TMA, валидация секрет-токена (08.04.2026).
+- [x] **Phase 5e: Telegram Webhook** — /start с рефералами, инлайн-кнопки подписки, отказоустойчивый sendPhoto, логирование входящих запросов (09.04.2026).
 - [x] **Phase 5f: Deployment** — Задеплоено на Vercel, привязан домен, настроен GitHub CI/CD (08.04.2026).
+- [x] **Phase 5g: API Robustness** — Квалификация (qualification/submit) теперь поддерживает Guest Mode (09.04.2026).
 - [ ] **Phase 6: Referral System** — В процессе.
 
 ---

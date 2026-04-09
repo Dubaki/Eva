@@ -16,47 +16,45 @@ export async function POST(request: NextRequest) {
 
     // Авторизация
     const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { success: false, error: 'Отсутствует токен авторизации' },
-        { status: 401 }
-      )
-    }
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
 
-    const token = authHeader.slice(7)
+    let profileId: string | undefined
     const supabase = getSupabaseServer()
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(token)
+    if (token) {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser(token)
 
-    if (authError || !user) {
-      return NextResponse.json(
-        { success: false, error: 'Невалидный токен' },
-        { status: 401 }
-      )
+      if (authError || !user) {
+        console.warn('[qualification/submit] Invalid token, falling back to guest mode')
+      } else {
+        profileId = user.id
+      }
     }
 
-    const profileId = user.id
-
-    // Сохраняем квалификацию (UPSERT — одна на пользователя)
-    const { error: dbError } = await supabase.from('qualifications').upsert(
-      {
-        profile_id: profileId,
-        tension_sphere,
-        tension_level,
-        previous_attempts,
-      },
-      { onConflict: 'profile_id' }
-    )
-
-    if (dbError) {
-      console.error('DB error:', dbError)
-      return NextResponse.json(
-        { success: false, error: 'Ошибка сохранения' },
-        { status: 500 }
+    // Сохраняем квалификацию (UPSERT — одна на пользователя), если есть profileId
+    if (profileId) {
+      const { error: dbError } = await supabase.from('qualifications').upsert(
+        {
+          profile_id: profileId,
+          tension_sphere,
+          tension_level,
+          previous_attempts,
+        },
+        { onConflict: 'profile_id' }
       )
+
+      if (dbError) {
+        console.error('DB error:', dbError)
+        return NextResponse.json(
+          { success: false, error: 'Ошибка сохранения' },
+          { status: 500 }
+        )
+      }
+    } else {
+      console.log('[qualification/submit] Guest mode: returning result without DB storage')
     }
 
     return NextResponse.json({ success: true })

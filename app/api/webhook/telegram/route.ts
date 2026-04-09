@@ -63,12 +63,8 @@ interface TelegramUpdate {
 }
 
 async function handleStart(chatId: number, userId: number, refCode: number | null, _firstName?: string): Promise<boolean> {
-  const refInfo = refCode
-    ? `\n\nВы перешли по приглашению друга!`
-    : ''
-
   const text =
-    `Привет! Перед тем как начать, подпишись на канал. Там я даю информацию, которую не даю больше нигде.${refInfo}`
+    `Привет! Перед тем как начать, подпишись на канал. Там я даю информацию, которую не даю больше нигде.`
 
   // Encode refCode in callback_data so we can recover it on button press
   const callbackData = refCode ? `check_sub_${refCode}` : 'check_subscription'
@@ -94,12 +90,33 @@ async function handleStart(chatId: number, userId: number, refCode: number | nul
     ? `https://${process.env.VERCEL_URL}`
     : process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
-  return sendPhoto({
-    chatId,
-    photo: `${baseUrl}/pleaser.png`,
-    caption: text,
-    replyMarkup,
-  })
+  const photoUrl = `${baseUrl}/hero.png`
+
+  try {
+    const success = await sendPhoto({
+      chatId,
+      photo: photoUrl,
+      caption: text,
+      replyMarkup,
+    })
+
+    if (!success) {
+      console.error('[webhook] sendPhoto failed, falling back to sendMessage')
+      return await sendMessage({
+        chatId,
+        text,
+        replyMarkup,
+      })
+    }
+    return true
+  } catch (err) {
+    console.error('[webhook] sendPhoto crashed, falling back to sendMessage:', err)
+    return await sendMessage({
+      chatId,
+      text,
+      replyMarkup,
+    })
+  }
 }
 
 async function handleSubscriptionCheck(callbackQueryId: string, userId: number, chatId: number, refCode: number | null): Promise<void> {
@@ -171,6 +188,7 @@ async function handleDefaultMessage(chatId: number, firstName?: string): Promise
 // ── Route Handler ──────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  console.log(">>> incoming request to webhook")
   try {
     // ── AGGRESSIVE LOGGING: dump entire incoming request ──
     let rawBody: string
