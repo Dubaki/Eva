@@ -312,7 +312,7 @@ export default function ResultPage() {
           </p>
         </motion.div>
 
-        {/* ── Интерактив: Ты узнала? ────────────────────────────── */}
+        {/* ── Интерактив: Удивил ли тебя результат? ─────────────── */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -320,7 +320,7 @@ export default function ResultPage() {
           className="text-center"
         >
           <p className="text-text-primary text-[16px] font-medium mb-3">
-            Ты узнала свою искажённую опору?
+            Удивил ли тебя результат?
           </p>
           <div className="flex gap-3">
             <motion.button
@@ -328,7 +328,7 @@ export default function ResultPage() {
               whileTap={{ scale: 0.95 }}
               className="flex-1 py-3 rounded-xl font-semibold text-[15px] text-white"
               style={{ background: 'var(--accent)' }}
-              onClick={() => alert('Отлично! Переходим дальше...')}
+              onClick={() => setShowQualification(true)}
             >
               Да
             </motion.button>
@@ -337,7 +337,7 @@ export default function ResultPage() {
               whileTap={{ scale: 0.95 }}
               className="flex-1 py-3 rounded-xl font-semibold text-[15px] border"
               style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-              onClick={() => alert('Поняла! Расскажу подробнее...')}
+              onClick={() => setShowQualification(true)}
             >
               Нет
             </motion.button>

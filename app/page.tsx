@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { motion } from 'framer-motion'
 
 const fadeUp = (delay: number) => ({
@@ -13,20 +12,9 @@ const fadeUp = (delay: number) => ({
 export default function Home() {
   return (
     <main className="flex h-screen flex-col bg-bg-primary overflow-hidden">
-      {/* Welcome image — restricted height, covers top */}
-      <motion.div {...fadeUp(0.05)} className="relative w-full h-[35vh] shrink-0">
-        <Image
-          src="/hero.png"
-          alt="EVA Welcome"
-          fill
-          priority={true}
-          className="object-cover rounded-b-[32px]"
-        />
-      </motion.div>
-
-      <div className="flex flex-col flex-1 px-6 pt-8 pb-10 justify-between">
+      <div className="flex flex-col flex-1 px-6 pt-12 pb-10 justify-between">
         <div className="flex flex-col gap-6">
-          {/* Heading + body */}
+          {/* Heading + body — no image */}
           <motion.div {...fadeUp(0.22)} className="flex flex-col gap-3">
             <h1 className="text-[28px] font-bold leading-[1.2] tracking-[-0.02em] text-text-primary">
               У каждого человека есть внутренняя{' '}

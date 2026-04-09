@@ -92,8 +92,8 @@ async function handleStart(chatId: number, userId: number, refCode: number | nul
     ],
   }
 
-  // Hard-coded production domain for reliable photo delivery
-  const photoUrl = `https://eva-9udm.vercel.app/start.png`
+  // Hard-coded production domain for reliable photo delivery + cache bust
+  const photoUrl = `https://eva-9udm.vercel.app/start.png?v=${Date.now()}`
 
   // ALWAYS try sendPhoto first, but FALLBACK to sendMessage — never leave user hanging
   try {
@@ -171,7 +171,7 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
       ],
     }
 
-    const photoUrl = `https://eva-9udm.vercel.app/start1.png`
+    const photoUrl = `https://eva-9udm.vercel.app/start1.png?v=${Date.now()}`
 
     try {
       const sent = await sendPhoto({

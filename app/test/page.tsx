@@ -186,7 +186,8 @@ export default function TestPage() {
           onBack={handleBack}
         />
 
-        <div className="min-h-[5.5rem]">
+        {/* Question — centered in remaining space */}
+        <div className="flex flex-col flex-1 justify-center gap-4">
           <AnimatePresence mode="wait">
             <motion.p
               key={question.id}
@@ -194,14 +195,12 @@ export default function TestPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.2, ease: 'easeOut' }}
-              className="text-[17px] font-medium leading-[1.55] tracking-[-0.01em] text-text-primary"
+              className="text-[17px] font-medium leading-[1.55] tracking-[-0.01em] text-text-primary text-center"
             >
               {question.text}
             </motion.p>
           </AnimatePresence>
         </div>
-
-        <div className="flex-1" />
 
         <div className="flex flex-col gap-2.5">
           <div className="flex items-stretch gap-2">
