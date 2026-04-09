@@ -7,30 +7,38 @@ const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
 export async function GET(req: NextRequest) {
   const jwtSecret = process.env.SUPABASE_JWT_SECRET
   if (!jwtSecret) {
+    console.error('[admin/stats] Missing SUPABASE_JWT_SECRET')
     return NextResponse.json({ success: false, error: 'Server misconfiguration' }, { status: 500 })
   }
 
   const auth = req.headers.get('authorization')
   if (!auth?.startsWith('Bearer ')) {
+    console.warn('[admin/stats] Missing token')
     return NextResponse.json({ success: false, error: 'Missing token' }, { status: 401 })
   }
 
   const token = auth.slice(7)
   const payload = verifyJwt(token, jwtSecret)
   if (!payload) {
+    console.warn('[admin/stats] Invalid or expired token')
     return NextResponse.json({ success: false, error: 'Invalid or expired token' }, { status: 401 })
   }
 
   const supabase = getSupabaseServer()
 
   // Check if this user is a tester (admin access)
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('tg_id')
     .eq('id', payload.sub)
     .single()
 
+  if (profileError) {
+    console.error('[admin/stats] Profile lookup error:', profileError)
+  }
+
   if (!profile || !TESTER_IDS.includes(String(profile.tg_id))) {
+    console.warn('[admin/stats] Unauthorized access attempt by sub:', payload.sub, 'profile:', profile)
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 })
   }
 

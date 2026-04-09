@@ -57,12 +57,24 @@ export default function AdminPanel() {
     }
 
     fetch('/api/admin/stats', { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
-      .then((json) => {
-        if (json.success) setStats(json.data)
-        else if (json.error === 'Unauthorized') setUnauthorized(true)
+      .then((r) => {
+        if (!r.ok) {
+          return r.json().then((json) => {
+            console.error('[admin] API error:', r.status, json.error)
+            if (json.error === 'Unauthorized') setUnauthorized(true)
+            else setLoading(false)
+          })
+        }
+        return r.json()
       })
-      .catch((err) => console.error('[admin] Error:', err))
+      .then((json) => {
+        if (json && json.success) {
+          setStats(json.data)
+        } else if (json && json.error) {
+          console.error('[admin] Server returned error:', json.error)
+        }
+      })
+      .catch((err) => console.error('[admin] Fetch error:', err))
       .finally(() => setLoading(false))
   }, [])
 
