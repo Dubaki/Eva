@@ -97,10 +97,29 @@ export default function ResultPage() {
   // ── Surprise answer handler ───────────────────────────────────────────
   const handleSurpriseAnswer = useCallback((answer: 'yes' | 'no') => {
     if (surpriseAnswer) return // already answered once
-    const confirmed = window.confirm('Уверена?')
-    if (!confirmed) return
-    setSurpriseAnswer(answer)
-    setFunnelStep('surprise-response')
+
+    const proceed = () => {
+      setSurpriseAnswer(answer)
+      setFunnelStep('surprise-response')
+    }
+
+    // Use Telegram WebApp popup if available, fallback to browser confirm
+    if (typeof window !== 'undefined' && (window as unknown as { Telegram?: { WebApp?: { showPopup?: Function } } }).Telegram?.WebApp?.showPopup) {
+      const tgWebApp = (window as unknown as { Telegram: { WebApp: { showPopup: Function } } }).Telegram.WebApp
+      tgWebApp.showPopup({
+        title: 'Уверена?',
+        message: 'Ты не сможешь изменить свой ответ.',
+        buttons: [
+          { id: 'yes', type: 'default', text: 'Да' },
+          { type: 'cancel' },
+        ],
+      }, (buttonId: string) => {
+        if (buttonId === 'yes') proceed()
+      })
+    } else {
+      const isOk = window.confirm('Уверена?\n\nТы не сможешь изменить свой ответ.')
+      if (isOk) proceed()
+    }
   }, [surpriseAnswer])
 
   // ── Go to qualification (Stage 5) ─────────────────────────────────────
