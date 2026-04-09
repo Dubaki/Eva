@@ -14,11 +14,9 @@ type ResultData = {
 
 type StoredProfile = { id: string; tg_id: number; username: string | null }
 
-const REFERRALS_NEEDED = 2
 const AUTHOR_USERNAME = 'evapatrakhina'
-const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
 
-// Result images mapping per task spec
+// Result images mapping
 const RESULT_IMG: Record<string, string> = {
   S: '/hero.png',
   U: '/pleaser.png',
@@ -27,39 +25,41 @@ const RESULT_IMG: Record<string, string> = {
   K: '/controller.png',
 }
 
-// ── Qualification questions (Stage 5 per t3.md) ────────────────────────────
-
-const QUAL_SPHERES = ['Деньги', 'Отношения', 'Здоровье', 'Самореализация', 'Везде']
-const QUAL_LEVELS = ['Сильно мешает', 'Пока терпимо', 'Фоново']
-const QUAL_ATTEMPTS = ['Да, многое', 'Немного', 'Нет']
+// Survey questions for soft path
+const SURVEY_Q1 = ['Деньги', 'Отношения', 'Здоровье', 'Другое', 'Везде']
+const SURVEY_Q2 = ['Сильно мешает', 'Пока терпимо', 'Фоново']
+const SURVEY_Q3 = ['Да, многое', 'Немного', 'Нет']
 
 type FunnelStep =
-  | 'result'             // show result image + description
-  | 'surprise'           // "Удивил ли тебя результат?" Да/Нет
-  | 'surprise-response'  // show response text + "Напиши мне" / "Далее ➔"
-  | 'qualification'      // Stage 5: 3 questions
-  | 'offer'              // Stage 6: two formats + "Пока не готова"
-  | 'gift'               // "Пока не готова" → thank you + gift button
-  | 'qual-done'          // qualification submitted
+  | 'result'
+  | 'surprise-response-yes'
+  | 'surprise-response-no'
+  | 'hook'                    // "Хочешь увидеть вторую..." Да/Не сегодня
+  | 'cooldown-message'        // "Сейчас нет смысла..."
+  | 'fast-path'               // Вариант 1 (Пробой) + Вариант 2 (рефералка)
+  | 'soft-path-survey'         // Анкета
+  | 'soft-path-offer'          // Оффер с двумя кнопками
+  | 'soft-path-gift'           // Забрать подарок
+  | 'referral-link'            // Показать реферальную ссылку
 
 export default function ResultPage() {
-  const [result, setResult]   = useState<ResultData | null>(null)
+  const [result, setResult] = useState<ResultData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [refCount, setRefCount] = useState(0)
-  const [copied, setCopied]     = useState(false)
 
-  // Funnel state
+  // Funnel
   const [funnelStep, setFunnelStep] = useState<FunnelStep>('result')
   const [surpriseAnswer, setSurpriseAnswer] = useState<'yes' | 'no' | null>(null)
-  const [qualStep, setQualStep] = useState(0)
-  const [qualAnswers, setQualAnswers] = useState<{
-    tension_sphere: string
-    tension_level: string
-    previous_attempts: string
-  }>({ tension_sphere: '', tension_level: '', previous_attempts: '' })
-  const [qualSubmitting, setQualSubmitting] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [pendingAnswer, setPendingAnswer] = useState<'yes' | 'no' | null>(null)
+
+  // Survey
+  const [surveyStep, setSurveyStep] = useState(0)
+  const [surveyAnswers, setSurveyAnswers] = useState<string[]>([])
+
+  // Referral
+  const [refLink, setRefLink] = useState('')
+  const [copied, setCopied] = useState(false)
+  const [userTgId, setUserTgId] = useState<number | null>(null)
 
   useEffect(() => {
     const stored = sessionStorage.getItem('eva_result')
@@ -84,31 +84,27 @@ export default function ResultPage() {
     if (!stored) fetchResult()
     setLoading(false)
 
-    // Fetch referral count
-    const tkn = localStorage.getItem('eva_token')
-    if (!tkn) return
-    fetch('/api/referrals', { headers: { Authorization: 'Bearer ' + tkn } })
-      .then((r) => r.json())
-      .then((json: { success: boolean; data?: { count: number } }) => {
-        if (json.success && typeof json.data?.count === 'number') {
-          setRefCount(json.data.count)
-        }
-      })
-      .catch(() => { /* stays 0 */ })
+    // Get user tg_id for referral link
+    const profileRaw = localStorage.getItem('eva_profile')
+    if (profileRaw) {
+      try {
+        const p = JSON.parse(profileRaw) as StoredProfile
+        setUserTgId(p.tg_id ?? null)
+      } catch { /* ignore */ }
+    }
   }, [])
 
-  // ── Surprise answer handler ───────────────────────────────────────────
+  // ── Surprise answer (with custom modal) ───────────────────────────────
   const handleSurpriseAnswer = useCallback((answer: 'yes' | 'no') => {
-    if (surpriseAnswer) return // already answered once
     setPendingAnswer(answer)
     setShowConfirm(true)
-  }, [surpriseAnswer])
+  }, [])
 
   const handleConfirmProceed = useCallback(() => {
     setShowConfirm(false)
     if (pendingAnswer) {
       setSurpriseAnswer(pendingAnswer)
-      setFunnelStep('surprise-response')
+      setFunnelStep(pendingAnswer === 'yes' ? 'surprise-response-yes' : 'surprise-response-no')
       setPendingAnswer(null)
     }
   }, [pendingAnswer])
@@ -118,125 +114,55 @@ export default function ResultPage() {
     setPendingAnswer(null)
   }, [])
 
-  // ── Go to qualification (Stage 5) ─────────────────────────────────────
-  const goToQualification = useCallback(() => {
-    setFunnelStep('qualification')
-    setQualStep(0)
-    setQualAnswers({ tension_sphere: '', tension_level: '', previous_attempts: '' })
+  // ── Hook answer (Да!!! / Не сегодня) ─────────────────────────────────
+  const handleHookAnswer = useCallback((wantSecond: boolean) => {
+    if (wantSecond) {
+      setFunnelStep('fast-path')
+    } else {
+      setFunnelStep('cooldown-message')
+    }
   }, [])
 
-  // ── Qualification answer handler ──────────────────────────────────────
-  const handleQualAnswer = useCallback(
-    (value: string) => {
-      if (qualStep === 0) {
-        setQualAnswers((prev) => ({ ...prev, tension_sphere: value }))
-      } else if (qualStep === 1) {
-        setQualAnswers((prev) => ({ ...prev, tension_level: value }))
-      } else {
-        setQualAnswers((prev) => ({ ...prev, previous_attempts: value }))
-      }
+  // ── Cooldown screen buttons ──────────────────────────────────────────
+  const handleCooldownButton = useCallback((goFast: boolean) => {
+    if (goFast) {
+      setFunnelStep('fast-path')
+    } else {
+      setFunnelStep('soft-path-survey')
+    }
+  }, [])
 
-      if (qualStep < 2) {
-        setQualStep((s) => s + 1)
-      } else {
-        submitQualification({
-          tension_sphere: qualAnswers.tension_sphere,
-          tension_level: qualAnswers.tension_level,
-          previous_attempts: value,
-        })
-      }
-    },
-    [qualStep, qualAnswers],
-  )
+  // ── Survey ───────────────────────────────────────────────────────────
+  const handleSurveyAnswer = useCallback((value: string) => {
+    const next = [...surveyAnswers, value]
+    setSurveyAnswers(next)
+    if (surveyStep < 2) {
+      setSurveyStep(surveyStep + 1)
+    } else {
+      setFunnelStep('soft-path-offer')
+    }
+  }, [surveyAnswers, surveyStep])
 
-  // ── Submit qualification to backend ───────────────────────────────────
-  async function submitQualification(finalAnswers: {
-    tension_sphere: string
-    tension_level: string
-    previous_attempts: string
-  }) {
-    setQualSubmitting(true)
+  // ── Referral link ────────────────────────────────────────────────────
+  const handleShowReferralLink = useCallback(() => {
+    const link = userTgId
+      ? `https://t.me/sprosievubot?start=ref_${userTgId}`
+      : 'https://t.me/sprosievubot'
+    setRefLink(link)
+    setFunnelStep('referral-link')
+  }, [userTgId])
+
+  const handleCopyLink = useCallback(async () => {
     try {
-      const token = localStorage.getItem('eva_token') || ''
-      const res = await fetch('/api/qualification/submit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(finalAnswers),
-      })
-
-      const data = await res.json()
-      console.log('[submitQualification] response:', data)
-      // Show offer screen regardless of backend result
-      setFunnelStep('offer')
-    } catch (err) {
-      console.error('Qualification error:', err)
-      setFunnelStep('offer')
-    } finally {
-      setQualSubmitting(false)
-    }
-  }
-
-  // ── Referral share ────────────────────────────────────────────────────
-  const handleShare = useCallback(async () => {
-    const profileRaw = localStorage.getItem('eva_profile')
-    let userId: number | null = null
-    if (profileRaw) {
-      try { userId = (JSON.parse(profileRaw) as StoredProfile).tg_id } catch { /* ignore */ }
-    }
-    const link = userId ? `https://t.me/sprosievubot?start=ref_${userId}` : 'https://t.me/sprosievubot'
-    const shareText = 'Пройди этот тест и узнай свою внутреннюю опору!'
-    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(shareText)}`
-
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: 'EVA', text: shareText, url: link })
-        return
-      } catch { /* cancelled */ }
-    }
-
-    const tgWebApp = (window as unknown as {
-      Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } }
-    }).Telegram?.WebApp
-
-    if (tgWebApp?.openTelegramLink) {
-      try { tgWebApp.openTelegramLink(shareUrl); return } catch { /* fallback */ }
-    }
-
-    try {
-      await navigator.clipboard.writeText(link)
+      await navigator.clipboard.writeText(refLink)
       setCopied(true)
       setTimeout(() => setCopied(false), 3000)
     } catch {
-      alert(`Скопируйте: ${link}`)
+      alert(`Скопируйте: ${refLink}`)
     }
-  }, [])
+  }, [refLink])
 
-  // ── Notify author (fire-and-forget) ─────────────────────────────────────
-  const notifyAuthor = useCallback((selectedFormat: string) => {
-    const profileRaw = localStorage.getItem('eva_profile')
-    let userId: number | null = null
-    let firstName: string | null = null
-    let username: string | null = null
-    if (profileRaw) {
-      try {
-        const p = JSON.parse(profileRaw) as StoredProfile
-        userId = p.tg_id ?? null
-        username = p.username ?? null
-      } catch { /* ignore */ }
-    }
-
-    // Fire-and-forget: don't await, don't block the user
-    fetch('/api/notify-author', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, firstName, username, selectedFormat }),
-    }).catch((err) => console.error('[notify-author] Fetch error:', err))
-  }, [])
-
-  // ── Open Telegram DM with pre-filled text ─────────────────────────────
+  // ── Open Telegram DM ─────────────────────────────────────────────────
   const openTelegramDM = useCallback((prefill: string) => {
     const tgWebApp = (window as unknown as {
       Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } }
@@ -251,7 +177,7 @@ export default function ResultPage() {
     }
   }, [])
 
-  // ── Loading / No result ───────────────────────────────────────────────
+  // ── Loading / No result ──────────────────────────────────────────────
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-bg-primary">
@@ -278,23 +204,16 @@ export default function ResultPage() {
     )
   }
 
-  const traitInfo    = getTraitInfo(result.dominantTrait)
-  const secTraitInfo = getTraitInfo(result.secondaryTrait)
+  const traitInfo = getTraitInfo(result.dominantTrait)
   const resultImgSrc = RESULT_IMG[result.dominantTrait] ?? '/hero.png'
-  const isUnlocked   = refCount >= REFERRALS_NEEDED
-
-  const surpriseResponseText = surpriseAnswer === 'yes'
-    ? 'Видишь, а ты и не предполагала почему иногда действуешь так или иначе, но с этим можно разобраться.'
-    : 'Ты знаешь почему ты так действуешь! и ты знаешь что ты с этим можешь разобраться.'
 
   return (
     <main className="flex flex-col min-h-screen bg-bg-primary">
       <div className="flex flex-col flex-1 px-5 pt-10 pb-8 max-w-sm mx-auto w-full gap-6">
 
-        {/* ════════════ RESULT SCREEN (Stage 3) ════════════ */}
+        {/* ════════════ RESULT (dominant trait) ════════════ */}
         {funnelStep === 'result' && (
           <>
-            {/* Result image */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -308,13 +227,10 @@ export default function ResultPage() {
                 fill
                 priority
                 className="object-contain"
-                onError={(e) => {
-                  ;(e.currentTarget as HTMLImageElement).style.display = 'none'
-                }}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
               />
             </motion.div>
 
-            {/* Title */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -327,12 +243,8 @@ export default function ResultPage() {
               <h1 className="text-[28px] font-bold tracking-[-0.02em] leading-tight" style={{ color: 'var(--accent)' }}>
                 {traitInfo.title}
               </h1>
-              {traitInfo.subtitle && (
-                <p className="text-text-secondary text-sm mt-2 leading-relaxed">{traitInfo.subtitle}</p>
-              )}
             </motion.div>
 
-            {/* Description */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -340,70 +252,6 @@ export default function ResultPage() {
               className="bg-bg-secondary rounded-xl p-5 border border-border"
             >
               <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap">{traitInfo.description}</p>
-            </motion.div>
-
-            {/* ════════════ REFERRAL: Теневая опора (BEFORE surprise) ════════════ */}
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.35 }}
-            >
-              <AnimatePresence mode="wait">
-                {isUnlocked ? (
-                  <motion.div
-                    key="unlocked"
-                    initial={{ opacity: 0, scale: 0.97 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.3 }}
-                    className="rounded-xl p-5 border bg-bg-secondary"
-                    style={{ borderColor: 'color-mix(in srgb, var(--accent) 40%, var(--border))' }}
-                  >
-                    <p className="text-text-muted text-xs uppercase tracking-widest mb-2">
-                      Теневая опора
-                    </p>
-                    <h2 className="text-[20px] font-bold" style={{ color: 'var(--accent)' }}>
-                      {secTraitInfo.title}
-                    </h2>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="locked"
-                    initial={{ opacity: 0, scale: 0.97 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.3 }}
-                    className="rounded-xl p-5 border border-border bg-bg-secondary text-center"
-                  >
-                    <p className="text-4xl mb-2">🔒</p>
-                    <p className="text-text-muted text-xs uppercase tracking-widest mb-2">
-                      Теневая опора
-                    </p>
-                    <p className="text-text-secondary text-[14px] leading-relaxed mb-3">
-                      Пригласи 2 друзей, чтобы узнать свою теневую опору!
-                    </p>
-                    <div className="flex gap-1.5 mb-3 justify-center">
-                      {Array.from({ length: REFERRALS_NEEDED }).map((_, i) => (
-                        <div
-                          key={i}
-                          className="w-10 h-1.5 rounded-full transition-colors duration-500"
-                          style={{ background: i < refCount ? 'var(--accent)' : 'var(--bg-tertiary)' }}
-                        />
-                      ))}
-                    </div>
-                    <p className="text-text-muted text-[12px] mb-3">
-                      Приглашено: {refCount}/{REFERRALS_NEEDED}
-                    </p>
-                    <motion.button
-                      type="button"
-                      whileTap={{ scale: 0.97 }}
-                      onClick={handleShare}
-                      className="w-full py-3 rounded-xl font-semibold text-[15px] text-white select-none"
-                      style={{ background: 'var(--accent)' }}
-                    >
-                      {copied ? 'Ссылка скопирована! ✓' : '🔗 Пригласить друзей'}
-                    </motion.button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </motion.div>
 
             {/* Surprise question */}
@@ -440,8 +288,8 @@ export default function ResultPage() {
           </>
         )}
 
-        {/* ════════════ SURPRISE RESPONSE ════════════ */}
-        {funnelStep === 'surprise-response' && surpriseAnswer !== null && (
+        {/* ════════════ SURPRISE RESPONSE — YES ════════════ */}
+        {funnelStep === 'surprise-response-yes' && (
           <>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -450,15 +298,9 @@ export default function ResultPage() {
               className="text-center"
             >
               <div className="relative w-full max-h-[30vh] mb-4 rounded-2xl overflow-hidden" style={{ minHeight: '160px' }}>
-                <Image
-                  src={resultImgSrc}
-                  alt={traitInfo.title}
-                  fill
-                  className="object-contain"
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                />
+                <Image src={resultImgSrc} alt={traitInfo.title} fill className="object-contain"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
               </div>
-
               <h1 className="text-[24px] font-bold" style={{ color: 'var(--accent)' }}>{traitInfo.title}</h1>
             </motion.div>
 
@@ -471,155 +313,302 @@ export default function ResultPage() {
               <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap">{traitInfo.description}</p>
             </motion.div>
 
-            {/* Response text + single "Далее ➔" button */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.3 }}
               className="text-center"
             >
-              <p className="text-text-primary text-[15px] leading-relaxed italic mb-5">{surpriseResponseText}</p>
-
-              <motion.button
-                type="button"
-                whileTap={{ scale: 0.97 }}
-                className="w-full py-4 rounded-xl font-semibold text-[16px] text-white"
-                style={{ background: 'var(--accent)' }}
-                onClick={goToQualification}
-              >
-                Далее ➔
-              </motion.button>
+              <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap mb-5">
+                Это нормально. Более того — это и есть часть механизма. Искажённая опора устроена так, что ты не видишь её напрямую. И именно по этому снова и снова оказываешься в одних и тех же ситуациях.
+              </p>
+              <p className="text-text-secondary text-[14px] leading-relaxed mb-5 whitespace-pre-wrap">
+                Базовая опора — это только часть картины. Есть ещё смешанные конфигурации, которые активируются в стрессе.{' '}
+                <b>Хочешь увидеть свою вторую искаженную опору?</b>
+              </p>
+              <div className="flex gap-3">
+                <motion.button type="button" whileTap={{ scale: 0.95 }}
+                  className="flex-1 py-3 rounded-xl font-semibold text-[15px] text-white"
+                  style={{ background: 'var(--accent)' }}
+                  onClick={() => handleHookAnswer(true)}>
+                  Да!!!
+                </motion.button>
+                <motion.button type="button" whileTap={{ scale: 0.95 }}
+                  className="flex-1 py-3 rounded-xl font-semibold text-[15px] border"
+                  style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                  onClick={() => handleHookAnswer(false)}>
+                  Не сегодня
+                </motion.button>
+              </div>
             </motion.div>
           </>
         )}
 
-        {/* ════════════ STAGE 5: QUALIFICATION ════════════ */}
-        {funnelStep === 'qualification' && !qualSubmitting && (
+        {/* ════════════ SURPRISE RESPONSE — NO ════════════ */}
+        {funnelStep === 'surprise-response-no' && (
+          <>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="text-center"
+            >
+              <div className="relative w-full max-h-[30vh] mb-4 rounded-2xl overflow-hidden" style={{ minHeight: '160px' }}>
+                <Image src={resultImgSrc} alt={traitInfo.title} fill className="object-contain"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+              </div>
+              <h1 className="text-[24px] font-bold" style={{ color: 'var(--accent)' }}>{traitInfo.title}</h1>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+              className="bg-bg-secondary rounded-xl p-5 border border-border"
+            >
+              <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap">{traitInfo.description}</p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.3 }}
+              className="text-center"
+            >
+              <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap mb-5">
+                Это говорит о том, что ты уже явно не новичок в самопознании. Ты видишь этот паттерн, но это еще не меняет ситуацию.
+              </p>
+              <p className="text-text-secondary text-[14px] leading-relaxed mb-5 whitespace-pre-wrap">
+                Базовая опора — это только часть картины. Есть ещё смешанные конфигурации, которые активируются в стрессе.{' '}
+                <b>Хочешь увидеть свою вторую искаженную опору?</b>
+              </p>
+              <div className="flex gap-3">
+                <motion.button type="button" whileTap={{ scale: 0.95 }}
+                  className="flex-1 py-3 rounded-xl font-semibold text-[15px] text-white"
+                  style={{ background: 'var(--accent)' }}
+                  onClick={() => handleHookAnswer(true)}>
+                  Да!!!
+                </motion.button>
+                <motion.button type="button" whileTap={{ scale: 0.95 }}
+                  className="flex-1 py-3 rounded-xl font-semibold text-[15px] border"
+                  style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                  onClick={() => handleHookAnswer(false)}>
+                  Не сегодня
+                </motion.button>
+              </div>
+            </motion.div>
+          </>
+        )}
+
+        {/* ════════════ COOLDOWN MESSAGE ════════════ */}
+        {funnelStep === 'cooldown-message' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="text-center"
+          >
+            <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap mb-6">
+              Сейчас нет смысла проходить тест повторно. У тебя есть 2 месяца что бы демонтировать доминирующую опору. Через 2 месяца ты сможешь пройти тест и увидеть динамику.
+            </p>
+            <div className="flex flex-col gap-3">
+              <motion.button type="button" whileTap={{ scale: 0.97 }}
+                className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
+                style={{ background: 'var(--accent)' }}
+                onClick={() => handleCooldownButton(true)}>
+                Узнать 2 опору сейчас
+              </motion.button>
+              <motion.button type="button" whileTap={{ scale: 0.97 }}
+                className="w-full py-3 rounded-xl font-semibold text-[15px] border"
+                style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                onClick={() => handleCooldownButton(false)}>
+                Узнаю через 2 месяца
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ════════════ FAST PATH (В работу / Рефералка) ════════════ */}
+        {funnelStep === 'fast-path' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="flex flex-col gap-5"
+          >
+            <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap">
+              Я обычно открываю этот слой только тем, кто идёт в работу. Потому что важно не просто увидеть, а понять, как это устроено и что с этим делать.
+            </p>
+
+            {/* Вариант 1 — Пробой */}
+            <div className="bg-bg-secondary rounded-xl p-5 border border-border">
+              <p className="text-text-primary text-[14px] leading-relaxed whitespace-pre-wrap mb-4">
+                В группе «Пробой» мы:
+                — разбираем все конфигурации
+                — показываем, как это работает
+                — демонтируем искаженную опору
+                — выстраиваем новый паттерн
+
+                Это позволяет перестать воспроизводить одну и ту же проблему снова и снова.
+              </p>
+              <motion.button type="button" whileTap={{ scale: 0.97 }}
+                className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
+                style={{ background: 'var(--accent)' }}
+                onClick={() => openTelegramDM('Пробой')}>
+                Хочу в Пробой
+              </motion.button>
+            </div>
+
+            {/* Вариант 2 — Открыть через участие */}
+            <div className="bg-bg-secondary rounded-xl p-5 border border-border">
+              <p className="text-text-secondary text-[14px] leading-relaxed whitespace-pre-wrap mb-4">
+                Ты можешь получить разбор своей второй опоры, если пригласишь 2 человек в бота и они подпишутся на канал. Я даю этот доступ в обмен на расширение проекта.
+              </p>
+              <motion.button type="button" whileTap={{ scale: 0.97 }}
+                className="w-full py-3 rounded-xl font-semibold text-[15px] border"
+                style={{ background: 'transparent', borderColor: 'var(--accent)', color: 'var(--accent)' }}
+                onClick={handleShowReferralLink}>
+                Получить ссылку
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ════════════ REFERRAL LINK ════════════ */}
+        {funnelStep === 'referral-link' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="text-center"
+          >
+            <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap mb-4">
+              Вот твоя персональная ссылка:
+            </p>
+            <div className="bg-bg-secondary rounded-xl p-4 border border-border mb-4">
+              <p className="text-accent text-[13px] break-all select-all">{refLink}</p>
+            </div>
+            <p className="text-text-secondary text-[14px] leading-relaxed mb-4">
+              Когда 2 человека перейдут по ней и подпишутся, я открою тебе второй слой.
+            </p>
+            <motion.button type="button" whileTap={{ scale: 0.97 }}
+              className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
+              style={{ background: 'var(--accent)' }}
+              onClick={handleCopyLink}>
+              {copied ? 'Ссылка скопирована! ✓' : '📋 Копировать ссылку'}
+            </motion.button>
+          </motion.div>
+        )}
+
+        {/* ════════════ SOFT PATH — SURVEY ════════════ */}
+        {funnelStep === 'soft-path-survey' && surveyStep < 3 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="bg-bg-secondary rounded-xl p-5 border border-border"
           >
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-[13px] font-medium text-text-muted">Вопрос {qualStep + 1} из 3</span>
-              <div className="flex gap-1">
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className={`w-6 h-1 rounded-full transition-colors ${i <= qualStep ? 'bg-accent' : 'bg-bg-tertiary'}`} />
-                ))}
+            <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap mb-6">
+              Ты сейчас увидела механизм. И, скорее всего, это не первый раз, когда ты что-то про себя понимаешь. Вопрос в другом: почему это до сих пор не меняет твою жизнь? Потому что понимание не демонтирует паттерн. Это делается только через работу.
+            </p>
+
+            <div className="bg-bg-secondary rounded-xl p-5 border border-border">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-[13px] font-medium text-text-muted">Вопрос {surveyStep + 1} из 3</span>
+                <div className="flex gap-1">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className={`w-6 h-1 rounded-full transition-colors ${i <= surveyStep ? 'bg-accent' : 'bg-bg-tertiary'}`} />
+                  ))}
+                </div>
               </div>
+
+              {surveyStep === 0 && (
+                <div>
+                  <p className="text-[17px] font-medium text-text-primary mb-4">
+                    В какой сфере ты сейчас сильнее всего чувствуешь напряжение?
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {SURVEY_Q1.map((opt) => (
+                      <button key={opt} type="button"
+                        className="w-full py-3 px-4 bg-bg-primary border border-border rounded-xl text-text-primary text-[15px] active:border-accent active:text-accent transition-colors select-none"
+                        onClick={() => handleSurveyAnswer(opt)}>{opt}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {surveyStep === 1 && (
+                <div>
+                  <p className="text-[17px] font-medium text-text-primary mb-4">
+                    Насколько это ощущается остро?
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {SURVEY_Q2.map((opt) => (
+                      <button key={opt} type="button"
+                        className="w-full py-3 px-4 bg-bg-primary border border-border rounded-xl text-text-primary text-[15px] active:border-accent active:text-accent transition-colors select-none"
+                        onClick={() => handleSurveyAnswer(opt)}>{opt}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {surveyStep === 2 && (
+                <div>
+                  <p className="text-[17px] font-medium text-text-primary mb-4">
+                    Ты уже пробовала что-то с этим делать?
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {SURVEY_Q3.map((opt) => (
+                      <button key={opt} type="button"
+                        className="w-full py-3 px-4 bg-bg-primary border border-border rounded-xl text-text-primary text-[15px] active:border-accent active:text-accent transition-colors select-none"
+                        onClick={() => handleSurveyAnswer(opt)}>{opt}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-
-            {qualStep === 0 && (
-              <div>
-                <p className="text-[17px] font-medium text-text-primary mb-4">
-                  В какой сфере сильнее чувствуется напряжение?
-                </p>
-                <div className="flex flex-col gap-2">
-                  {QUAL_SPHERES.map((option) => (
-                    <button key={option} type="button"
-                      className="w-full py-3 px-4 bg-bg-primary border border-border rounded-xl text-text-primary text-[15px] active:border-accent active:text-accent transition-colors select-none"
-                      onClick={() => handleQualAnswer(option)}>{option}</button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {qualStep === 1 && (
-              <div>
-                <p className="text-[17px] font-medium text-text-primary mb-4">
-                  Насколько остро это ощущается?
-                </p>
-                <div className="flex flex-col gap-2">
-                  {QUAL_LEVELS.map((option) => (
-                    <button key={option} type="button"
-                      className="w-full py-3 px-4 bg-bg-primary border border-border rounded-xl text-text-primary text-[15px] active:border-accent active:text-accent transition-colors select-none"
-                      onClick={() => handleQualAnswer(option)}>{option}</button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {qualStep === 2 && (
-              <div>
-                <p className="text-[17px] font-medium text-text-primary mb-4">
-                  Пробовала ли что-то делать?
-                </p>
-                <div className="flex flex-col gap-2">
-                  {QUAL_ATTEMPTS.map((option) => (
-                    <button key={option} type="button"
-                      className="w-full py-3 px-4 bg-bg-primary border border-border rounded-xl text-text-primary text-[15px] active:border-accent active:text-accent transition-colors select-none"
-                      onClick={() => handleQualAnswer(option)}>{option}</button>
-                  ))}
-                </div>
-              </div>
-            )}
           </motion.div>
         )}
 
-        {qualSubmitting && (
-          <div className="flex justify-center py-8">
-            <motion.div
-              className="w-10 h-10 border-2 border-accent border-t-transparent rounded-full"
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-            />
-          </div>
-        )}
-
-        {/* ════════════ STAGE 6: OFFER ════════════ */}
-        {funnelStep === 'offer' && (
+        {/* ════════════ SOFT PATH — OFFER ════════════ */}
+        {funnelStep === 'soft-path-offer' && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.97 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
             className="text-center"
           >
-            <p className="text-text-primary text-[17px] font-medium leading-relaxed mb-6">
-              На основе твоих ответов я вижу два формата работы, которые тебе помогут:
+            <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap mb-6">
+              Есть 2 способа работы с искаженной опорой:
+
+              ✓ Жёсткий, но быстрый — это группа «Пробой»
+              ✓ Мягкий и постепенный — это «Пирамида Потенциала» или персональная работа
+
+              Какой способ тебе ближе?
             </p>
-
             <div className="flex flex-col gap-3">
-              <motion.button
-                type="button"
-                whileTap={{ scale: 0.97 }}
-                className="w-full py-4 rounded-xl font-semibold text-[16px] text-white"
+              <motion.button type="button" whileTap={{ scale: 0.97 }}
+                className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
                 style={{ background: 'var(--accent)' }}
-                onClick={() => {
-                  notifyAuthor('Пробой')
-                  openTelegramDM('Пробой')
-                }}
-              >
-                🔥 Быстрый формат работы
+                onClick={() => openTelegramDM('Пробой')}>
+                Жёсткий быстрый
               </motion.button>
-
-              <motion.button
-                type="button"
-                whileTap={{ scale: 0.97 }}
-                className="w-full py-4 rounded-xl font-semibold text-[16px] border"
+              <motion.button type="button" whileTap={{ scale: 0.97 }}
+                className="w-full py-3 rounded-xl font-semibold text-[15px] border"
                 style={{ background: 'transparent', borderColor: 'var(--accent)', color: 'var(--accent)' }}
-                onClick={() => {
-                  notifyAuthor('Пирамида')
-                  openTelegramDM('Пирамида')
-                }}
-              >
-                🌱 Мягкий формат работы
+                onClick={() => openTelegramDM('Пирамида')}>
+                Мягкий постепенный
               </motion.button>
-
-              <motion.button
-                type="button"
-                whileTap={{ scale: 0.97 }}
+              <motion.button type="button" whileTap={{ scale: 0.97 }}
                 className="w-full py-3 rounded-xl text-[14px] text-text-muted"
-                onClick={() => setFunnelStep('gift')}
-              >
+                onClick={() => setFunnelStep('soft-path-gift')}>
                 Пока не готова
               </motion.button>
             </div>
           </motion.div>
         )}
 
-        {/* ════════════ GIFT SCREEN ════════════ */}
-        {funnelStep === 'gift' && (
+        {/* ════════════ SOFT PATH — GIFT ════════════ */}
+        {funnelStep === 'soft-path-gift' && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -628,24 +617,19 @@ export default function ResultPage() {
             style={{ borderColor: 'color-mix(in srgb, var(--success) 40%, var(--border))' }}
           >
             <p className="text-success text-[17px] font-medium mb-3">
-              ♡ Спасибо за честность!
+              ♡ Благодарю тебя за честность!
             </p>
-            <p className="text-text-secondary text-sm leading-relaxed mb-4">
-              Я ценю, что ты была искренней. В подарок дарю тебе практику, которая поможет немного прояснить ситуацию.
+            <p className="text-text-secondary text-[14px] leading-relaxed whitespace-pre-wrap mb-4">
+              Я ценю, что ты была искренней. В подарок дарю тебе практику по твоей напряжённой сфере. Ты можешь начать изменения уже сегодня.
             </p>
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.97 }}
+            <motion.button type="button" whileTap={{ scale: 0.97 }}
               className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
               style={{ background: 'var(--accent)' }}
-              onClick={() => openTelegramDM('Хочу забрать подарок')}
-            >
+              onClick={() => openTelegramDM('Хочу забрать подарок')}>
               🎁 Забрать подарок
             </motion.button>
           </motion.div>
         )}
-
-        <div className="flex-1" />
 
         {/* Confirm Modal */}
         <ConfirmModal
@@ -657,6 +641,8 @@ export default function ResultPage() {
           onConfirm={handleConfirmProceed}
           onCancel={handleConfirmCancel}
         />
+
+        <div className="flex-1" />
       </div>
     </main>
   )
