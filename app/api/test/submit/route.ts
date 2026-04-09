@@ -26,8 +26,8 @@ export async function POST(request: NextRequest) {
         typeof a !== 'object' ||
         typeof a.questionId !== 'number' ||
         typeof a.score !== 'number' ||
-        a.score < 1 ||
-        a.score > 5
+        a.score < 0 ||
+        a.score > 1
       ) {
         return NextResponse.json(
           { success: false, error: `Некорректный ответ: ${JSON.stringify(a)}` },
@@ -90,42 +90,56 @@ export async function POST(request: NextRequest) {
     // Рассчитываем баллы
     const scores = calculateScores(answers)
 
+    console.log('=== ТЕСТ ЗАВЕРШЕН ===')
+    console.log('Баллы:', { S: scores.scoreS, U: scores.scoreU, P: scores.scoreP, R: scores.scoreR, K: scores.scoreK })
+    console.log('Доминирующая:', scores.dominantTrait, 'Теневая:', scores.secondaryTrait)
+
     // Сохраняем в БД
     if (profileId) {
-      // Авторизованный пользователь — UPSERT по profile_id
-      const { error: dbError } = await supabase.from('test_results').upsert(
-        {
-          profile_id: profileId,
-          score_s: scores.scoreS,
-          score_u: scores.scoreU,
-          score_p: scores.scoreP,
-          score_r: scores.scoreR,
-          score_k: scores.scoreK,
-          dominant_trait: scores.dominantTrait,
-          secondary_trait: scores.secondaryTrait,
-          answers: scores.answers,
-        },
-        {
-          onConflict: 'profile_id',
-        }
-      )
+      console.log('[test/submit] Saving to DB for profile:', profileId)
+      try {
+        const { error: dbError } = await supabase.from('test_results').upsert(
+          {
+            profile_id: profileId,
+            score_s: scores.scoreS,
+            score_u: scores.scoreU,
+            score_p: scores.scoreP,
+            score_r: scores.scoreR,
+            score_k: scores.scoreK,
+            dominant_trait: scores.dominantTrait.toLowerCase(),
+            secondary_trait: scores.secondaryTrait.toLowerCase(),
+            answers: scores.answers,
+          },
+          {
+            onConflict: 'profile_id',
+          }
+        )
 
-      if (dbError) {
-        console.error('DB error:', dbError)
+        if (dbError) {
+          console.error('ОШИБКА СОХРАНЕНИЯ В БД:', JSON.stringify(dbError))
+          return NextResponse.json(
+            { success: false, error: 'Ошибка сохранения результатов' },
+            { status: 500 }
+          )
+        }
+
+        console.log('[test/submit] DB save successful')
+
+        // Update last_test_date
+        await supabase
+          .from('profiles')
+          .update({
+            updated_at: new Date().toISOString(),
+            last_test_date: new Date().toISOString(),
+          })
+          .eq('id', profileId)
+      } catch (error) {
+        console.error('ОШИБКА СОХРАНЕНИЯ В БД:', error)
         return NextResponse.json(
           { success: false, error: 'Ошибка сохранения результатов' },
           { status: 500 }
         )
       }
-
-      // Update last_test_date
-      await supabase
-        .from('profiles')
-        .update({
-          updated_at: new Date().toISOString(),
-          last_test_date: new Date().toISOString(),
-        })
-        .eq('id', profileId)
     } else {
       // Guest — нет profile_id, пропускаем запись в БД
       // Результат всё равно вернём клиенту — он сохранит в sessionStorage

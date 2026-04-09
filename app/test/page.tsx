@@ -75,7 +75,9 @@ export default function TestPage() {
   const currentAnswer = answersMap[question.id] ?? null
 
   const submitAnswers = useCallback(async (answers: Answer[]) => {
+    const startTime = Date.now()
     try {
+      console.log('=== ТЕСТ ЗАВЕРШЕН (client) ===')
       const stored = localStorage.getItem('eva_token')
       const token = stored || ''
       const res = await fetch('/api/test/submit', {
@@ -87,11 +89,23 @@ export default function TestPage() {
         body: JSON.stringify({ answers }),
       })
       const result = await res.json()
+      console.log('Server response:', result)
+
+      // Ensure minimum 2.5s delay for UX
+      const elapsed = Date.now() - startTime
+      const remaining = Math.max(0, 2500 - elapsed)
+      if (remaining > 0) {
+        console.log(`[test] Waiting ${remaining}ms for minimum delay`)
+        await new Promise((r) => setTimeout(r, remaining))
+      }
+
       if (!result.success) {
         console.error('Submit failed:', result.error)
+        // Even on failure, go to result — user sees the computed result from sessionStorage fallback
         router.push('/result')
         return
       }
+      console.log('Saving result to sessionStorage:', result.data)
       sessionStorage.setItem('eva_result', JSON.stringify(result.data))
       router.push('/result')
     } catch (err) {
