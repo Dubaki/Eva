@@ -188,7 +188,10 @@ async function handleDefaultMessage(chatId: number, firstName?: string): Promise
 // ── Route Handler ──────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  // ── DEBUG: verify env variables ──
   console.log('!!! WEBHOOK ATTEMPT !!!')
+  console.log('DEBUG: Using Token ending in:', process.env.TELEGRAM_BOT_TOKEN?.slice(-5))
+  console.log('DEBUG: Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
   try {
     // ── AGGRESSIVE LOGGING: dump entire incoming request ──
     let rawBody: string
