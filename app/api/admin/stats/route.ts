@@ -71,12 +71,12 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  // Recent 20 users with their test results
+  // Recent 50 users with their test results and referral data
   const { data: recentUsers } = await supabase
     .from('profiles')
-    .select('id, tg_id, username, created_at')
+    .select('id, tg_id, username, created_at, invites_count, last_test_date')
     .order('created_at', { ascending: false })
-    .limit(20)
+    .limit(50)
 
   // Enrich with test results
   const recentUsersWithResults = await Promise.all(
@@ -87,12 +87,20 @@ export async function GET(req: NextRequest) {
         .eq('profile_id', user.id)
         .single()
 
+      const lastTest = user.last_test_date ?? null
+      const nextTestAvailable = lastTest
+        ? new Date(new Date(lastTest).getTime() + 60 * 24 * 60 * 60 * 1000).toISOString()
+        : null
+
       return {
         tg_id: user.tg_id,
         username: user.username,
         created_at: user.created_at,
         dominantTrait: testResult?.dominant_trait ?? null,
         secondaryTrait: testResult?.secondary_trait ?? null,
+        invites_count: user.invites_count ?? 0,
+        last_test_date: lastTest,
+        next_test_available: nextTestAvailable,
       }
     })
   )

@@ -400,8 +400,79 @@ serve(async (req: Request) => {
 
   console.log(`[handler] Webhook mode: type=${webhook.type}, table=${webhook.table}`)
 
+  // ── Handle test_results INSERT (send photo with result) ──────────
+  if (webhook.table === 'test_results' && webhook.type === 'INSERT') {
+    const record = webhook.record
+    const profileId = record.profile_id as string | null
+    const dominantTrait = record.dominant_trait as string | null
+    const secondaryTrait = record.secondary_trait as string | null
+
+    if (!profileId || !dominantTrait) {
+      console.log('[handler] test_results INSERT: missing profile_id or dominant_trait, skipping')
+      return new Response(JSON.stringify({ skipped: 'missing_fields' }), { status: 200 })
+    }
+
+    // Look up user's tg_id from profiles
+    console.log(`[handler] test_results INSERT: profile_id=${profileId}, dominant_trait=${dominantTrait}`)
+    console.log(`[handler] Looking up tg_id for profile_id=${profileId}`)
+
+    // We need SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY for this
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('[handler] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
+      return new Response(JSON.stringify({ error: 'Supabase not configured' }), { status: 500 })
+    }
+
+    const profileRes = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${profileId}&select=tg_id`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+      },
+    })
+
+    if (!profileRes.ok) {
+      console.error(`[handler] Failed to fetch profile (${profileRes.status}):`, await profileRes.text())
+      return new Response(JSON.stringify({ error: 'Profile lookup failed' }), { status: 500 })
+    }
+
+    const profiles = await profileRes.json()
+    if (!profiles || profiles.length === 0) {
+      console.log(`[handler] Profile not found: ${profileId}`)
+      return new Response(JSON.stringify({ skipped: 'profile_not_found' }), { status: 200 })
+    }
+
+    const tgId = profiles[0].tg_id as number
+    console.log(`[handler] Found tg_id=${tgId}, sending photo`)
+
+    const traitKey = dominantTrait.toUpperCase()
+    const imageUrl = TRAIT_IMAGES[traitKey] || TRAIT_IMAGES['S']
+    const text = DOMINANT_TRAIT_TEXTS[traitKey] || DOMINANT_TRAIT_TEXTS['S']
+
+    console.log(`[handler] Sending photo: ${imageUrl} to tgId=${tgId}`)
+    const ok = await sendPhoto(tgId, imageUrl, text)
+
+    if (!ok) {
+      console.error(`[handler] sendPhoto FAILED for tgId=${tgId}, traitKey=${traitKey}`)
+      // Fallback: send text only
+      console.log(`[handler] Fallback: sending text only to tgId=${tgId}`)
+      const textOk = await sendMessage(tgId, `<b>${traitKey}</b>\n\n${text}`)
+      return new Response(
+        JSON.stringify({ success: true, action: 'test_result_insert', tg_id: tgId, photo_sent: false, text_sent: textOk }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
+    return new Response(
+      JSON.stringify({ success: true, action: 'test_result_insert', tg_id: tgId, photo_sent: true }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  // ── Handle profiles table ─────────────────────────────────────────
   if (webhook.table !== 'profiles') {
-    console.log('[handler] Ignoring — not profiles table')
+    console.log(`[handler] Ignoring — not profiles or test_results table`)
     return new Response(JSON.stringify({ ignored: true }), { status: 200 })
   }
 
@@ -430,6 +501,10 @@ serve(async (req: Request) => {
     const text = DOMINANT_TRAIT_TEXTS[traitKey] || DOMINANT_TRAIT_TEXTS['S']
 
     const ok = await sendPhoto(tgId, imageUrl, text)
+    if (!ok) {
+      console.error(`[handler] sendPhoto FAILED for tgId=${tgId}, fallback to text`)
+      await sendMessage(tgId, text)
+    }
     return new Response(
       JSON.stringify({ success: true, action: 'dominant_trait_insert', tg_id: tgId, sent: ok }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
@@ -444,6 +519,10 @@ serve(async (req: Request) => {
     const text = DOMINANT_TRAIT_TEXTS[traitKey] || DOMINANT_TRAIT_TEXTS['S']
 
     const ok = await sendPhoto(tgId, imageUrl, text)
+    if (!ok) {
+      console.error(`[handler] sendPhoto FAILED for tgId=${tgId}, fallback to text`)
+      await sendMessage(tgId, text)
+    }
     return new Response(
       JSON.stringify({ success: true, action: 'dominant_trait_updated', tg_id: tgId, sent: ok }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }

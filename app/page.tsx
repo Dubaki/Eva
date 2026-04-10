@@ -1,10 +1,11 @@
 'use client'
 
-import { useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 
 const ADMIN_PIN = '2026'
+const COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000 // 60 days
 
 const fadeUp = (delay: number) => ({
   initial: { opacity: 0, y: 20 },
@@ -14,6 +15,26 @@ const fadeUp = (delay: number) => ({
 
 export default function Home() {
   const clickTimesRef = useRef<number[]>([])
+  const [cooldownDays, setCooldownDays] = useState<number | null>(null)
+
+  useEffect(() => {
+    const token = localStorage.getItem('eva_token')
+    if (!token) return
+
+    fetch('/api/user/status', { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.success && json.data?.lastTestDate) {
+          const lastTest = new Date(json.data.lastTestDate).getTime()
+          const elapsed = Date.now() - lastTest
+          const remaining = COOLDOWN_MS - elapsed
+          if (remaining > 0) {
+            setCooldownDays(Math.ceil(remaining / (24 * 60 * 60 * 1000)))
+          }
+        }
+      })
+      .catch(() => { /* ignore */ })
+  }, [])
 
   const handleTitleClick = useCallback(() => {
     const now = Date.now()
@@ -73,14 +94,24 @@ export default function Home() {
           {...fadeUp(0.52)}
           className="w-full mt-auto"
         >
-          <Link href="/test" prefetch={true} className="block w-full">
+          {cooldownDays !== null && cooldownDays > 0 ? (
             <button
               type="button"
-              className="w-full py-[20px] px-6 bg-accent text-white rounded-2xl font-semibold text-[17px] tracking-[-0.01em] active:scale-[0.98] transition-all duration-200 select-none shadow-lg shadow-accent/25"
+              disabled
+              className="w-full py-[20px] px-6 bg-bg-tertiary text-text-muted rounded-2xl font-semibold text-[15px] select-none cursor-not-allowed border border-border"
             >
-              ✨ Пройти тест
+              Опора ещё формируется. Повторный тест будет доступен через {cooldownDays} {cooldownDays === 1 ? 'день' : cooldownDays < 5 ? 'дня' : 'дней'}
             </button>
-          </Link>
+          ) : (
+            <Link href="/test" prefetch={true} className="block w-full">
+              <button
+                type="button"
+                className="w-full py-[20px] px-6 bg-accent text-white rounded-2xl font-semibold text-[17px] tracking-[-0.01em] active:scale-[0.98] transition-all duration-200 select-none shadow-lg shadow-accent/25"
+              >
+                ✨ Пройти тест
+              </button>
+            </Link>
+          )}
         </motion.div>
       </div>
     </main>

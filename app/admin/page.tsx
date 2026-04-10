@@ -16,6 +16,9 @@ type AdminStats = {
     created_at: string
     dominantTrait: string | null
     secondaryTrait: string | null
+    invites_count: number
+    last_test_date: string | null
+    next_test_available: string | null
   }>
 }
 
@@ -34,7 +37,9 @@ const TRAIT_LABELS: Record<string, string> = {
   K: 'Сверхбдительность',
 }
 
-type Tab = 'stats' | 'gifts'
+type Tab = 'stats' | 'crm' | 'broadcast' | 'gifts'
+type SortField = 'created_at' | 'invites_count' | 'last_test_date'
+type SortDir = 'asc' | 'desc'
 
 export default function AdminPanel() {
   const [stats, setStats] = useState<AdminStats | null>(null)
@@ -49,6 +54,11 @@ export default function AdminPanel() {
   })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [sortField, setSortField] = useState<SortField>('created_at')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [broadcastMsg, setBroadcastMsg] = useState('')
+  const [broadcasting, setBroadcasting] = useState(false)
+  const [broadcastResult, setBroadcastResult] = useState<{ sent: number; failed: number; total: number } | null>(null)
   const router = useRouter()
 
   const adminHeaders = (): Record<string, string> => {
@@ -147,6 +157,32 @@ export default function AdminPanel() {
     }
   }
 
+  const handleBroadcast = async () => {
+    if (!broadcastMsg.trim()) return
+
+    setBroadcasting(true)
+    setBroadcastResult(null)
+    try {
+      const res = await fetch('/api/admin/broadcast', {
+        method: 'POST',
+        headers: {
+          ...adminHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: broadcastMsg }),
+      })
+      const json = await res.json()
+      if (json.success && json.data) {
+        setBroadcastResult({ sent: json.data.sent, failed: json.data.failed, total: json.data.total })
+        setBroadcastMsg('')
+      }
+    } catch (err) {
+      console.error('[admin] Broadcast error:', err)
+    } finally {
+      setBroadcasting(false)
+    }
+  }
+
   if (unauthorized) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-bg-primary px-6">
@@ -215,7 +251,29 @@ export default function AdminPanel() {
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('gifts')}
+            onClick={() => { setActiveTab('crm'); setBroadcastResult(null) }}
+            className={`flex-1 py-2.5 rounded-xl text-[14px] font-semibold transition-colors ${
+              activeTab === 'crm'
+                ? 'bg-accent text-white'
+                : 'bg-bg-secondary text-text-muted border border-border hover:text-accent'
+            }`}
+          >
+            👥 CRM
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('broadcast')}
+            className={`flex-1 py-2.5 rounded-xl text-[14px] font-semibold transition-colors ${
+              activeTab === 'broadcast'
+                ? 'bg-accent text-white'
+                : 'bg-bg-secondary text-text-muted border border-border hover:text-accent'
+            }`}
+          >
+            📢 Рассылка
+          </button>
+          <button
+            type="button"
+            onClick={() => { setActiveTab('gifts'); setBroadcastResult(null) }}
             className={`flex-1 py-2.5 rounded-xl text-[14px] font-semibold transition-colors ${
               activeTab === 'gifts'
                 ? 'bg-accent text-white'
@@ -271,13 +329,13 @@ export default function AdminPanel() {
             {/* Recent users */}
             <div className="bg-bg-secondary rounded-xl p-5 border border-border">
               <p className="text-text-muted text-xs uppercase tracking-widest mb-3 text-center">
-                Последние 20 пользователей
+                Последние 50 пользователей
               </p>
               {stats.recentUsers.length === 0 ? (
                 <p className="text-text-muted text-sm text-center py-4">Пока нет пользователей</p>
               ) : (
                 <div className="flex flex-col gap-2">
-                  {stats.recentUsers.map((u, i) => (
+                  {stats.recentUsers.slice(0, 20).map((u, i) => (
                     <div
                       key={i}
                       className="flex items-center justify-between py-2 border-b border-border last:border-b-0"
@@ -304,6 +362,167 @@ export default function AdminPanel() {
               )}
             </div>
           </>
+        )}
+
+        {/* ════════════ CRM TAB ════════════ */}
+        {activeTab === 'crm' && (
+          <div className="bg-bg-secondary rounded-xl border border-border overflow-hidden">
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <p className="text-text-muted text-xs uppercase tracking-widest">Пользователи</p>
+              <div className="flex gap-2">
+                {(['created_at', 'invites_count', 'last_test_date'] as SortField[]).map((field) => {
+                  const labels: Record<SortField, string> = {
+                    created_at: '📅 Дата',
+                    invites_count: '🔗 Реф.',
+                    last_test_date: '🧪 Тест',
+                  }
+                  const isActive = sortField === field
+                  return (
+                    <button
+                      key={field}
+                      type="button"
+                      onClick={() => {
+                        if (sortField === field) {
+                          setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+                        } else {
+                          setSortField(field)
+                          setSortDir('desc')
+                        }
+                      }}
+                      className={`text-[12px] font-medium px-3 py-1.5 rounded-lg transition-colors ${
+                        isActive
+                          ? 'bg-accent text-white'
+                          : 'bg-bg-primary text-text-muted border border-border hover:text-accent'
+                      }`}
+                    >
+                      {labels[field]} {isActive && (sortDir === 'asc' ? '↑' : '↓')}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {stats.recentUsers.length === 0 ? (
+              <p className="text-text-muted text-sm text-center py-8">Пока нет пользователей</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-[13px]">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-3 text-text-muted font-medium">Пользователь</th>
+                      <th className="text-left py-3 px-3 text-text-muted font-medium">Опора</th>
+                      <th className="text-center py-3 px-3 text-text-muted font-medium">🔗</th>
+                      <th className="text-center py-3 px-3 text-text-muted font-medium">Тест</th>
+                      <th className="text-center py-3 px-3 text-text-muted font-medium">Доступен</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...stats.recentUsers]
+                      .sort((a, b) => {
+                        const mul = sortDir === 'asc' ? 1 : -1
+                        if (sortField === 'invites_count') {
+                          return mul * ((a.invites_count ?? 0) - (b.invites_count ?? 0))
+                        }
+                        if (sortField === 'last_test_date') {
+                          const da = a.last_test_date || '1970-01-01'
+                          const db2 = b.last_test_date || '1970-01-01'
+                          return mul * (da < db2 ? -1 : da > db2 ? 1 : 0)
+                        }
+                        return mul * (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0)
+                      })
+                      .map((u, i) => {
+                        const daysUntilTest = u.next_test_available
+                          ? Math.ceil((new Date(u.next_test_available).getTime() - Date.now()) / (24 * 60 * 60 * 1000))
+                          : null
+                        return (
+                          <tr key={i} className="border-b border-border last:border-b-0 hover:bg-bg-tertiary transition-colors">
+                            <td className="py-2.5 px-3">
+                              <p className="font-medium text-text-primary truncate max-w-[140px]">
+                                {u.username ? `@${u.username}` : `${u.tg_id}`}
+                              </p>
+                              <p className="text-[10px] text-text-muted">
+                                {new Date(u.created_at).toLocaleDateString('ru-RU')}
+                              </p>
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              {u.dominantTrait ? (
+                                <span className="text-accent font-medium">{TRAIT_LABELS[u.dominantTrait] ?? u.dominantTrait}</span>
+                              ) : (
+                                <span className="text-text-muted">—</span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <span className="font-medium text-text-primary">{u.invites_count ?? 0}</span>
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              {u.last_test_date ? (
+                                <span className="text-text-muted text-[11px]">
+                                  {new Date(u.last_test_date).toLocaleDateString('ru-RU')}
+                                </span>
+                              ) : (
+                                <span className="text-text-muted text-[11px]">нет</span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              {daysUntilTest !== null && daysUntilTest > 0 ? (
+                                <span className="text-text-muted text-[11px]">{daysUntilTest} дн.</span>
+                              ) : u.last_test_date ? (
+                                <span className="text-green-500 text-[11px]">сейчас</span>
+                              ) : (
+                                <span className="text-text-muted text-[11px]">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ════════════ BROADCAST TAB ════════════ */}
+        {activeTab === 'broadcast' && (
+          <div className="bg-bg-secondary rounded-xl p-5 border border-border">
+            <p className="text-text-muted text-xs uppercase tracking-widest mb-4 text-center">
+              Рассылка всем пользователям
+            </p>
+
+            <textarea
+              value={broadcastMsg}
+              onChange={(e) => setBroadcastMsg(e.target.value)}
+              placeholder="Введите текст рассылки (поддерживается HTML)..."
+              rows={5}
+              className="w-full py-3 px-3 bg-bg-primary border border-border rounded-xl text-[14px] text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none transition-colors resize-none mb-4"
+            />
+
+            <motion.button
+              type="button"
+              whileTap={{ scale: broadcasting ? 1 : 0.97 }}
+              onClick={handleBroadcast}
+              disabled={broadcasting || !broadcastMsg.trim()}
+              className={`w-full py-3 rounded-xl font-semibold text-[15px] text-white transition-all ${
+                broadcasting || !broadcastMsg.trim() ? 'opacity-60 cursor-not-allowed' : 'active:scale-[0.98]'
+              }`}
+              style={{ background: 'var(--accent)' }}
+            >
+              {broadcasting ? 'Отправка...' : '📢 Сделать рассылку всем пользователям'}
+            </motion.button>
+
+            {broadcastResult && (
+              <div className="mt-4 p-3 bg-bg-primary rounded-xl border border-border text-center">
+                <p className="text-text-primary text-[14px] font-medium">
+                  ✅ Отправлено: {broadcastResult.sent} / {broadcastResult.total}
+                </p>
+                {broadcastResult.failed > 0 && (
+                  <p className="text-red-400 text-[12px] mt-1">
+                    Ошибок: {broadcastResult.failed}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         )}
 
         {/* ════════════ GIFTS TAB ════════════ */}
