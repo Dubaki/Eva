@@ -179,17 +179,23 @@ async function handleStart(chatId: number, userId: number, refCode: number | nul
 }
 
 async function handleSubscriptionCheck(callbackQueryId: string, userId: number, chatId: number, refCode: number | null): Promise<void> {
+  // BOT STEP 1: Button clicked
+  console.log(`!!! CRITICAL !!! [BOT STEP 1] Button "I subscribed" clicked by tgId=${userId} (type: ${typeof userId}, Number: ${Number(userId)})`)
+  console.log(`!!! CRITICAL !!! [BOT STEP 1] CHANNEL_ID env: ${process.env.TELEGRAM_CHANNEL_ID ? 'SET (ends in ' + process.env.TELEGRAM_CHANNEL_ID.slice(-5) + ')' : 'NOT SET'}`)
+
   if (!CHANNEL_ID) {
+    console.error(`!!! CRITICAL !!! [BOT STEP 1] CHANNEL_ID is empty/undefined!`)
     await answerCallbackQuery({ callbackQueryId, text: 'Канал не настроен. Обратитесь к администратору.', showAlert: true })
     return
   }
 
+  // BOT STEP 2: Check channel membership
   const status = await getChatMember(CHANNEL_ID, userId)
-  console.log('Check sub for channel:', process.env.TELEGRAM_CHANNEL_ID, 'Status:', status)
+  console.log(`!!! CRITICAL !!! [BOT STEP 2] Channel status for user ${userId}: "${status}"`)
 
   // getChatMember returns null on API error (e.g. 400 Bad Request: chat not found)
   if (status === null) {
-    console.error('[webhook] getChatMember returned null. CHANNEL_ID:', process.env.TELEGRAM_CHANNEL_ID)
+    console.error(`!!! CRITICAL !!! [BOT STEP 2] getChatMember returned null. CHANNEL_ID: ${CHANNEL_ID}`)
     await answerCallbackQuery({
       callbackQueryId,
       text: 'Ошибка: проверьте права бота в канале. Бот должен быть администратором канала.',
@@ -199,18 +205,21 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
   }
 
   const isSubscribed = status === 'member' || status === 'administrator' || status === 'creator'
+  console.log(`!!! CRITICAL !!! [BOT STEP 2] isSubscribed calculation: ${isSubscribed} (status="${status}")`)
 
   if (isSubscribed) {
-    // ── PRIORITY: Update subscription status FIRST (before referral engine) ──
+    // BOT STEP 3: Update DB
+    console.log(`!!! CRITICAL !!! [BOT STEP 3] Attempting DB update for tg_id=${Number(userId)}`)
     try {
       const supabase = getSupabaseServer()
-      console.log(`!!! CRITICAL !!! [BOT Auth] User confirmed subscription. TG_ID: ${userId} (type: ${typeof userId})`)
+      console.log(`!!! CRITICAL !!! [BOT STEP 3] Supabase client created successfully`)
 
+      const numericTgId = Number(userId)
       const { data, error } = await supabase
         .from('profiles')
         .upsert(
           {
-            tg_id: userId,
+            tg_id: numericTgId,
             is_subscribed: true,
             subscribed_at: new Date().toISOString(),
           },
@@ -219,12 +228,12 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
         .select()
 
       if (error) {
-        console.error(`!!! CRITICAL !!! [BOT Auth] ❌ DB Update Error:`, JSON.stringify(error))
+        console.error(`!!! CRITICAL !!! [BOT STEP 3] ❌ DB Update Error:`, JSON.stringify(error))
       } else {
-        console.log(`!!! CRITICAL !!! [BOT Auth] ✅ DB Update Success. Rows affected:`, data?.length, `Result:`, JSON.stringify(data))
+        console.log(`!!! CRITICAL !!! [BOT STEP 3] ✅ DB Update Success. Rows: ${data?.length}, Result:`, JSON.stringify(data))
       }
     } catch (dbErr) {
-      console.error(`!!! CRITICAL !!! [BOT Auth] ❌ Subscription update threw:`, dbErr)
+      console.error(`!!! CRITICAL !!! [BOT STEP 3] ❌ Subscription update threw:`, dbErr)
     }
 
     await answerCallbackQuery({ callbackQueryId })
@@ -442,7 +451,7 @@ export async function POST(req: NextRequest) {
         const chatId = message?.chat?.id
 
         if (chatId && from) {
-          console.log(`[webhook] Callback: ${data} from user ${from.id}`)
+          console.log(`!!! CRITICAL !!! [BOT STEP 0] Callback received: data="${data}", from user ${from.id} (type: ${typeof from.id}), chatId=${chatId}`)
 
           // Parse callback data: "check_subscription" or "check_sub_<refCode>"
           let refCode: number | null = null
@@ -457,6 +466,12 @@ export async function POST(req: NextRequest) {
             // Unknown callback — just respond with default message
             await handleDefaultMessage(chatId, undefined)
           }
+        } else {
+          console.warn(`!!! CRITICAL !!! [BOT STEP 0] Callback received but missing chatId or from:`, {
+            hasChatId: !!message?.chat?.id,
+            hasFrom: !!from,
+            callbackData: data,
+          })
         }
       }
 
