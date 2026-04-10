@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyJwt } from '@/lib/jwt'
 import { getSupabaseServer } from '@/lib/supabase/server'
+import { triggerBotNotification } from '@/lib/bot-notification'
+import { MIXED_TRAIT_TEXTS } from '@/lib/telegram'
 
 export async function POST(req: NextRequest) {
   const jwtSecret = process.env.SUPABASE_JWT_SECRET
@@ -83,6 +85,45 @@ export async function POST(req: NextRequest) {
 
   if (error && !error.message.includes('duplicate')) {
     return NextResponse.json({ success: false, error: 'Database error' }, { status: 500 })
+  }
+
+  // Update referrals_count for the referrer
+  const { count: newCount, error: countError } = await supabase
+    .from('referrals')
+    .select('id', { count: 'exact', head: true })
+    .eq('owner_id', referrer.id)
+
+  if (!countError) {
+    await supabase
+      .from('profiles')
+      .update({ referrals_count: newCount ?? 0 })
+      .eq('id', referrer.id)
+
+    // If referrals count reached 2, trigger Edge Function
+    if ((newCount ?? 0) === 2) {
+      // Get referrer's traits and tg_id for mixed trait message
+      const { data: referrerProfile } = await supabase
+        .from('profiles')
+        .select('tg_id, dominant_trait, shadow_trait')
+        .eq('id', referrer.id)
+        .single()
+
+      if (referrerProfile?.tg_id && referrerProfile.dominant_trait && referrerProfile.shadow_trait) {
+        const mixedKey = [referrerProfile.dominant_trait.toUpperCase(), referrerProfile.shadow_trait.toUpperCase()]
+          .sort()
+          .join('')
+        const mixedText = MIXED_TRAIT_TEXTS[mixedKey]
+
+        if (mixedText) {
+          triggerBotNotification({
+            event: 'referrals_reached_2',
+            profile_id: referrer.id,
+            tg_id: referrerProfile.tg_id,
+            mixed_trait: mixedKey,
+          }).catch((err) => console.error('[referrals/apply] Edge function trigger error:', err))
+        }
+      }
+    }
   }
 
   return NextResponse.json({ success: true, data: { applied: true } })

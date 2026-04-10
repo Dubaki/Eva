@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 
 const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
+const ADMIN_PIN = '2026'
 
 const fadeUp = (delay: number) => ({
   initial: { opacity: 0, y: 20 },
@@ -14,6 +15,24 @@ const fadeUp = (delay: number) => ({
 
 export default function Home() {
   const [isAdmin, setIsAdmin] = useState(false)
+  const clickTimesRef = useRef<number[]>([])
+
+  const handleTitleClick = useCallback(() => {
+    const now = Date.now()
+    // Clean old clicks (> 2 seconds)
+    clickTimesRef.current = clickTimesRef.current.filter((t) => now - t < 2000)
+    clickTimesRef.current.push(now)
+
+    if (clickTimesRef.current.length >= 7) {
+      clickTimesRef.current = []
+
+      const pin = window.prompt('Введите PIN-код')
+      if (pin === ADMIN_PIN) {
+        localStorage.setItem('isAdmin', 'true')
+        window.location.href = '/admin'
+      }
+    }
+  }, [])
 
   useEffect(() => {
     const profileRaw = localStorage.getItem('eva_profile')
@@ -31,7 +50,10 @@ export default function Home() {
         <div className="flex flex-col gap-6">
           {/* Heading + body — no image */}
           <motion.div {...fadeUp(0.22)} className="flex flex-col gap-3">
-            <h1 className="text-[24px] font-bold leading-[1.2] tracking-[-0.02em] text-text-primary">
+            <h1
+              className="text-[24px] font-bold leading-[1.2] tracking-[-0.02em] text-text-primary cursor-pointer select-none"
+              onClick={handleTitleClick}
+            >
               У каждого человека есть внутренняя <span className="text-accent">«опора»</span>
             </h1>
             <p className="text-[15px] leading-[1.6] text-text-secondary opacity-90">

@@ -199,10 +199,10 @@ export default function ResultPage() {
 
     if (tgWebApp?.openTelegramLink) {
       tgWebApp.openTelegramLink(dmUrl)
-      // Auto-close after short delay
+      // Auto-close after 500ms
       setTimeout(() => {
         tgWebApp?.close?.()
-      }, 200)
+      }, 500)
     } else {
       window.open(dmUrl, '_blank')
     }
@@ -248,31 +248,71 @@ export default function ResultPage() {
 
   // ── "Забрать подарок" handler ────────────────────────────────────────
   const handleClaimGift = useCallback(async () => {
-    // Send gift message via bot
+    // Get user's selected_sphere from profile
     const token = localStorage.getItem('eva_token')
+    let selectedSphere = 'other'
+
     if (token) {
-      fetch('/api/bot/send-gift-message', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      }).catch((err) => console.error('[send-gift-message] Error:', err))
+      try {
+        const res = await fetch('/api/user/status', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const json = await res.json()
+        if (json.success && json.data?.selected_sphere) {
+          selectedSphere = json.data.selected_sphere
+        }
+      } catch (err) {
+        console.error('[claim-gift] Failed to fetch user status:', err)
+      }
     }
 
-    // Redirect to author's DM and close
+    // Map sphere to app_settings key
+    const sphereToKey: Record<string, string> = {
+      'Деньги': 'gift_money',
+      'Отношения': 'gift_relations',
+      'Здоровье': 'gift_health',
+      'Другое': 'gift_other',
+      'Везде': 'gift_other',
+    }
+    const key = sphereToKey[selectedSphere] || 'gift_other'
+
+    // Fetch gift link from app_settings
+    let giftUrl = 'https://t.me/' + AUTHOR_USERNAME
+    if (token) {
+      try {
+        const res = await fetch(`/api/gift-link?key=${encodeURIComponent(key)}`)
+        const json = await res.json()
+        if (json.success && json.data?.url) {
+          giftUrl = json.data.url
+        }
+      } catch (err) {
+        console.error('[claim-gift] Failed to fetch gift link:', err)
+      }
+    }
+
+    // Also send gift message via bot (legacy)
+    fetch('/api/bot/send-gift-message', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token || ''}` },
+    }).catch((err) => console.error('[send-gift-message] Error:', err))
+
+    // Open gift link and close
     const tgWebApp = (window as unknown as {
-      Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void; close?: () => void } }
+      Telegram?: { WebApp?: { openLink?: (url: string) => void; close?: () => void; openTelegramLink?: (url: string) => void } }
     }).Telegram?.WebApp
 
-    const dmUrl = `https://t.me/${AUTHOR_USERNAME}?text=${encodeURIComponent('Забрать подарок')}`
-
-    if (tgWebApp?.openTelegramLink) {
-      tgWebApp.openTelegramLink(dmUrl)
-      // Auto-close after short delay
-      setTimeout(() => {
-        tgWebApp?.close?.()
-      }, 200)
+    if (tgWebApp?.openLink) {
+      tgWebApp.openLink(giftUrl)
+    } else if (tgWebApp?.openTelegramLink) {
+      tgWebApp.openTelegramLink(giftUrl)
     } else {
-      window.open(dmUrl, '_blank')
+      window.open(giftUrl, '_blank')
     }
+
+    // Auto-close after 500ms
+    setTimeout(() => {
+      tgWebApp?.close?.()
+    }, 500)
   }, [])
 
   // ── Loading / No result ──────────────────────────────────────────────

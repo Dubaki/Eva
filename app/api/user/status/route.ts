@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   // Fetch profile info
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, tg_id, is_subscribed, last_test_date')
+    .select('id, tg_id, is_subscribed, last_test_date, selected_sphere')
     .eq('id', profileId)
     .single()
 
@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
       dominantTrait: testResult?.dominant_trait ?? null,
       secondaryTrait: testResult?.secondary_trait ?? null,
       hasQualification: !!qual,
+      selected_sphere: profile?.selected_sphere ?? null,
     },
   })
 }

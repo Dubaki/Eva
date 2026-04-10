@@ -9,6 +9,24 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          key: string
+          value: string
+          updated_at: string
+        }
+        Insert: {
+          key: string
+          value: string
+          updated_at?: string
+        }
+        Update: {
+          key?: string
+          value?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           id: string
@@ -19,6 +37,11 @@ export interface Database {
           is_subscribed: boolean
           subscription_checked_at: string | null
           last_test_date: string | null
+          selected_sphere: string | null
+          dominant_trait: string | null
+          shadow_trait: string | null
+          referrals_count: number
+          reminded_at: string | null
           created_at: string
           updated_at: string
         }
@@ -31,6 +54,11 @@ export interface Database {
           is_subscribed?: boolean
           subscription_checked_at?: string | null
           last_test_date?: string | null
+          selected_sphere?: string | null
+          dominant_trait?: string | null
+          shadow_trait?: string | null
+          referrals_count?: number
+          reminded_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -43,6 +71,11 @@ export interface Database {
           is_subscribed?: boolean
           subscription_checked_at?: string | null
           last_test_date?: string | null
+          selected_sphere?: string | null
+          dominant_trait?: string | null
+          shadow_trait?: string | null
+          referrals_count?: number
+          reminded_at?: string | null
           created_at?: string
           updated_at?: string
         }

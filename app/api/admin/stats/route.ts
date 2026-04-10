@@ -33,11 +33,15 @@ export async function GET(req: NextRequest) {
     .eq('id', payload.sub)
     .single()
 
+  // Also check for admin access via PIN (passed as X-Admin-Access header from client)
+  const adminAccessHeader = req.headers.get('x-admin-access')
+  const isAdminViaPin = adminAccessHeader === 'true'
+
   if (profileError) {
     console.error('[admin/stats] Profile lookup error:', profileError)
   }
 
-  if (!profile || !TESTER_IDS.includes(String(profile.tg_id))) {
+  if (!profile || (!TESTER_IDS.includes(String(profile.tg_id)) && !isAdminViaPin)) {
     console.warn('[admin/stats] Unauthorized access attempt by sub:', payload.sub, 'profile:', profile)
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 })
   }

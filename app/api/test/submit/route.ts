@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServer } from '@/lib/supabase/server'
 import { calculateScores, type Answer } from '@/lib/scoring'
 import { sendPhotoToUser, MIXED_TRAIT_TEXTS } from '@/lib/telegram'
+import { triggerBotNotification } from '@/lib/bot-notification'
 
 const COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000 // 60 days in ms
 const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
@@ -130,25 +131,30 @@ export async function POST(request: NextRequest) {
 
         console.log('[test/submit] DB save successful')
 
-        // Update last_test_date
-        await supabase
+        // Update profile: last_test_date + dominant_trait + shadow_trait
+        const { data: updatedProfile } = await supabase
           .from('profiles')
           .update({
             updated_at: new Date().toISOString(),
             last_test_date: new Date().toISOString(),
+            dominant_trait: scores.dominantTrait.toUpperCase(),
+            shadow_trait: scores.secondaryTrait.toUpperCase(),
           })
-          .eq('id', profileId)
-
-        // Fire-and-forget: get user's tg_id and send to Telegram
-        const { data: userProfile } = await supabase
-          .from('profiles')
           .select('tg_id')
           .eq('id', profileId)
           .single()
 
-        if (userProfile?.tg_id) {
-          // Don't await — fire and forget
-          sendResultToTelegram(userProfile.tg_id, scores.dominantTrait, traitInfo.description)
+        if (updatedProfile?.tg_id) {
+          // Fire-and-forget: send result to Telegram (legacy path)
+          sendResultToTelegram(updatedProfile.tg_id, scores.dominantTrait, traitInfo.description)
+
+          // Fire-and-forget: trigger Edge Function for bot notification
+          triggerBotNotification({
+            event: 'dominant_trait_set',
+            profile_id: profileId,
+            tg_id: updatedProfile.tg_id,
+            trait: scores.dominantTrait.toUpperCase(),
+          }).catch((err) => console.error('[test/submit] Edge function trigger error:', err))
         }
       } catch (error) {
         console.error('ОШИБКА СОХРАНЕНИЯ В БД:', error)
