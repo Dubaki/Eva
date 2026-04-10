@@ -57,6 +57,8 @@ export default function AdminPanel() {
   const [sortField, setSortField] = useState<SortField>('created_at')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [broadcastMsg, setBroadcastMsg] = useState('')
+  const [broadcastPhoto, setBroadcastPhoto] = useState<File | null>(null)
+  const [broadcastPhotoPreview, setBroadcastPhotoPreview] = useState<string | null>(null)
   const [broadcasting, setBroadcasting] = useState(false)
   const [broadcastResult, setBroadcastResult] = useState<{ sent: number; failed: number; total: number } | null>(null)
   const router = useRouter()
@@ -149,28 +151,46 @@ export default function AdminPanel() {
   }
 
   const handleBroadcast = async () => {
-    if (!broadcastMsg.trim()) return
+    if (!broadcastMsg.trim() && !broadcastPhoto) return
 
     setBroadcasting(true)
     setBroadcastResult(null)
     try {
+      const formData = new FormData()
+      formData.append('message', broadcastMsg)
+      if (broadcastPhoto) {
+        formData.append('photo', broadcastPhoto)
+      }
+
       const res = await fetch('/api/admin/broadcast', {
         method: 'POST',
         headers: {
           ...adminHeaders(),
-          'Content-Type': 'application/json',
+          'X-Admin-Pin': '2026',
         },
-        body: JSON.stringify({ message: broadcastMsg }),
+        body: formData,
       })
       const json = await res.json()
       if (json.success && json.data) {
         setBroadcastResult({ sent: json.data.sent, failed: json.data.failed, total: json.data.total })
         setBroadcastMsg('')
+        setBroadcastPhoto(null)
+        setBroadcastPhotoPreview(null)
       }
     } catch (err) {
       console.error('[admin] Broadcast error:', err)
     } finally {
       setBroadcasting(false)
+    }
+  }
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setBroadcastPhoto(file)
+      const reader = new FileReader()
+      reader.onload = () => setBroadcastPhotoPreview(reader.result as string)
+      reader.readAsDataURL(file)
     }
   }
 
@@ -475,43 +495,89 @@ export default function AdminPanel() {
 
         {/* ════════════ BROADCAST TAB ════════════ */}
         {activeTab === 'broadcast' && (
-          <div className="bg-bg-secondary rounded-xl p-5 border border-border">
-            <p className="text-text-muted text-xs uppercase tracking-widest mb-4 text-center">
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-gray-100">
+            <p className="text-gray-400 text-xs uppercase tracking-widest mb-5 text-center font-medium">
               Рассылка всем пользователям
             </p>
+
+            {/* Photo upload */}
+            <div className="mb-4">
+              <label className="text-[13px] font-medium text-gray-600 mb-2 block">📷 Фото (необязательно)</label>
+              <div className="flex items-center gap-4">
+                <label className="flex-1 flex items-center justify-center py-8 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-accent hover:bg-accent/5 transition-all">
+                  {broadcastPhotoPreview ? (
+                    <img src={broadcastPhotoPreview} alt="Preview" className="max-h-32 rounded-lg object-cover" />
+                  ) : (
+                    <div className="text-center">
+                      <p className="text-2xl mb-1">🖼️</p>
+                      <p className="text-gray-400 text-[13px]">Нажмите для загрузки фото</p>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                    className="hidden"
+                  />
+                </label>
+                {broadcastPhoto && (
+                  <button
+                    type="button"
+                    onClick={() => { setBroadcastPhoto(null); setBroadcastPhotoPreview(null) }}
+                    className="text-gray-400 hover:text-red-500 transition-colors text-xl"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
 
             <textarea
               value={broadcastMsg}
               onChange={(e) => setBroadcastMsg(e.target.value)}
               placeholder="Введите текст рассылки (поддерживается HTML)..."
               rows={5}
-              className="w-full py-3 px-3 bg-bg-primary border border-border rounded-xl text-[14px] text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none transition-colors resize-none mb-4"
+              className="w-full py-3 px-4 bg-gray-50 border border-gray-200 rounded-xl text-[14px] text-gray-800 placeholder:text-gray-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none mb-4"
             />
 
             <motion.button
               type="button"
               whileTap={{ scale: broadcasting ? 1 : 0.97 }}
               onClick={handleBroadcast}
-              disabled={broadcasting || !broadcastMsg.trim()}
-              className={`w-full py-3 rounded-xl font-semibold text-[15px] text-white transition-all ${
-                broadcasting || !broadcastMsg.trim() ? 'opacity-60 cursor-not-allowed' : 'active:scale-[0.98]'
+              disabled={broadcasting || (!broadcastMsg.trim() && !broadcastPhoto)}
+              className={`w-full py-3.5 rounded-xl font-semibold text-[15px] text-white transition-all shadow-md ${
+                broadcasting || (!broadcastMsg.trim() && !broadcastPhoto)
+                  ? 'opacity-60 cursor-not-allowed shadow-none'
+                  : 'active:scale-[0.98] hover:shadow-lg'
               }`}
               style={{ background: 'var(--accent)' }}
             >
-              {broadcasting ? 'Отправка...' : '📢 Сделать рассылку всем пользователям'}
+              {broadcasting ? '⏳ Отправка...' : '📢 Сделать рассылку всем пользователям'}
             </motion.button>
 
             {broadcastResult && (
-              <div className="mt-4 p-3 bg-bg-primary rounded-xl border border-border text-center">
-                <p className="text-text-primary text-[14px] font-medium">
-                  ✅ Отправлено: {broadcastResult.sent} / {broadcastResult.total}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-5 p-4 bg-gray-50 rounded-xl border border-gray-100 text-center"
+              >
+                <p className="text-gray-800 text-[15px] font-semibold">
+                  ✅ Рассылка завершена
                 </p>
-                {broadcastResult.failed > 0 && (
-                  <p className="text-red-400 text-[12px] mt-1">
-                    Ошибок: {broadcastResult.failed}
-                  </p>
-                )}
-              </div>
+                <div className="flex items-center justify-center gap-4 mt-2">
+                  <span className="text-emerald-600 text-[13px] font-medium">
+                    Доставлено: {broadcastResult.sent}
+                  </span>
+                  {broadcastResult.failed > 0 && (
+                    <span className="text-red-500 text-[13px] font-medium">
+                      Ошибок: {broadcastResult.failed}
+                    </span>
+                  )}
+                  <span className="text-gray-400 text-[13px]">
+                    Всего: {broadcastResult.total}
+                  </span>
+                </div>
+              </motion.div>
             )}
           </div>
         )}

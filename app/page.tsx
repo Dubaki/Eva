@@ -18,9 +18,6 @@ export default function Home() {
   const [checking, setChecking] = useState(true)
   const [notSubscribed, setNotSubscribed] = useState(false)
   const [cooldownDays, setCooldownDays] = useState<number | null>(null)
-  const [debugTgId, setDebugTgId] = useState<number | null>(null)
-  const [debugRawData, setDebugRawData] = useState<unknown>(null)
-  const [debugDbError, setDebugDbError] = useState<unknown>(null)
 
   useEffect(() => {
     // Get tgId directly from Telegram WebApp
@@ -28,7 +25,6 @@ export default function Home() {
       ? (window as unknown as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } } }).Telegram?.WebApp
       : null
     const currentTgId = WebApp?.initDataUnsafe?.user?.id ?? null
-    setDebugTgId(currentTgId)
 
     if (!currentTgId) {
       setChecking(false)
@@ -38,12 +34,6 @@ export default function Home() {
     fetch(`/api/user/status?tg_id=${currentTgId}`)
       .then((r) => r.json())
       .then((json) => {
-        console.log('!!! CRITICAL !!! [/page.tsx] API response:', JSON.stringify(json))
-        console.log('!!! CRITICAL !!! [/page.tsx] tgId sent:', currentTgId, 'isSubscribed:', json.data?.isSubscribed)
-
-        setDebugRawData(json.raw_data ?? null)
-        setDebugDbError(json.db_error ?? null)
-
         if (!json.success) {
           setChecking(false)
           return
@@ -51,13 +41,10 @@ export default function Home() {
 
         // Gate 1: Subscription check
         if (!json.data?.isSubscribed) {
-          console.log('!!! CRITICAL !!! [/page.tsx] BLOCKED: isSubscribed=false')
           setNotSubscribed(true)
           setChecking(false)
           return
         }
-
-        console.log('!!! CRITICAL !!! [/page.tsx] PASSED: isSubscribed=true')
 
         // Gate 2: Cooldown check
         if (json.data?.lastTestDate) {
@@ -123,14 +110,6 @@ export default function Home() {
           </p>
           <p className="text-text-muted text-[13px]">
             После подписки весь функционал станет доступен автоматически.
-          </p>
-          {/* DEBUG: show user's tgId and subscription status for verification */}
-          <p className="text-xs text-red-400 mt-4 font-mono bg-bg-secondary rounded-lg p-3 break-all">
-            DEBUG: ID={debugTgId ?? 'null'}, Sub: {false}
-            <br/>
-            RAW DATA: {JSON.stringify(debugRawData)}
-            <br/>
-            DB ERROR: {JSON.stringify(debugDbError)}
           </p>
         </motion.div>
       </main>
