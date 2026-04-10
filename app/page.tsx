@@ -19,6 +19,8 @@ export default function Home() {
   const [notSubscribed, setNotSubscribed] = useState(false)
   const [cooldownDays, setCooldownDays] = useState<number | null>(null)
   const [debugTgId, setDebugTgId] = useState<number | null>(null)
+  const [debugRawData, setDebugRawData] = useState<unknown>(null)
+  const [debugDbError, setDebugDbError] = useState<unknown>(null)
 
   useEffect(() => {
     // Get tgId directly from Telegram WebApp
@@ -38,6 +40,9 @@ export default function Home() {
       .then((json) => {
         console.log('!!! CRITICAL !!! [/page.tsx] API response:', JSON.stringify(json))
         console.log('!!! CRITICAL !!! [/page.tsx] tgId sent:', currentTgId, 'isSubscribed:', json.data?.isSubscribed)
+
+        setDebugRawData(json.raw_data ?? null)
+        setDebugDbError(json.db_error ?? null)
 
         if (!json.success) {
           setChecking(false)
@@ -121,9 +126,11 @@ export default function Home() {
           </p>
           {/* DEBUG: show user's tgId and subscription status for verification */}
           <p className="text-xs text-red-400 mt-4 font-mono bg-bg-secondary rounded-lg p-3 break-all">
-            DEBUG: ID={debugTgId ?? 'null'}, Subscribed=false
-            <br />
-            Проверьте в Supabase: SELECT is_subscribed FROM profiles WHERE tg_id = {debugTgId}
+            DEBUG: ID={debugTgId ?? 'null'}, Sub: {false}
+            <br/>
+            RAW DATA: {JSON.stringify(debugRawData)}
+            <br/>
+            DB ERROR: {JSON.stringify(debugDbError)}
           </p>
         </motion.div>
       </main>

@@ -14,58 +14,43 @@ export async function GET(req: NextRequest) {
   const tgIdParam = url.searchParams.get('tg_id')
 
   if (tgIdParam) {
-    const tgId = parseInt(tgIdParam, 10)
-    if (isNaN(tgId)) {
+    const numericTgId = Number(tgIdParam)
+    if (isNaN(numericTgId)) {
       return NextResponse.json({ success: false, error: 'Invalid tg_id' }, { status: 400 })
     }
 
-    console.log(`!!! CRITICAL !!! /api/user/status called with tg_id=${tgId} (type: ${typeof tgIdParam})`)
+    console.log(`!!! CRITICAL !!! /api/user/status called with tg_id=${numericTgId} (type: ${typeof numericTgId}, raw: "${tgIdParam}")`)
 
-    const { data: profile, error: profileError } = await supabase
+    // FULL raw query dump to diagnose RLS/type/silent error
+    const { data: rawData, error: rawError } = await supabase
       .from('profiles')
-      .select('id, tg_id, is_subscribed, last_test_date, selected_sphere')
-      .eq('tg_id', tgId)
-      .maybeSingle()
+      .select('*')
+      .eq('tg_id', numericTgId)
 
-    console.log(`!!! CRITICAL !!! DB RESPONSE for tg_id=${tgId}:`, {
-      data: JSON.stringify(profile),
-      error: profileError ? JSON.stringify(profileError) : 'null',
-      is_subscribed_raw: profile?.is_subscribed,
-      is_subscribed_type: typeof profile?.is_subscribed,
+    console.log(`!!! CRITICAL !!! RAW DB RESPONSE:`, {
+      raw_data: JSON.stringify(rawData),
+      db_error: rawError ? JSON.stringify(rawError) : 'null',
+      array_length: rawData?.length ?? 0,
+      first_row_is_subscribed: rawData?.[0]?.is_subscribed,
     })
 
-    // Fetch referral count
-    const { count: refCount } = await supabase
-      .from('referrals')
-      .select('*', { count: 'exact', head: true })
-      .eq('owner_id', profile?.id ?? '')
-
-    // Fetch existing test results
-    const { data: testResult } = await supabase
-      .from('test_results')
-      .select('dominant_trait, secondary_trait')
-      .eq('profile_id', profile?.id ?? '')
-      .single()
-
-    // Check if qualification was completed
-    const { data: qual } = await supabase
-      .from('qualifications')
-      .select('id')
-      .eq('profile_id', profile?.id ?? '')
-      .single()
+    const profile = rawData?.[0] ?? null
 
     const responseData = {
       success: true,
       data: {
         isSubscribed: profile?.is_subscribed ?? false,
         lastTestDate: profile?.last_test_date ?? null,
-        referralCount: refCount ?? 0,
-        hasTestResult: !!testResult,
-        dominantTrait: testResult?.dominant_trait ?? null,
-        secondaryTrait: testResult?.secondary_trait ?? null,
-        hasQualification: !!qual,
+        referralCount: 0,
+        hasTestResult: false,
+        dominantTrait: null,
+        secondaryTrait: null,
+        hasQualification: false,
         selected_sphere: profile?.selected_sphere ?? null,
       },
+      // EXPOSE raw data to frontend for debugging
+      raw_data: rawData,
+      db_error: rawError,
     }
 
     console.log(`!!! CRITICAL !!! Response sent:`, JSON.stringify(responseData))
