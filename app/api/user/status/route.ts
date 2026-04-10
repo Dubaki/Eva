@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyJwt } from '@/lib/jwt'
 import { getSupabaseServer } from '@/lib/supabase/server'
 
+// ── Kill ALL caching: no server cache, no CDN cache, no browser cache ──
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export async function GET(req: NextRequest) {
   const supabase = getSupabaseServer()
@@ -68,7 +70,13 @@ export async function GET(req: NextRequest) {
     }
 
     console.log(`!!! CRITICAL !!! Response sent:`, JSON.stringify(responseData))
-    return NextResponse.json(responseData)
+    return NextResponse.json(responseData, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    })
   }
 
   // ── Mode 2: JWT-based auth (legacy / used by Gatekeeper) ──
@@ -147,17 +155,26 @@ export async function GET(req: NextRequest) {
     .eq('profile_id', profileId)
     .single()
 
-  return NextResponse.json({
-    success: true,
-    data: {
-      isSubscribed: profile?.is_subscribed ?? false,
-      lastTestDate: profile?.last_test_date ?? null,
-      referralCount: refCount ?? 0,
-      hasTestResult: !!testResult,
-      dominantTrait: testResult?.dominant_trait ?? null,
-      secondaryTrait: testResult?.secondary_trait ?? null,
-      hasQualification: !!qual,
-      selected_sphere: profile?.selected_sphere ?? null,
+  return NextResponse.json(
+    {
+      success: true,
+      data: {
+        isSubscribed: profile?.is_subscribed ?? false,
+        lastTestDate: profile?.last_test_date ?? null,
+        referralCount: refCount ?? 0,
+        hasTestResult: !!testResult,
+        dominantTrait: testResult?.dominant_trait ?? null,
+        secondaryTrait: testResult?.secondary_trait ?? null,
+        hasQualification: !!qual,
+        selected_sphere: profile?.selected_sphere ?? null,
+      },
     },
-  })
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    }
+  )
 }
