@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyJwt } from '@/lib/jwt'
 import { getSupabaseServer } from '@/lib/supabase/server'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   const supabase = getSupabaseServer()
 
-  // ── Mode 1: Direct tg_id via query param (used by home page cooldown check) ──
+  // ── Mode 1: Direct tg_id via query param (used by home page subscription/cooldown check) ──
   const url = new URL(req.url)
   const tgIdParam = url.searchParams.get('tg_id')
 
@@ -15,11 +17,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid tg_id' }, { status: 400 })
     }
 
-    const { data: profile } = await supabase
+    console.log(`!!! CRITICAL !!! /api/user/status called with tg_id=${tgId} (type: ${typeof tgIdParam})`)
+
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('id, tg_id, is_subscribed, last_test_date, selected_sphere')
       .eq('tg_id', tgId)
       .maybeSingle()
+
+    console.log(`!!! CRITICAL !!! Profile query result:`, {
+      found: !!profile,
+      tg_id_in_db: profile?.tg_id,
+      is_subscribed: profile?.is_subscribed,
+      type_of_is_subscribed: typeof profile?.is_subscribed,
+      error: profileError ? JSON.stringify(profileError) : null,
+    })
 
     // Fetch referral count
     const { count: refCount } = await supabase
@@ -41,7 +53,7 @@ export async function GET(req: NextRequest) {
       .eq('profile_id', profile?.id ?? '')
       .single()
 
-    return NextResponse.json({
+    const responseData = {
       success: true,
       data: {
         isSubscribed: profile?.is_subscribed ?? false,
@@ -53,7 +65,10 @@ export async function GET(req: NextRequest) {
         hasQualification: !!qual,
         selected_sphere: profile?.selected_sphere ?? null,
       },
-    })
+    }
+
+    console.log(`!!! CRITICAL !!! Response sent:`, JSON.stringify(responseData))
+    return NextResponse.json(responseData)
   }
 
   // ── Mode 2: JWT-based auth (legacy / used by Gatekeeper) ──

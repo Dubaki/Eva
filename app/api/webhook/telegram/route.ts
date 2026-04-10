@@ -202,7 +202,7 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
     // ── PRIORITY: Update subscription status FIRST (before referral engine) ──
     try {
       const supabase = getSupabaseServer()
-      console.log(`[webhook] User confirmed subscription. TG_ID: ${userId}`)
+      console.log(`!!! CRITICAL !!! [BOT Auth] User confirmed subscription. TG_ID: ${userId} (type: ${typeof userId})`)
 
       const { data, error } = await supabase
         .from('profiles')
@@ -217,12 +217,12 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
         .select()
 
       if (error) {
-        console.error('[webhook] ❌ DB Update Error:', JSON.stringify(error))
+        console.error(`!!! CRITICAL !!! [BOT Auth] ❌ DB Update Error:`, JSON.stringify(error))
       } else {
-        console.log('[webhook] ✅ DB Update Success. Result:', JSON.stringify(data))
+        console.log(`!!! CRITICAL !!! [BOT Auth] ✅ DB Update Success. Rows affected:`, data?.length, `Result:`, JSON.stringify(data))
       }
     } catch (dbErr) {
-      console.error('[webhook] ❌ Subscription update threw:', dbErr)
+      console.error(`!!! CRITICAL !!! [BOT Auth] ❌ Subscription update threw:`, dbErr)
     }
 
     await answerCallbackQuery({ callbackQueryId })

@@ -34,6 +34,9 @@ export default function Home() {
     fetch(`/api/user/status?tg_id=${currentTgId}`)
       .then((r) => r.json())
       .then((json) => {
+        console.log('!!! CRITICAL !!! [/page.tsx] API response:', JSON.stringify(json))
+        console.log('!!! CRITICAL !!! [/page.tsx] tgId sent:', currentTgId, 'isSubscribed:', json.data?.isSubscribed)
+
         if (!json.success) {
           setChecking(false)
           return
@@ -41,10 +44,13 @@ export default function Home() {
 
         // Gate 1: Subscription check
         if (!json.data?.isSubscribed) {
+          console.log('!!! CRITICAL !!! [/page.tsx] BLOCKED: isSubscribed=false')
           setNotSubscribed(true)
           setChecking(false)
           return
         }
+
+        console.log('!!! CRITICAL !!! [/page.tsx] PASSED: isSubscribed=true')
 
         // Gate 2: Cooldown check
         if (json.data?.lastTestDate) {
