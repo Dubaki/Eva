@@ -199,6 +199,32 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
   const isSubscribed = status === 'member' || status === 'administrator' || status === 'creator'
 
   if (isSubscribed) {
+    // ── PRIORITY: Update subscription status FIRST (before referral engine) ──
+    try {
+      const supabase = getSupabaseServer()
+      console.log(`[webhook] User confirmed subscription. TG_ID: ${userId}`)
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .upsert(
+          {
+            tg_id: userId,
+            is_subscribed: true,
+            subscribed_at: new Date().toISOString(),
+          },
+          { onConflict: 'tg_id', ignoreDuplicates: false }
+        )
+        .select()
+
+      if (error) {
+        console.error('[webhook] ❌ DB Update Error:', JSON.stringify(error))
+      } else {
+        console.log('[webhook] ✅ DB Update Success. Result:', JSON.stringify(data))
+      }
+    } catch (dbErr) {
+      console.error('[webhook] ❌ Subscription update threw:', dbErr)
+    }
+
     await answerCallbackQuery({ callbackQueryId })
 
     // ── Referral engine: increment referrer's count, notify at 2 ──
@@ -263,24 +289,6 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
       }
     } catch (refErr) {
       console.error('[webhook] Referral engine error (non-fatal):', refErr)
-    }
-
-    // Step 2 (CRM): Mark subscription status in DB — UPSERT to handle missing profile
-    try {
-      const supabase = getSupabaseServer()
-      await supabase
-        .from('profiles')
-        .upsert(
-          {
-            tg_id: userId,
-            is_subscribed: true,
-            subscribed_at: new Date().toISOString(),
-          },
-          { onConflict: 'tg_id', ignoreDuplicates: false }
-        )
-      console.log(`[webhook] is_subscribed=true, subscribed_at set for tg_id=${userId} (upsert)`)
-    } catch (dbErr) {
-      console.error('[webhook] Failed to update subscription status:', dbErr)
     }
 
     const successCaption =
