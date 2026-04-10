@@ -27,12 +27,11 @@ export async function GET(req: NextRequest) {
       .eq('tg_id', tgId)
       .maybeSingle()
 
-    console.log(`!!! CRITICAL !!! Profile query result:`, {
-      found: !!profile,
-      tg_id_in_db: profile?.tg_id,
-      is_subscribed: profile?.is_subscribed,
-      type_of_is_subscribed: typeof profile?.is_subscribed,
-      error: profileError ? JSON.stringify(profileError) : null,
+    console.log(`!!! CRITICAL !!! DB RESPONSE for tg_id=${tgId}:`, {
+      data: JSON.stringify(profile),
+      error: profileError ? JSON.stringify(profileError) : 'null',
+      is_subscribed_raw: profile?.is_subscribed,
+      is_subscribed_type: typeof profile?.is_subscribed,
     })
 
     // Fetch referral count
