@@ -413,6 +413,8 @@ serve(async (req: Request) => {
   const oldDominantTrait = oldRecord.dominant_trait as string | null
   const oldReferralsCount = (oldRecord.referrals_count as number) ?? 0
   const newReferralsCount = (record.referrals_count as number) ?? 0
+  const oldInvitesCount = (oldRecord.invites_count as number) ?? 0
+  const newInvitesCount = (record.invites_count as number) ?? 0
 
   if (!tgId) {
     console.log('[handler] No tg_id in record, skipping')
@@ -458,6 +460,20 @@ serve(async (req: Request) => {
     const ok = await sendMessage(tgId, text)
     return new Response(
       JSON.stringify({ success: true, action: 'referrals_reached_2', tg_id: tgId, mixed_trait: mixedKey, sent: ok }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  // ── Rule C: invites_count reached 2 (subscription-based referral) ──
+  if (webhook.type === 'UPDATE' && oldInvitesCount < 2 && newInvitesCount >= 2 && dominantTrait && shadowTrait) {
+    console.log(`[handler] UPDATE: invites_count ${oldInvitesCount} -> ${newInvitesCount}, sending mixed trait to tgId=${tgId}`)
+
+    const mixedKey = [dominantTrait.toUpperCase(), shadowTrait.toUpperCase()].sort().join('')
+    const text = MIXED_TRAIT_TEXTS[mixedKey] || `Твоя смешанная опора: ${mixedKey}`
+
+    const ok = await sendMessage(tgId, text)
+    return new Response(
+      JSON.stringify({ success: true, action: 'invites_reached_2', tg_id: tgId, mixed_trait: mixedKey, sent: ok }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     )
   }

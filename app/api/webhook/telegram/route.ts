@@ -28,7 +28,7 @@ import { MIXED_TRAIT_TEXTS } from '@/lib/telegram'
 const SECRET_TOKEN = process.env.TELEGRAM_WEBHOOK_SECRET
 const BOT_USERNAME = process.env.NEXT_PUBLIC_BOT_USERNAME ?? 'test_opor_bot'
 const CHANNEL_ID = process.env.TELEGRAM_CHANNEL_ID
-const CHANNEL_URL = process.env.TELEGRAM_CHANNEL_URL ?? 'https://t.me/your_channel'
+const CHANNEL_URL = process.env.TELEGRAM_CHANNEL_URL ?? 'https://t.me/sprosievu'
 
 // ── Webhook Secret Validation ──────────────────────────────────────────────
 
@@ -65,13 +65,19 @@ interface TelegramUpdate {
 }
 
 async function handleStart(chatId: number, userId: number, refCode: number | null, _firstName?: string): Promise<boolean> {
-  const caption =
-    `<b>ТВОЯ ВНУТРЕННЯЯ ОПОРА</b> 💎\n\n` +
-    `Привет! Я создала этого бота, чтобы помочь тебе найти ответы, которые уже есть внутри тебя.\n\n` +
-    `✦ <b>Почему это важно?</b>\n` +
-    `В мире хаоса единственное, на что можно опереться — это <i>ты сама</i>.\n\n` +
-    `▹ <b>Твой первый шаг:</b>\n` +
-    `Подпишись на мой канал. Там я даю эксклюзивные практики и знания, которых нет в открытом доступе.`
+  const isReferred = refCode !== null
+
+  const caption = isReferred
+    ? `<b>ТВОЯ ВНУТРЕННЯЯ ОПОРА</b> 💎\n\n` +
+      `Привет! Подруга пригласила тебя пройти тест и узнать свою теневую опору.\n\n` +
+      `✦ <b>Что нужно сделать?</b>\n` +
+      `Подпишись на канал автора, чтобы открыть доступ к теневой опоре для подруги, которая тебя пригласила!`
+    : `<b>ТВОЯ ВНУТРЕННЯЯ ОПОРА</b> 💎\n\n` +
+      `Привет! Я создала этого бота, чтобы помочь тебе найти ответы, которые уже есть внутри тебя.\n\n` +
+      `✦ <b>Почему это важно?</b>\n` +
+      `В мире хаоса единственное, на что можно опереться — это <i>ты сама</i>.\n\n` +
+      `▹ <b>Твой первый шаг:</b>\n` +
+      `Подпишись на мой канал. Там я даю эксклюзивные практики и знания, которых нет в открытом доступе.`
 
   // Encode refCode in callback_data so we can recover it on button press
   const callbackData = refCode ? `check_sub_${refCode}` : 'check_subscription'
@@ -154,42 +160,31 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
         .single()
 
       if (currentUser?.referrer_id) {
-        // Get referrer's tg_id
+        // Get referrer's current invites_count and tg_id
         const { data: referrer } = await supabase
           .from('profiles')
-          .select('id, tg_id')
+          .select('id, tg_id, invites_count, dominant_trait, shadow_trait')
           .eq('id', currentUser.referrer_id)
           .single()
 
         if (referrer) {
-          // Count current referrals for this referrer (where status = 'pending')
-          const { count: currentCount } = await supabase
-            .from('referrals')
-            .select('*', { count: 'exact', head: true })
-            .eq('owner_id', referrer.id)
-            .eq('status', 'pending')
+          const oldInvites = referrer.invites_count ?? 0
+          const newInvites = oldInvites + 1
 
-          const newCount = (currentCount ?? 0) + 1
+          // Increment invites_count
+          await supabase
+            .from('profiles')
+            .update({ invites_count: newInvites })
+            .eq('id', referrer.id)
 
-          // If exactly 2, send notification to referrer with mixed trait text
-          if (newCount === 2) {
-            // Get referrer's test results
-            const { data: referrerResults } = await supabase
-              .from('test_results')
-              .select('dominant_trait, secondary_trait')
-              .eq('profile_id', referrer.id)
-              .single()
-
-            let mixedTraitText = ''
-            if (referrerResults?.dominant_trait && referrerResults?.secondary_trait) {
-              // Sort traits alphabetically to form the key
-              const traits = [
-                referrerResults.dominant_trait.toUpperCase(),
-                referrerResults.secondary_trait.toUpperCase(),
-              ].sort()
-              const key = traits.join('')
-              mixedTraitText = MIXED_TRAIT_TEXTS[key] ?? ''
-            }
+          // If invites_count reached 2, send notification with mixed trait
+          if (newInvites === 2 && referrer.dominant_trait && referrer.shadow_trait) {
+            const traits = [
+              referrer.dominant_trait.toUpperCase(),
+              referrer.shadow_trait.toUpperCase(),
+            ].sort()
+            const key = traits.join('')
+            const mixedTraitText = MIXED_TRAIT_TEXTS[key] ?? ''
 
             const tmaUrl = getTmaUrl()
             const notifyMarkup: InlineKeyboard = {
@@ -199,8 +194,8 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
             }
 
             const notificationText = mixedTraitText
-              ? `🎉 <b>Твой второй уровень открыт!</b>\n\nПришло время узнать твою теневую опору:\n\n${mixedTraitText.replace(/\n/g, '\n')}`
-              : '🎉 <b>Бинго!</b> Две твои подруги зашли в бота. Твоя скрытая (теневая) опора разблокирована!\n\nЗаходи в приложение, чтобы посмотреть результат.'
+              ? `🎉 <b>Твой второй уровень открыт!</b>\n\nПришло время узнать твою теневую опору:\n\n${mixedTraitText}`
+              : `🎉 <b>Бинго!</b> Две твои подруги зашли в бота. Твоя скрытая (теневая) опора разблокирована!\n\nЗаходи в приложение, чтобы посмотреть результат.`
 
             await sendMessage({
               chatId: referrer.tg_id,
@@ -209,7 +204,7 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
               parseMode: 'HTML',
             })
 
-            console.log(`[webhook] Referral notification sent to referrer tg_id=${referrer.tg_id}`)
+            console.log(`[webhook] Referral notification (invites_count=2) sent to referrer tg_id=${referrer.tg_id}`)
           }
         }
       }
