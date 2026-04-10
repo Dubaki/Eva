@@ -221,7 +221,6 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
           {
             tg_id: numericTgId,
             is_subscribed: true,
-            subscribed_at: new Date().toISOString(),
           },
           { onConflict: 'tg_id', ignoreDuplicates: false }
         )
