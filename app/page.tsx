@@ -15,6 +15,8 @@ const fadeUp = (delay: number) => ({
 
 export default function Home() {
   const clickTimesRef = useRef<number[]>([])
+  const [checking, setChecking] = useState(true)
+  const [notSubscribed, setNotSubscribed] = useState(false)
   const [cooldownDays, setCooldownDays] = useState<number | null>(null)
 
   useEffect(() => {
@@ -24,12 +26,28 @@ export default function Home() {
       : null
     const currentTgId = WebApp?.initDataUnsafe?.user?.id ?? null
 
-    if (!currentTgId) return // not in Telegram — skip cooldown check
+    if (!currentTgId) {
+      setChecking(false)
+      return // not in Telegram — skip checks, show normal page
+    }
 
     fetch(`/api/user/status?tg_id=${currentTgId}`)
       .then((r) => r.json())
       .then((json) => {
-        if (json.success && json.data?.lastTestDate) {
+        if (!json.success) {
+          setChecking(false)
+          return
+        }
+
+        // Gate 1: Subscription check
+        if (!json.data?.isSubscribed) {
+          setNotSubscribed(true)
+          setChecking(false)
+          return
+        }
+
+        // Gate 2: Cooldown check
+        if (json.data?.lastTestDate) {
           const lastTest = new Date(json.data.lastTestDate).getTime()
           const elapsed = Date.now() - lastTest
           const remaining = COOLDOWN_MS - elapsed
@@ -37,8 +55,10 @@ export default function Home() {
             setCooldownDays(Math.ceil(remaining / (24 * 60 * 60 * 1000)))
           }
         }
+
+        setChecking(false)
       })
-      .catch(() => { /* ignore */ })
+      .catch(() => { setChecking(false) })
   }, [])
 
   const handleTitleClick = useCallback(() => {
@@ -60,6 +80,41 @@ export default function Home() {
       }
     }
   }, [])
+
+  // ── Loading gate ──
+  if (checking) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-bg-primary">
+        <motion.div
+          className="w-10 h-10 border-2 border-accent border-t-transparent rounded-full"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+        />
+      </main>
+    )
+  }
+
+  // ── Not subscribed gate ──
+  if (notSubscribed) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-bg-primary px-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center max-w-sm"
+        >
+          <p className="text-4xl mb-4">🔒</p>
+          <h1 className="text-[22px] font-bold text-text-primary mb-3">Доступ закрыт</h1>
+          <p className="text-text-secondary text-[15px] leading-relaxed mb-6">
+            Пожалуйста, откройте бота в Telegram, подпишитесь на канал и нажмите «Я подписалась».
+          </p>
+          <p className="text-text-muted text-[13px]">
+            После подписки весь функционал станет доступен автоматически.
+          </p>
+        </motion.div>
+      </main>
+    )
+  }
 
   return (
     <main className="flex h-screen flex-col bg-bg-primary overflow-hidden">
