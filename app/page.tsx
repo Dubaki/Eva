@@ -18,6 +18,7 @@ export default function Home() {
   const [checking, setChecking] = useState(true)
   const [notSubscribed, setNotSubscribed] = useState(false)
   const [cooldownDays, setCooldownDays] = useState<number | null>(null)
+  const [debugTgId, setDebugTgId] = useState<number | null>(null)
 
   useEffect(() => {
     // Get tgId directly from Telegram WebApp
@@ -25,6 +26,7 @@ export default function Home() {
       ? (window as unknown as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } } }).Telegram?.WebApp
       : null
     const currentTgId = WebApp?.initDataUnsafe?.user?.id ?? null
+    setDebugTgId(currentTgId)
 
     if (!currentTgId) {
       setChecking(false)
@@ -116,6 +118,12 @@ export default function Home() {
           </p>
           <p className="text-text-muted text-[13px]">
             После подписки весь функционал станет доступен автоматически.
+          </p>
+          {/* DEBUG: show user's tgId and subscription status for verification */}
+          <p className="text-xs text-red-400 mt-4 font-mono bg-bg-secondary rounded-lg p-3 break-all">
+            DEBUG: ID={debugTgId ?? 'null'}, Subscribed=false
+            <br />
+            Проверьте в Supabase: SELECT is_subscribed FROM profiles WHERE tg_id = {debugTgId}
           </p>
         </motion.div>
       </main>

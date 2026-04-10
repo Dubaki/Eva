@@ -11,6 +11,8 @@ import {
 import { getSupabaseServer } from '@/lib/supabase/server'
 import { MIXED_TRAIT_TEXTS } from '@/lib/telegram'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * Telegram Webhook Handler
  *
