@@ -80,13 +80,19 @@ export default function TestPage() {
       console.log('=== ТЕСТ ЗАВЕРШЕН (client) ===')
       const stored = localStorage.getItem('eva_token')
       const token = stored || ''
+
+      // Extract tgId from Telegram Web App initDataUnsafe
+      const WebApp = typeof window !== 'undefined' ? (window as unknown as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } } }).Telegram?.WebApp : null
+      const currentTgId = WebApp?.initDataUnsafe?.user?.id ?? null
+      console.log('[test/submit] Extracted tgId from WebApp:', currentTgId)
+
       const res = await fetch('/api/test/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: 'Bearer ' + token,
         },
-        body: JSON.stringify({ answers }),
+        body: JSON.stringify({ answers, tgId: currentTgId }),
       })
       const result = await res.json()
       console.log('Server response:', result)
