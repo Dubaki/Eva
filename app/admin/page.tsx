@@ -61,6 +61,13 @@ export default function AdminPanel() {
   const [broadcastPhotoPreview, setBroadcastPhotoPreview] = useState<string | null>(null)
   const [broadcasting, setBroadcasting] = useState(false)
   const [broadcastResult, setBroadcastResult] = useState<{ sent: number; failed: number; total: number } | null>(null)
+  // CRM direct message modal
+  const [msgModalOpen, setMsgModalOpen] = useState(false)
+  const [msgTargetTgId, setMsgTargetTgId] = useState<number | null>(null)
+  const [msgTargetUsername, setMsgTargetUsername] = useState<string>('')
+  const [msgText, setMsgText] = useState('')
+  const [msgSending, setMsgSending] = useState(false)
+  const [msgSent, setMsgSent] = useState(false)
   const router = useRouter()
 
   const adminHeaders = (): Record<string, string> => {
@@ -191,6 +198,43 @@ export default function AdminPanel() {
       const reader = new FileReader()
       reader.onload = () => setBroadcastPhotoPreview(reader.result as string)
       reader.readAsDataURL(file)
+    }
+  }
+
+  const openMessageModal = (tgId: number, username: string | null) => {
+    setMsgTargetTgId(tgId)
+    setMsgTargetUsername(username ?? `ID: ${tgId}`)
+    setMsgText('')
+    setMsgSent(false)
+    setMsgModalOpen(true)
+  }
+
+  const handleSendDirectMessage = async () => {
+    if (!msgTargetTgId || !msgText.trim()) return
+    setMsgSending(true)
+    setMsgSent(false)
+    try {
+      const res = await fetch('/api/admin/message/user', {
+        method: 'POST',
+        headers: {
+          ...adminHeaders(),
+          'Content-Type': 'application/json',
+          'X-Admin-Pin': '2026',
+        },
+        body: JSON.stringify({ target_tg_id: msgTargetTgId, text: msgText }),
+      })
+      const json = await res.json()
+      if (json.success) {
+        setMsgSent(true)
+        setTimeout(() => {
+          setMsgModalOpen(false)
+          setMsgSent(false)
+        }, 2000)
+      }
+    } catch (err) {
+      console.error('[admin] Direct message error:', err)
+    } finally {
+      setMsgSending(false)
     }
   }
 
@@ -377,117 +421,245 @@ export default function AdminPanel() {
 
         {/* ════════════ CRM TAB ════════════ */}
         {activeTab === 'crm' && (
-          <div className="bg-bg-secondary rounded-xl border border-border overflow-hidden">
-            <div className="p-4 border-b border-border flex items-center justify-between">
-              <p className="text-text-muted text-xs uppercase tracking-widest">Пользователи</p>
-              <div className="flex gap-2">
-                {(['created_at', 'invites_count', 'last_test_date'] as SortField[]).map((field) => {
-                  const labels: Record<SortField, string> = {
-                    created_at: '📅 Дата',
-                    invites_count: '🔗 Реф.',
-                    last_test_date: '🧪 Тест',
-                  }
-                  const isActive = sortField === field
-                  return (
-                    <button
-                      key={field}
-                      type="button"
-                      onClick={() => {
-                        if (sortField === field) {
-                          setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
-                        } else {
-                          setSortField(field)
-                          setSortDir('desc')
-                        }
-                      }}
-                      className={`text-[12px] font-medium px-3 py-1.5 rounded-lg transition-colors ${
-                        isActive
-                          ? 'bg-accent text-white'
-                          : 'bg-bg-primary text-text-muted border border-border hover:text-accent'
-                      }`}
-                    >
-                      {labels[field]} {isActive && (sortDir === 'asc' ? '↑' : '↓')}
-                    </button>
-                  )
-                })}
+          <div className="flex flex-col gap-5">
+            {/* Top Referrers */}
+            <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+                <p className="text-gray-500 text-xs uppercase tracking-widest font-medium">🏆 Топ рефереры</p>
               </div>
-            </div>
 
-            {stats.recentUsers.length === 0 ? (
-              <p className="text-text-muted text-sm text-center py-8">Пока нет пользователей</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-[13px]">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-3 px-3 text-text-muted font-medium">Пользователь</th>
-                      <th className="text-left py-3 px-3 text-text-muted font-medium">Опора</th>
-                      <th className="text-center py-3 px-3 text-text-muted font-medium">🔗</th>
-                      <th className="text-center py-3 px-3 text-text-muted font-medium">Тест</th>
-                      <th className="text-center py-3 px-3 text-text-muted font-medium">Доступен</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[...stats.recentUsers]
-                      .sort((a, b) => {
-                        const mul = sortDir === 'asc' ? 1 : -1
-                        if (sortField === 'invites_count') {
-                          return mul * ((a.invites_count ?? 0) - (b.invites_count ?? 0))
-                        }
-                        if (sortField === 'last_test_date') {
-                          const da = a.last_test_date || '1970-01-01'
-                          const db2 = b.last_test_date || '1970-01-01'
-                          return mul * (da < db2 ? -1 : da > db2 ? 1 : 0)
-                        }
-                        return mul * (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0)
-                      })
-                      .map((u, i) => {
-                        const daysUntilTest = u.next_test_available
-                          ? Math.ceil((new Date(u.next_test_available).getTime() - Date.now()) / (24 * 60 * 60 * 1000))
-                          : null
-                        return (
-                          <tr key={i} className="border-b border-border last:border-b-0 hover:bg-bg-tertiary transition-colors">
+              {stats.recentUsers.length === 0 ? (
+                <p className="text-gray-400 text-sm text-center py-8">Пока нет пользователей</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[13px]">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        <th className="text-left py-3 px-3 text-gray-400 font-medium">#</th>
+                        <th className="text-left py-3 px-3 text-gray-400 font-medium">Username</th>
+                        <th className="text-center py-3 px-3 text-gray-400 font-medium">TG ID</th>
+                        <th className="text-center py-3 px-3 text-gray-400 font-medium">🔗 Реф.</th>
+                        <th className="text-center py-3 px-3 text-gray-400 font-medium">✉️</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...stats.recentUsers]
+                        .sort((a, b) => (b.invites_count ?? 0) - (a.invites_count ?? 0))
+                        .filter((u) => (u.invites_count ?? 0) > 0)
+                        .map((u, i) => (
+                          <tr key={i} className="border-b border-gray-50 last:border-b-0 hover:bg-gray-50/50 transition-colors">
+                            <td className="py-2.5 px-3 text-gray-400">{i + 1}</td>
                             <td className="py-2.5 px-3">
-                              <p className="font-medium text-text-primary truncate max-w-[140px]">
-                                {u.username ? `@${u.username}` : `${u.tg_id}`}
-                              </p>
-                              <p className="text-[10px] text-text-muted">
-                                {new Date(u.created_at).toLocaleDateString('ru-RU')}
-                              </p>
-                            </td>
-                            <td className="py-2.5 px-3 text-center">
-                              {u.dominantTrait ? (
-                                <span className="text-accent font-medium">{TRAIT_LABELS[u.dominantTrait] ?? u.dominantTrait}</span>
+                              {u.username ? (
+                                <a
+                                  href={`https://t.me/${u.username}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-accent font-medium hover:underline"
+                                >
+                                  @{u.username}
+                                </a>
                               ) : (
-                                <span className="text-text-muted">—</span>
+                                <span className="text-gray-400">—</span>
                               )}
                             </td>
-                            <td className="py-2.5 px-3 text-center">
-                              <span className="font-medium text-text-primary">{u.invites_count ?? 0}</span>
+                            <td className="py-2.5 px-3 text-center text-gray-500 font-mono text-[12px]">
+                              {u.tg_id}
                             </td>
                             <td className="py-2.5 px-3 text-center">
-                              {u.last_test_date ? (
-                                <span className="text-text-muted text-[11px]">
-                                  {new Date(u.last_test_date).toLocaleDateString('ru-RU')}
-                                </span>
-                              ) : (
-                                <span className="text-text-muted text-[11px]">нет</span>
-                              )}
+                              <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-accent/10 text-accent font-semibold text-[13px]">
+                                {u.invites_count ?? 0}
+                              </span>
                             </td>
                             <td className="py-2.5 px-3 text-center">
-                              {daysUntilTest !== null && daysUntilTest > 0 ? (
-                                <span className="text-text-muted text-[11px]">{daysUntilTest} дн.</span>
-                              ) : u.last_test_date ? (
-                                <span className="text-green-500 text-[11px]">сейчас</span>
-                              ) : (
-                                <span className="text-text-muted text-[11px]">—</span>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => openMessageModal(u.tg_id, u.username)}
+                                className="text-[12px] px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-accent hover:text-white transition-all font-medium"
+                              >
+                                Написать
+                              </button>
                             </td>
                           </tr>
-                        )
-                      })}
-                  </tbody>
-                </table>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* All users table (existing) */}
+            <div className="bg-bg-secondary rounded-xl border border-border overflow-hidden">
+              <div className="p-4 border-b border-border flex items-center justify-between">
+                <p className="text-text-muted text-xs uppercase tracking-widest">Все пользователи</p>
+                <div className="flex gap-2">
+                  {(['created_at', 'invites_count', 'last_test_date'] as SortField[]).map((field) => {
+                    const labels: Record<SortField, string> = {
+                      created_at: '📅 Дата',
+                      invites_count: '🔗 Реф.',
+                      last_test_date: '🧪 Тест',
+                    }
+                    const isActive = sortField === field
+                    return (
+                      <button
+                        key={field}
+                        type="button"
+                        onClick={() => {
+                          if (sortField === field) {
+                            setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+                          } else {
+                            setSortField(field)
+                            setSortDir('desc')
+                          }
+                        }}
+                        className={`text-[12px] font-medium px-3 py-1.5 rounded-lg transition-colors ${
+                          isActive
+                            ? 'bg-accent text-white'
+                            : 'bg-bg-primary text-text-muted border border-border hover:text-accent'
+                        }`}
+                      >
+                        {labels[field]} {isActive && (sortDir === 'asc' ? '↑' : '↓')}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {stats.recentUsers.length === 0 ? (
+                <p className="text-text-muted text-sm text-center py-8">Пока нет пользователей</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[13px]">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-3 px-3 text-text-muted font-medium">Пользователь</th>
+                        <th className="text-left py-3 px-3 text-text-muted font-medium">Опора</th>
+                        <th className="text-center py-3 px-3 text-text-muted font-medium">🔗</th>
+                        <th className="text-center py-3 px-3 text-text-muted font-medium">Тест</th>
+                        <th className="text-center py-3 px-3 text-text-muted font-medium">✉️</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...stats.recentUsers]
+                        .sort((a, b) => {
+                          const mul = sortDir === 'asc' ? 1 : -1
+                          if (sortField === 'invites_count') {
+                            return mul * ((a.invites_count ?? 0) - (b.invites_count ?? 0))
+                          }
+                          if (sortField === 'last_test_date') {
+                            const da = a.last_test_date || '1970-01-01'
+                            const db2 = b.last_test_date || '1970-01-01'
+                            return mul * (da < db2 ? -1 : da > db2 ? 1 : 0)
+                          }
+                          return mul * (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0)
+                        })
+                        .map((u, i) => {
+                          const daysUntilTest = u.next_test_available
+                            ? Math.ceil((new Date(u.next_test_available).getTime() - Date.now()) / (24 * 60 * 60 * 1000))
+                            : null
+                          return (
+                            <tr key={i} className="border-b border-border last:border-b-0 hover:bg-bg-tertiary transition-colors">
+                              <td className="py-2.5 px-3">
+                                <p className="font-medium text-text-primary truncate max-w-[140px]">
+                                  {u.username ? `@${u.username}` : `${u.tg_id}`}
+                                </p>
+                                <p className="text-[10px] text-text-muted">
+                                  {new Date(u.created_at).toLocaleDateString('ru-RU')}
+                                </p>
+                              </td>
+                              <td className="py-2.5 px-3 text-center">
+                                {u.dominantTrait ? (
+                                  <span className="text-accent font-medium">{TRAIT_LABELS[u.dominantTrait] ?? u.dominantTrait}</span>
+                                ) : (
+                                  <span className="text-text-muted">—</span>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3 text-center">
+                                <span className="font-medium text-text-primary">{u.invites_count ?? 0}</span>
+                              </td>
+                              <td className="py-2.5 px-3 text-center">
+                                {u.last_test_date ? (
+                                  <span className="text-text-muted text-[11px]">
+                                    {new Date(u.last_test_date).toLocaleDateString('ru-RU')}
+                                  </span>
+                                ) : (
+                                  <span className="text-text-muted text-[11px]">нет</span>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => openMessageModal(u.tg_id, u.username)}
+                                  className="text-[11px] px-2.5 py-1 rounded-md bg-bg-primary text-text-muted border border-border hover:border-accent hover:text-accent transition-all"
+                                >
+                                  Написать
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Direct Message Modal */}
+            {msgModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[17px] font-semibold text-gray-800">
+                      💬 Написать @{msgTargetUsername}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setMsgModalOpen(false)}
+                      className="text-gray-400 hover:text-gray-600 text-xl transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {msgSent ? (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="text-center py-6"
+                    >
+                      <p className="text-3xl mb-2">✅</p>
+                      <p className="text-gray-700 font-medium">Сообщение отправлено!</p>
+                    </motion.div>
+                  ) : (
+                    <>
+                      <textarea
+                        value={msgText}
+                        onChange={(e) => setMsgText(e.target.value)}
+                        placeholder="Введите сообщение (поддерживается HTML)..."
+                        rows={4}
+                        className="w-full py-3 px-4 bg-gray-50 border border-gray-200 rounded-xl text-[14px] text-gray-800 placeholder:text-gray-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none mb-4"
+                      />
+                      <motion.button
+                        type="button"
+                        whileTap={{ scale: msgSending ? 1 : 0.97 }}
+                        onClick={handleSendDirectMessage}
+                        disabled={msgSending || !msgText.trim()}
+                        className={`w-full py-3 rounded-xl font-semibold text-[15px] text-white transition-all shadow-md ${
+                          msgSending || !msgText.trim()
+                            ? 'opacity-60 cursor-not-allowed shadow-none'
+                            : 'active:scale-[0.98] hover:shadow-lg'
+                        }`}
+                        style={{ background: 'var(--accent)' }}
+                      >
+                        {msgSending ? '⏳ Отправка...' : '📤 Отправить'}
+                      </motion.button>
+                    </>
+                  )}
+                </motion.div>
               </div>
             )}
           </div>

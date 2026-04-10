@@ -62,6 +62,7 @@ type FunnelStep =
   | 'survey'
   | 'offer'
   | 'gift'
+  | 'gift-claiming'
 
 export default function ResultPage() {
   const [result, setResult] = useState<ResultData | null>(null)
@@ -309,10 +310,13 @@ export default function ResultPage() {
       window.open(giftUrl, '_blank')
     }
 
-    // Auto-close after 500ms
+    // Show "Переходим к подарку..." then close after delay
+    setFunnelStep('gift-claiming')
+
+    // Auto-close after 2 seconds
     setTimeout(() => {
       tgWebApp?.close?.()
-    }, 500)
+    }, 2000)
   }, [])
 
   // ── Loading / No result ──────────────────────────────────────────────
@@ -773,6 +777,31 @@ export default function ResultPage() {
               onClick={handleClaimGift}>
               🎁 Забрать подарок
             </motion.button>
+          </motion.div>
+        )}
+
+        {/* ════════════ GIFT CLAIMING SCREEN ════════════ */}
+        {funnelStep === 'gift-claiming' && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4 }}
+            className="bg-bg-secondary rounded-xl p-6 border text-center"
+            style={{ borderColor: 'color-mix(in srgb, var(--success) 40%, var(--border))' }}
+          >
+            <motion.div
+              className="text-5xl mb-4"
+              animate={{ scale: [1, 1.15, 1] }}
+              transition={{ duration: 1, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              🎁
+            </motion.div>
+            <p className="text-text-primary text-[17px] font-semibold mb-2">
+              Переходим к подарку...
+            </p>
+            <p className="text-text-muted text-[13px]">
+              Сейчас откроется ссылка на практику. Подожди немного.
+            </p>
           </motion.div>
         )}
 
