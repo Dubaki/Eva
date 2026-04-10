@@ -4,61 +4,52 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 
 const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
+const COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000 // 60 days
 
 export default function Gatekeeper({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true)
   const [blocked, setBlocked] = useState(false)
-  const [reason, setReason] = useState<'not_subscribed' | 'cooldown' | 'no_token' | 'auth_error' | null>(null)
+  const [reason, setReason] = useState<'not_subscribed' | 'cooldown' | 'no_webapp' | null>(null)
   const [cooldownDays, setCooldownDays] = useState(0)
 
   useEffect(() => {
     const check = async () => {
-      const token = localStorage.getItem('eva_token')
-      if (!token) {
-        console.warn('[Gatekeeper] No token found — user not authenticated')
-        setBlocked(true)
-        setReason('no_token')
+      // Get tgId directly from Telegram WebApp — no JWT needed
+      const WebApp = typeof window !== 'undefined'
+        ? (window as unknown as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } } }).Telegram?.WebApp
+        : null
+      const currentTgId = WebApp?.initDataUnsafe?.user?.id ?? null
+
+      if (!currentTgId) {
+        console.warn('[Gatekeeper] No WebApp tgId — user not in Telegram')
+        setChecking(false) // Not in Telegram — let the page render normally
+        return
+      }
+
+      // Check if user is a tester (God mode)
+      const isTester = TESTER_IDS.includes(String(currentTgId))
+      if (isTester) {
+        console.log('[Gatekeeper] Tester bypass:', currentTgId)
         setChecking(false)
         return
       }
 
       try {
-        const res = await fetch('/api/user/status', {
-          headers: { Authorization: `Bearer ${token}` },
-        })
+        // Fetch profile status via tg_id — no JWT, service_role on server side
+        const res = await fetch(`/api/user/status?tg_id=${currentTgId}`)
         const json = await res.json()
 
         console.log('[Gatekeeper] /api/user/status response:', JSON.stringify(json))
 
         if (!json.success) {
           console.error('[Gatekeeper] Status check failed:', json.error)
-          setBlocked(true)
-          setReason('auth_error')
           setChecking(false)
           return
         }
 
         const { isSubscribed, lastTestDate, hasTestResult } = json.data
 
-        // Check if user is a tester (God mode)
-        const profileRaw = localStorage.getItem('eva_profile')
-        let tgId: number | null = null
-        if (profileRaw) {
-          try {
-            tgId = (JSON.parse(profileRaw) as { tg_id?: number }).tg_id ?? null
-          } catch { /* ignore */ }
-        }
-
-        const isTester = tgId !== null && TESTER_IDS.includes(String(tgId))
-
-        // God mode: testers bypass all checks
-        if (isTester) {
-          console.log('[Gatekeeper] Tester bypass:', tgId)
-          setChecking(false)
-          return
-        }
-
-        // Check subscription
+        // Gate 1: Subscription check
         if (!isSubscribed) {
           console.warn('[Gatekeeper] User not subscribed: isSubscribed=false')
           setBlocked(true)
@@ -67,16 +58,13 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
           return
         }
 
-        // Check cooldown
+        // Gate 2: Cooldown check
         if (lastTestDate) {
-          const COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000
           const elapsed = Date.now() - new Date(lastTestDate).getTime()
           if (elapsed < COOLDOWN_MS) {
             const daysLeft = Math.ceil((COOLDOWN_MS - elapsed) / (24 * 60 * 60 * 1000))
             setCooldownDays(daysLeft)
-            // If they already have results and are in cooldown, redirect to result dashboard
             if (hasTestResult) {
-              // Redirect to result page instead of blocking
               window.location.href = '/result'
               return
             }
@@ -117,15 +105,10 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
         message: `Следующий тест будет доступен через ${cooldownDays} ${cooldownDays === 1 ? 'день' : cooldownDays < 5 ? 'дня' : 'дней'}.`,
         hint: 'Это нужно, чтобы ваши результаты были точными и значимыми.',
       },
-      no_token: {
-        title: 'Авторизация не пройдена',
-        message: 'Не удалось войти. Убедитесь, что вы открыли Mini App через Telegram.',
-        hint: 'Попробуйте: откройте бота → нажмите Menu Button или кнопку «Пройти тест».',
-      },
-      auth_error: {
-        title: 'Ошибка авторизации',
-        message: 'Токен недействителен или истёк. Попробуйте перезапустить бота.',
-        hint: 'Откройте /start и нажмите «Пройти тест» заново.',
+      no_webapp: {
+        title: 'Откройте через Telegram',
+        message: 'Это приложение работает только внутри Telegram. Откройте бота и нажмите «Пройти тест».',
+        hint: 'Найдите бота в Telegram и запустите его.',
       },
     }
 
@@ -146,11 +129,6 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
           <p className="text-text-muted text-[13px]">
             {msg.hint}
           </p>
-          {process.env.NODE_ENV === 'development' && (
-            <p className="text-xs text-red-400 mt-4 font-mono">
-              Debug reason: {reason}
-            </p>
-          )}
         </motion.div>
       </main>
     )
