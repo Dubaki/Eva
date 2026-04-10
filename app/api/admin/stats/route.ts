@@ -11,38 +11,52 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'Server misconfiguration' }, { status: 500 })
   }
 
-  const auth = req.headers.get('authorization')
-  if (!auth?.startsWith('Bearer ')) {
-    console.warn('[admin/stats] Missing token')
-    return NextResponse.json({ success: false, error: 'Missing token' }, { status: 401 })
-  }
+  // Check PIN first — if valid, bypass JWT requirement
+  const adminPinHeader = req.headers.get('x-admin-pin')
+  const isAdminViaPin = adminPinHeader === '2026'
 
-  const token = auth.slice(7)
-  const payload = verifyJwt(token, jwtSecret)
-  if (!payload) {
-    console.warn('[admin/stats] Invalid or expired token')
-    return NextResponse.json({ success: false, error: 'Invalid or expired token' }, { status: 401 })
+  let profileId: string | null = null
+
+  if (!isAdminViaPin) {
+    // No PIN — require JWT
+    const auth = req.headers.get('authorization')
+    if (!auth?.startsWith('Bearer ')) {
+      console.warn('[admin/stats] Missing token and no PIN')
+      return NextResponse.json({ success: false, error: 'Missing token' }, { status: 401 })
+    }
+
+    const token = auth.slice(7)
+    const payload = verifyJwt(token, jwtSecret)
+    if (!payload) {
+      console.warn('[admin/stats] Invalid or expired token')
+      return NextResponse.json({ success: false, error: 'Invalid or expired token' }, { status: 401 })
+    }
+
+    profileId = payload.sub
   }
 
   const supabase = getSupabaseServer()
 
-  // Check if this user is a tester (admin access)
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('tg_id')
-    .eq('id', payload.sub)
-    .single()
+  // If we have a profileId, check TESTER_IDS; PIN alone is sufficient
+  let isTester = false
+  if (profileId) {
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('tg_id')
+      .eq('id', profileId)
+      .single()
 
-  // Also check for admin access via PIN (passed as X-Admin-Pin header from client)
-  const adminPinHeader = req.headers.get('x-admin-pin')
-  const isAdminViaPin = adminPinHeader === '2026'
+    if (profileError) {
+      console.error('[admin/stats] Profile lookup error:', profileError)
+    }
 
-  if (profileError) {
-    console.error('[admin/stats] Profile lookup error:', profileError)
+    if (profile) {
+      isTester = TESTER_IDS.includes(String(profile.tg_id))
+    }
   }
 
-  if (!profile || (!TESTER_IDS.includes(String(profile.tg_id)) && !isAdminViaPin)) {
-    console.warn('[admin/stats] Unauthorized access attempt by sub:', payload.sub, 'profile:', profile)
+  if (!isAdminViaPin && !isTester) {
+    console.warn('[admin/stats] Unauthorized access attempt')
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 })
   }
 

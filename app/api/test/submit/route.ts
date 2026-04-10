@@ -112,8 +112,8 @@ export async function POST(request: NextRequest) {
             score_p: scores.scoreP,
             score_r: scores.scoreR,
             score_k: scores.scoreK,
-            dominant_trait: scores.dominantTrait.toLowerCase(),
-            secondary_trait: scores.secondaryTrait.toLowerCase(),
+            dominant_trait: scores.dominantTrait,
+            secondary_trait: scores.secondaryTrait,
             answers: scores.answers,
           },
           {

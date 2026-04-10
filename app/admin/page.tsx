@@ -87,17 +87,11 @@ export default function AdminPanel() {
       return
     }
 
+    // If authorized via PIN but no token, still proceed — PIN is sufficient
     const token = localStorage.getItem('eva_token')
-    if (!token) {
-      setLoading(false)
-      return
-    }
+    const headers = adminHeaders()
 
-    const isAdminViaPinLocal = localStorage.getItem('isAdmin') === 'true'
-    const headers: Record<string, string> = { Authorization: `Bearer ${token}` }
-    if (isAdminViaPinLocal) headers['X-Admin-Pin'] = '2026'
-
-    // Fetch stats
+    // Fetch stats (PIN alone is sufficient for access)
     fetch('/api/admin/stats', { headers })
       .then((r) => {
         if (!r.ok) {
@@ -120,7 +114,7 @@ export default function AdminPanel() {
       .finally(() => setLoading(false))
 
     // Fetch gift links
-    fetch('/api/admin/gifts', { headers: adminHeaders() })
+    fetch('/api/admin/gifts', { headers })
       .then((r) => r.json())
       .then((json) => {
         if (json.success && json.data) {
@@ -131,9 +125,6 @@ export default function AdminPanel() {
   }, [])
 
   const handleSaveGifts = async () => {
-    const token = localStorage.getItem('eva_token')
-    if (!token) return
-
     setSaving(true)
     setSaved(false)
     try {

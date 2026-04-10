@@ -46,9 +46,12 @@ export default function Home() {
       clickTimesRef.current = []
 
       const pin = window.prompt('Введите PIN-код')
+      if (pin === null) return // cancelled
       if (pin === ADMIN_PIN) {
         localStorage.setItem('isAdmin', 'true')
         window.location.href = '/admin'
+      } else {
+        alert('❌ Неверный PIN-код')
       }
     }
   }, [])

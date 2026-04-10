@@ -9,20 +9,21 @@ const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
  * POST /api/admin/gifts — сохранить ссылки на подарки в app_settings
  */
 
-async function checkAdmin(req: NextRequest): Promise<{ authorized: boolean; profileId?: string }> {
+async function checkAdmin(req: NextRequest): Promise<boolean> {
+  // Check PIN first — if valid, bypass JWT
+  const adminPinHeader = req.headers.get('x-admin-pin')
+  if (adminPinHeader === '2026') return true
+
+  // No PIN — require JWT
   const jwtSecret = process.env.SUPABASE_JWT_SECRET
-  if (!jwtSecret) return { authorized: false }
+  if (!jwtSecret) return false
 
   const auth = req.headers.get('authorization')
-  if (!auth?.startsWith('Bearer ')) return { authorized: false }
+  if (!auth?.startsWith('Bearer ')) return false
 
   const token = auth.slice(7)
   const payload = verifyJwt(token, jwtSecret)
-  if (!payload) return { authorized: false }
-
-  // Check TESTER_IDS or PIN access
-  const adminPinHeader = req.headers.get('x-admin-pin')
-  const isAdminViaPin = adminPinHeader === '2026'
+  if (!payload) return false
 
   const supabase = getSupabaseServer()
   const { data: profile } = await supabase
@@ -31,17 +32,13 @@ async function checkAdmin(req: NextRequest): Promise<{ authorized: boolean; prof
     .eq('id', payload.sub)
     .single()
 
-  if (profile && (TESTER_IDS.includes(String(profile.tg_id)) || isAdminViaPin)) {
-    return { authorized: true, profileId: payload.sub }
-  }
-
-  return { authorized: false }
+  return !!(profile && TESTER_IDS.includes(String(profile.tg_id)))
 }
 
 const GIFT_KEYS = ['gift_money', 'gift_relations', 'gift_health', 'gift_other'] as const
 
 export async function GET(req: NextRequest) {
-  const { authorized } = await checkAdmin(req)
+  const authorized = await checkAdmin(req)
   if (!authorized) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
@@ -65,7 +62,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { authorized } = await checkAdmin(req)
+  const authorized = await checkAdmin(req)
   if (!authorized) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }

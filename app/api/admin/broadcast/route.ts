@@ -11,32 +11,33 @@ const BASE = 'https://api.telegram.org'
  */
 
 async function checkAdmin(req: NextRequest): Promise<boolean> {
-  const jwtSecret = process.env.SUPABASE_JWT_SECRET
-  if (!jwtSecret) return false
-
-  const auth = req.headers.get('authorization')
-  if (!auth?.startsWith('Bearer ')) return false
-
-  // PIN check is mandatory for broadcast
+  // PIN check is mandatory and sufficient for broadcast
   const adminPin = req.headers.get('x-admin-pin')
   if (adminPin !== '2026') return false
 
-  const token = auth.slice(7)
+  // If we have a token, also verify JWT for extra safety
+  const auth = req.headers.get('authorization')
+  if (auth?.startsWith('Bearer ')) {
+    const jwtSecret = process.env.SUPABASE_JWT_SECRET
+    if (jwtSecret) {
+      const token = auth.slice(7)
+      const { verifyJwt } = await import('@/lib/jwt')
+      const payload = verifyJwt(token, jwtSecret)
+      if (!payload) return false
 
-  // Verify JWT
-  const { verifyJwt } = await import('@/lib/jwt')
-  const payload = verifyJwt(token, jwtSecret)
-  if (!payload) return false
+      const supabase = getSupabaseServer()
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('tg_id')
+        .eq('id', payload.sub)
+        .single()
 
-  // Check TESTER_IDS
-  const supabase = getSupabaseServer()
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('tg_id')
-    .eq('id', payload.sub)
-    .single()
+      if (profile && TESTER_IDS.includes(String(profile.tg_id))) return true
+    }
+  }
 
-  return !!(profile && TESTER_IDS.includes(String(profile.tg_id)))
+  // PIN alone is sufficient
+  return true
 }
 
 async function sendTelegramMessage(chatId: number, text: string): Promise<boolean> {
