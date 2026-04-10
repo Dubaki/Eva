@@ -65,6 +65,24 @@ interface TelegramUpdate {
 }
 
 async function handleStart(chatId: number, userId: number, refCode: number | null, _firstName?: string): Promise<boolean> {
+  // ── Lead capture: UPSERT profile on /start ──
+  try {
+    const supabase = getSupabaseServer()
+    await supabase
+      .from('profiles')
+      .upsert(
+        {
+          tg_id: userId,
+          invites_count: 0,
+        },
+        { onConflict: 'tg_id', ignoreDuplicates: false }
+      )
+    console.log(`[webhook] Lead captured: tg_id=${userId} (profile created/updated)`)
+  } catch (dbErr) {
+    // Non-fatal: user can still proceed, we just lose the lead record
+    console.error('[webhook] Lead capture UPSERT failed (non-fatal):', dbErr)
+  }
+
   const isReferred = refCode !== null
 
   const caption = isReferred
