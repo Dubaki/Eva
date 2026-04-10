@@ -1,0 +1,27 @@
+-- EVA Database Migration 004
+-- pg_cron setup for periodic reminders
+-- Дата: 2026-04-09
+--
+-- ВАЖНО: Для работы требуется включить расширение pg_cron в Supabase:
+--   Dashboard → Database → Extensions → pg_cron → Enable
+--
+-- После включения расширения, раскомментируйте строку ниже:
+-- CREATE EXTENSION IF NOT EXISTS pg_cron SCHEMA extensions;
+
+-- Schedule the cron job to run daily at midnight UTC
+-- This calls the Edge Function via HTTP
+-- Замените YOUR_PROJECT_ID на реальный ID проекта
+-- SELECT cron.schedule(
+--     'send-periodic-reminders',
+--     '0 0 * * *',
+--     $$
+--     SELECT net.http_post(
+--         url := 'https://YOUR_PROJECT_ID.supabase.co/functions/v1/send-periodic-reminders',
+--         headers := jsonb_build_object(
+--             'Authorization', 'Bearer YOUR_SERVICE_ROLE_KEY',
+--             'Content-Type', 'application/json'
+--         ),
+--         body := '{}'::jsonb
+--     ) as request_id;
+--     $$
+-- );
