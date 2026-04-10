@@ -265,14 +265,20 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
       console.error('[webhook] Referral engine error (non-fatal):', refErr)
     }
 
-    // Step 2 (CRM): Mark subscription timestamp
+    // Step 2 (CRM): Mark subscription status in DB — UPSERT to handle missing profile
     try {
       const supabase = getSupabaseServer()
       await supabase
         .from('profiles')
-        .update({ is_subscribed: true, subscribed_at: new Date().toISOString() })
-        .eq('tg_id', userId)
-      console.log(`[webhook] subscribed_at set for tg_id=${userId}`)
+        .upsert(
+          {
+            tg_id: userId,
+            is_subscribed: true,
+            subscribed_at: new Date().toISOString(),
+          },
+          { onConflict: 'tg_id', ignoreDuplicates: false }
+        )
+      console.log(`[webhook] is_subscribed=true, subscribed_at set for tg_id=${userId} (upsert)`)
     } catch (dbErr) {
       console.error('[webhook] Failed to update subscription status:', dbErr)
     }
