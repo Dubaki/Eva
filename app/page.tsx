@@ -18,10 +18,15 @@ export default function Home() {
   const [cooldownDays, setCooldownDays] = useState<number | null>(null)
 
   useEffect(() => {
-    const token = localStorage.getItem('eva_token')
-    if (!token) return
+    // Get tgId directly from Telegram WebApp
+    const WebApp = typeof window !== 'undefined'
+      ? (window as unknown as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } } }).Telegram?.WebApp
+      : null
+    const currentTgId = WebApp?.initDataUnsafe?.user?.id ?? null
 
-    fetch('/api/user/status', { headers: { Authorization: `Bearer ${token}` } })
+    if (!currentTgId) return // not in Telegram — skip cooldown check
+
+    fetch(`/api/user/status?tg_id=${currentTgId}`)
       .then((r) => r.json())
       .then((json) => {
         if (json.success && json.data?.lastTestDate) {
