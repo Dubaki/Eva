@@ -216,7 +216,7 @@ export async function POST(request: NextRequest) {
         if (dbError) {
           console.error('ОШИБКА СОХРАНЕНИЯ В БД (RPC):', JSON.stringify(dbError))
           return NextResponse.json(
-            { success: false, error: 'Ошибка сохранения результатов' },
+            { success: false, error: `Ошибка сохранения результатов: ${dbError.message ?? JSON.stringify(dbError)}` },
             { status: 500 }
           )
         }
@@ -260,7 +260,7 @@ export async function POST(request: NextRequest) {
         if (dbError) {
           console.error('ОШИБКА СОХРАНЕНИЯ В БД (RPC offline):', JSON.stringify(dbError))
           return NextResponse.json(
-            { success: false, error: 'Ошибка сохранения результатов' },
+            { success: false, error: `Ошибка сохранения результатов: ${dbError.message ?? JSON.stringify(dbError)}` },
             { status: 500 }
           )
         }

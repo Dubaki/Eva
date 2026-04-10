@@ -100,7 +100,11 @@ export default function TestPage() {
       }
 
       if (!result.success) {
-        console.error('Submit failed:', result.error)
+        console.error('[test/submit] Submit failed:', result.error)
+        // Show RPC error to the user (for debugging)
+        if (result.error && result.error !== 'cooldown') {
+          alert(`⚠️ Ошибка сохранения: ${result.error}`)
+        }
         // Even on failure, go to result — user sees the computed result from sessionStorage fallback
         router.push('/result')
         return
