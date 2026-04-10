@@ -42,8 +42,32 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
 
+    console.log('[test/submit] === INCOMING REQUEST ===')
+    console.log('[test/submit] Auth header present:', !!authHeader)
+    console.log('[test/submit] Token (first 20 chars):', token ? token.substring(0, 20) + '...' : 'NONE')
+
+    // Decode JWT payload for debugging (without verification)
+    if (token) {
+      try {
+        const parts = token.split('.')
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString())
+          console.log('[test/submit] Decoded JWT payload:', {
+            sub: payload.sub,
+            iss: payload.iss,
+            role: payload.role,
+            exp: payload.exp ? new Date(payload.exp * 1000).toISOString() : 'N/A',
+            isOffline: payload.sub?.startsWith?.('offline-'),
+          })
+        }
+      } catch {
+        console.log('[test/submit] Could not decode JWT token')
+      }
+    }
+
     // Если токена нет — используем guest-режим (данные сохраняются, но без привязки к профилю)
     let supabase: ReturnType<typeof getSupabaseServer> | null = null
+    let offlineTgId: number | null = null // для распознавания синтетических offline-токенов
 
     if (token) {
       supabase = getSupabaseServer()
@@ -52,10 +76,37 @@ export async function POST(request: NextRequest) {
         error: authError,
       } = await supabase.auth.getUser(token)
 
+      console.log('[test/submit] auth.getUser result:', {
+        hasUser: !!user,
+        userId: user?.id,
+        authError: authError?.message ?? null,
+      })
+
       if (authError || !user) {
-        // Токен невалиден — fallback на guest
-        console.warn('[test/submit] Invalid token, falling back to guest mode')
-        supabase = null
+        // Проверяем, это синтетический offline-токен?
+        // Формат sub: "offline-{tg_id}-{timestamp}"
+        try {
+          const parts = token.split('.')
+          if (parts.length === 3) {
+            const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString())
+            if (payload.sub?.startsWith?.('offline-')) {
+              const tgIdStr = payload.sub.split('-')[1]
+              const parsedTgId = parseInt(tgIdStr, 10)
+              if (!isNaN(parsedTgId)) {
+                offlineTgId = parsedTgId
+                console.log('[test/submit] Detected offline token, extracted tg_id:', offlineTgId)
+              }
+            }
+          }
+        } catch {
+          console.warn('[test/submit] Invalid token, falling back to guest mode')
+        }
+
+        if (!offlineTgId) {
+          console.warn('[test/submit] Invalid token, falling back to guest mode')
+          supabase = null
+        }
+        // Если offlineTgId извлечён — продолжаем с supabase, но profileId будет null
       } else {
         profileId = user.id
       }
@@ -64,6 +115,8 @@ export async function POST(request: NextRequest) {
     if (!supabase) {
       supabase = getSupabaseServer()
     }
+
+    console.log('[test/submit] Final profileId:', profileId ?? (offlineTgId ? `offline(tg:${offlineTgId})` : 'GUEST MODE'))
 
     // ── Cooldown check: if user already has a result, check last_test_date ──
     // Skip for tester IDs (God mode)
@@ -81,6 +134,27 @@ export async function POST(request: NextRequest) {
         if (elapsed < COOLDOWN_MS) {
           const daysLeft = Math.ceil((COOLDOWN_MS - elapsed) / (24 * 60 * 60 * 1000))
           console.log(`[test/submit] Cooldown active: ${daysLeft} days remaining for profile ${profileId}`)
+          return NextResponse.json(
+            { success: false, error: `cooldown`, daysLeft },
+            { status: 429 }
+          )
+        }
+      }
+    } else if (offlineTgId) {
+      // Cooldown check для offline режима — ищем по tg_id
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('last_test_date, tg_id')
+        .eq('tg_id', offlineTgId)
+        .maybeSingle()
+
+      if (profile && !TESTER_IDS.includes(String(profile.tg_id)) && profile?.last_test_date) {
+        const lastTest = new Date(profile.last_test_date).getTime()
+        const now = Date.now()
+        const elapsed = now - lastTest
+        if (elapsed < COOLDOWN_MS) {
+          const daysLeft = Math.ceil((COOLDOWN_MS - elapsed) / (24 * 60 * 60 * 1000))
+          console.log(`[test/submit] Cooldown active (offline): ${daysLeft} days remaining for tg_id ${offlineTgId}`)
           return NextResponse.json(
             { success: false, error: `cooldown`, daysLeft },
             { status: 429 }
@@ -105,11 +179,17 @@ export async function POST(request: NextRequest) {
       console.log('[test/submit] Saving to DB via RPC for profile:', profileId)
       try {
         // Получаем tg_id для RPC вызова
-        const { data: profile } = await supabase
+        const { data: profile, error: profileErr } = await supabase
           .from('profiles')
           .select('tg_id')
           .eq('id', profileId)
           .single()
+
+        console.log('[test/submit] Profile lookup result:', {
+          profileFound: !!profile,
+          tg_id: profile?.tg_id ?? 'MISSING',
+          profileError: profileErr?.message ?? null,
+        })
 
         if (!profile?.tg_id) {
           console.error('[test/submit] Profile not found or missing tg_id for profile:', profileId)
@@ -123,11 +203,15 @@ export async function POST(request: NextRequest) {
         const primary = scores.dominantTrait.toUpperCase()
         const secondary = scores.secondaryTrait.toUpperCase()
 
-        const { error: dbError } = await supabase.rpc('save_test_result', {
+        console.log('[test/submit] RPC call params:', { p_tg_id: tgId, p_primary_support: primary, p_secondary_support: secondary })
+
+        const { error: dbError, data: rpcData } = await supabase.rpc('save_test_result', {
           p_tg_id: tgId,
           p_primary_support: primary,
           p_secondary_support: secondary,
         })
+
+        console.log('[test/submit] RPC response:', { dbError: dbError ? JSON.stringify(dbError) : 'null', rpcData })
 
         if (dbError) {
           console.error('ОШИБКА СОХРАНЕНИЯ В БД (RPC):', JSON.stringify(dbError))
@@ -156,10 +240,55 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         )
       }
+    } else if (offlineTgId) {
+      // Offline режим: синтетический токен, но tg_id известен — вызываем RPC напрямую
+      console.log('[test/submit] Saving to DB via RPC for offline user, tg_id:', offlineTgId)
+      try {
+        const primary = scores.dominantTrait.toUpperCase()
+        const secondary = scores.secondaryTrait.toUpperCase()
+
+        console.log('[test/submit] RPC call params (offline):', { p_tg_id: offlineTgId, p_primary_support: primary, p_secondary_support: secondary })
+
+        const { error: dbError, data: rpcData } = await supabase.rpc('save_test_result', {
+          p_tg_id: offlineTgId,
+          p_primary_support: primary,
+          p_secondary_support: secondary,
+        })
+
+        console.log('[test/submit] RPC response (offline):', { dbError: dbError ? JSON.stringify(dbError) : 'null', rpcData })
+
+        if (dbError) {
+          console.error('ОШИБКА СОХРАНЕНИЯ В БД (RPC offline):', JSON.stringify(dbError))
+          return NextResponse.json(
+            { success: false, error: 'Ошибка сохранения результатов' },
+            { status: 500 }
+          )
+        }
+
+        console.log('[test/submit] DB save via RPC successful (offline)')
+
+        // Fire-and-forget: send result to Telegram
+        sendResultToTelegram(offlineTgId, scores.dominantTrait, traitInfo.description)
+
+        // Fire-and-forget: trigger Edge Function for bot notification
+        triggerBotNotification({
+          event: 'dominant_trait_set',
+          profile_id: `offline-${offlineTgId}`,
+          tg_id: offlineTgId,
+          trait: primary,
+        }).catch((err) => console.error('[test/submit] Edge function trigger error:', err))
+      } catch (error) {
+        console.error('ОШИБКА СОХРАНЕНИЯ В БД (offline):', error)
+        return NextResponse.json(
+          { success: false, error: 'Ошибка сохранения результатов' },
+          { status: 500 }
+        )
+      }
     } else {
       // Guest — нет profile_id, пропускаем запись в БД
       // Результат всё равно вернём клиенту — он сохранит в sessionStorage
-      console.log('[test/submit] Guest mode: returning result without DB storage')
+      console.log('[test/submit] ⚠️ Guest mode: NO DB STORAGE — this is why data is empty in Supabase!')
+      console.log('[test/submit] Guest mode reason: no valid JWT token or auth.getUser failed')
     }
 
     return NextResponse.json({

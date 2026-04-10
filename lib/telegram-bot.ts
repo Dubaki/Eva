@@ -111,7 +111,12 @@ export async function sendPhoto(params: {
  * Returns the member status: "creator" | "administrator" | "member" | "restricted" | "left" | "kicked"
  */
 export async function getChatMember(chatId: string | number, userId: number): Promise<string | null> {
-  if (!BOT_TOKEN) return null
+  if (!BOT_TOKEN) {
+    console.error('[telegram] getChatMember: BOT_TOKEN not set')
+    return null
+  }
+
+  console.log(`[telegram] getChatMember: checking user ${userId} in channel ${chatId}`)
 
   const res = await fetch(`${BASE}/bot${BOT_TOKEN}/getChatMember`, {
     method: 'POST',
@@ -127,8 +132,12 @@ export async function getChatMember(chatId: string | number, userId: number): Pr
 
   const data = await res.json()
   if (data.ok) {
-    return data.result.status
+    const status = data.result.status
+    const isValidSubscriber = status === 'member' || status === 'administrator' || status === 'creator'
+    console.log(`[telegram] getChatMember: userId=${userId}, status=${status}, isSubscriber=${isValidSubscriber}`)
+    return status
   }
+  console.error('[telegram] getChatMember: API returned ok=false, description:', data.description)
   return null
 }
 
