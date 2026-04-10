@@ -83,6 +83,41 @@ async function handleStart(chatId: number, userId: number, refCode: number | nul
     console.error('[webhook] Lead capture UPSERT failed (non-fatal):', dbErr)
   }
 
+  // ── Step 4 (Referrals): If user came via /start ref_CODE, link to referrer ──
+  if (refCode !== null) {
+    try {
+      const supabase = getSupabaseServer()
+
+      // Find referrer's profile
+      const { data: referrer } = await supabase
+        .from('profiles')
+        .select('id, invites_count')
+        .eq('tg_id', refCode)
+        .single()
+
+      if (referrer && referrer.id) {
+        // Set referrer_id for the new user
+        await supabase
+          .from('profiles')
+          .update({ referrer_id: referrer.id })
+          .eq('tg_id', userId)
+
+        // Increment referrer's invites_count
+        const newCount = (referrer.invites_count ?? 0) + 1
+        await supabase
+          .from('profiles')
+          .update({ invites_count: newCount })
+          .eq('id', referrer.id)
+
+        console.log(`[webhook] Referral linked: tg_id=${userId} → referrer tg_id=${refCode}, invites_count=${newCount}`)
+      } else {
+        console.log(`[webhook] Referral code ${refCode} not found in profiles`)
+      }
+    } catch (refErr) {
+      console.error('[webhook] Referral linking in /start failed (non-fatal):', refErr)
+    }
+  }
+
   const isReferred = refCode !== null
 
   const caption = isReferred
@@ -230,15 +265,16 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
       console.error('[webhook] Referral engine error (non-fatal):', refErr)
     }
 
-    // Force update is_subscribed in Supabase
+    // Step 2 (CRM): Mark subscription timestamp
     try {
       const supabase = getSupabaseServer()
       await supabase
         .from('profiles')
-        .update({ is_subscribed: true })
+        .update({ is_subscribed: true, subscribed_at: new Date().toISOString() })
         .eq('tg_id', userId)
+      console.log(`[webhook] subscribed_at set for tg_id=${userId}`)
     } catch (dbErr) {
-      console.error('[webhook] Failed to update is_subscribed status:', dbErr)
+      console.error('[webhook] Failed to update subscription status:', dbErr)
     }
 
     const successCaption =

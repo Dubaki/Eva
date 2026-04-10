@@ -8,13 +8,16 @@ const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
 export default function Gatekeeper({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true)
   const [blocked, setBlocked] = useState(false)
-  const [reason, setReason] = useState<'not_subscribed' | 'cooldown' | null>(null)
+  const [reason, setReason] = useState<'not_subscribed' | 'cooldown' | 'no_token' | 'auth_error' | null>(null)
   const [cooldownDays, setCooldownDays] = useState(0)
 
   useEffect(() => {
     const check = async () => {
       const token = localStorage.getItem('eva_token')
       if (!token) {
+        console.warn('[Gatekeeper] No token found — user not authenticated')
+        setBlocked(true)
+        setReason('no_token')
         setChecking(false)
         return
       }
@@ -25,7 +28,12 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
         })
         const json = await res.json()
 
+        console.log('[Gatekeeper] /api/user/status response:', JSON.stringify(json))
+
         if (!json.success) {
+          console.error('[Gatekeeper] Status check failed:', json.error)
+          setBlocked(true)
+          setReason('auth_error')
           setChecking(false)
           return
         }
@@ -45,12 +53,14 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
 
         // God mode: testers bypass all checks
         if (isTester) {
+          console.log('[Gatekeeper] Tester bypass:', tgId)
           setChecking(false)
           return
         }
 
         // Check subscription
         if (!isSubscribed) {
+          console.warn('[Gatekeeper] User not subscribed: isSubscribed=false')
           setBlocked(true)
           setReason('not_subscribed')
           setChecking(false)
@@ -96,6 +106,31 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
   }
 
   if (blocked) {
+    const reasonMessages: Record<string, { title: string; message: string; hint: string }> = {
+      not_subscribed: {
+        title: 'Доступ закрыт',
+        message: 'Пожалуйста, откройте бота в Telegram, подпишитесь на канал и нажмите «Я подписалась».',
+        hint: 'После подписки весь функционал станет доступен автоматически.',
+      },
+      cooldown: {
+        title: 'Тест ещё не доступен',
+        message: `Следующий тест будет доступен через ${cooldownDays} ${cooldownDays === 1 ? 'день' : cooldownDays < 5 ? 'дня' : 'дней'}.`,
+        hint: 'Это нужно, чтобы ваши результаты были точными и значимыми.',
+      },
+      no_token: {
+        title: 'Авторизация не пройдена',
+        message: 'Не удалось войти. Убедитесь, что вы открыли Mini App через Telegram.',
+        hint: 'Попробуйте: откройте бота → нажмите Menu Button или кнопку «Пройти тест».',
+      },
+      auth_error: {
+        title: 'Ошибка авторизации',
+        message: 'Токен недействителен или истёк. Попробуйте перезапустить бота.',
+        hint: 'Откройте /start и нажмите «Пройти тест» заново.',
+      },
+    }
+
+    const msg = reason ? reasonMessages[reason] : reasonMessages.not_subscribed
+
     return (
       <main className="flex min-h-screen items-center justify-center bg-bg-primary px-6">
         <motion.div
@@ -104,13 +139,18 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
           className="text-center max-w-sm"
         >
           <p className="text-4xl mb-4">⚠️</p>
-          <h1 className="text-[22px] font-bold text-text-primary mb-3">Доступ закрыт</h1>
+          <h1 className="text-[22px] font-bold text-text-primary mb-3">{msg.title}</h1>
           <p className="text-text-secondary text-[15px] leading-relaxed mb-6">
-            Пожалуйста, откройте бота в Telegram, подпишитесь на канал и нажмите «Я подписалась».
+            {msg.message}
           </p>
           <p className="text-text-muted text-[13px]">
-            После подписки весь функционал станет доступен автоматически.
+            {msg.hint}
           </p>
+          {process.env.NODE_ENV === 'development' && (
+            <p className="text-xs text-red-400 mt-4 font-mono">
+              Debug reason: {reason}
+            </p>
+          )}
         </motion.div>
       </main>
     )

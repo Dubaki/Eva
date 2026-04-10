@@ -36,6 +36,7 @@ export interface Database {
           referrer_id: string | null
           is_subscribed: boolean
           subscription_checked_at: string | null
+          subscribed_at: string | null
           last_test_date: string | null
           selected_sphere: string | null
           dominant_trait: string | null
@@ -54,6 +55,7 @@ export interface Database {
           referrer_id?: string | null
           is_subscribed?: boolean
           subscription_checked_at?: string | null
+          subscribed_at?: string | null
           last_test_date?: string | null
           selected_sphere?: string | null
           dominant_trait?: string | null
@@ -72,6 +74,7 @@ export interface Database {
           referrer_id?: string | null
           is_subscribed?: boolean
           subscription_checked_at?: string | null
+          subscribed_at?: string | null
           last_test_date?: string | null
           selected_sphere?: string | null
           dominant_trait?: string | null

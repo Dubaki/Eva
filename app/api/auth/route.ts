@@ -159,6 +159,20 @@ export async function POST(req: NextRequest) {
   // 1. Validate Telegram signature
   const parsed = parseAndValidate(initData, botToken)
   if (!parsed) {
+    // Detailed logging for debugging inline button access
+    const params = new URLSearchParams(initData)
+    const hash = params.get('hash')
+    const authDate = parseInt(params.get('auth_date') ?? '0', 10)
+    const now = Math.floor(Date.now() / 1000)
+    const age = now - authDate
+    console.error('[auth] Invalid/expired initData:', {
+      hasHash: !!hash,
+      authDate: new Date(authDate * 1000).toISOString(),
+      ageSeconds: age,
+      isExpired: age > 300,
+      hasUser: !!params.get('user'),
+      initDataLength: initData.length,
+    })
     return fail('Invalid or expired initData', 401)
   }
 
