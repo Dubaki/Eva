@@ -21,8 +21,8 @@ async function checkAdmin(req: NextRequest): Promise<{ authorized: boolean; prof
   if (!payload) return { authorized: false }
 
   // Check TESTER_IDS or PIN access
-  const adminAccessHeader = req.headers.get('x-admin-access')
-  const isAdminViaPin = adminAccessHeader === 'true'
+  const adminPinHeader = req.headers.get('x-admin-pin')
+  const isAdminViaPin = adminPinHeader === '2026'
 
   const supabase = getSupabaseServer()
   const { data: profile } = await supabase

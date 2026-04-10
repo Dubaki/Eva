@@ -55,7 +55,7 @@ export default function AdminPanel() {
     const token = localStorage.getItem('eva_token')
     const headers: Record<string, string> = {}
     if (token) headers['Authorization'] = `Bearer ${token}`
-    if (localStorage.getItem('isAdmin') === 'true') headers['X-Admin-Access'] = 'true'
+    if (localStorage.getItem('isAdmin') === 'true') headers['X-Admin-Pin'] = '2026'
     return headers
   }
 
@@ -85,7 +85,7 @@ export default function AdminPanel() {
 
     const isAdminViaPinLocal = localStorage.getItem('isAdmin') === 'true'
     const headers: Record<string, string> = { Authorization: `Bearer ${token}` }
-    if (isAdminViaPinLocal) headers['X-Admin-Access'] = 'true'
+    if (isAdminViaPinLocal) headers['X-Admin-Pin'] = '2026'
 
     // Fetch stats
     fetch('/api/admin/stats', { headers })

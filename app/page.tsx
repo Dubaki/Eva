@@ -1,10 +1,9 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 
-const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
 const ADMIN_PIN = '2026'
 
 const fadeUp = (delay: number) => ({
@@ -14,7 +13,6 @@ const fadeUp = (delay: number) => ({
 })
 
 export default function Home() {
-  const [isAdmin, setIsAdmin] = useState(false)
   const clickTimesRef = useRef<number[]>([])
 
   const handleTitleClick = useCallback(() => {
@@ -23,7 +21,7 @@ export default function Home() {
     clickTimesRef.current = clickTimesRef.current.filter((t) => now - t < 2000)
     clickTimesRef.current.push(now)
 
-    if (clickTimesRef.current.length >= 7) {
+    if (clickTimesRef.current.length >= 5) {
       clickTimesRef.current = []
 
       const pin = window.prompt('Введите PIN-код')
@@ -31,16 +29,6 @@ export default function Home() {
         localStorage.setItem('isAdmin', 'true')
         window.location.href = '/admin'
       }
-    }
-  }, [])
-
-  useEffect(() => {
-    const profileRaw = localStorage.getItem('eva_profile')
-    if (profileRaw) {
-      try {
-        const p = JSON.parse(profileRaw) as { tg_id?: number }
-        if (TESTER_IDS.includes(String(p.tg_id))) setIsAdmin(true)
-      } catch { /* ignore */ }
     }
   }, [])
 
@@ -80,10 +68,10 @@ export default function Home() {
           </motion.div>
         </div>
 
-        {/* CTA button + Admin link */}
+        {/* CTA button */}
         <motion.div
           {...fadeUp(0.52)}
-          className="w-full mt-auto flex flex-col gap-3"
+          className="w-full mt-auto"
         >
           <Link href="/test" prefetch={true} className="block w-full">
             <button
@@ -93,17 +81,6 @@ export default function Home() {
               ✨ Пройти тест
             </button>
           </Link>
-
-          {isAdmin && (
-            <Link href="/admin" className="block w-full">
-              <button
-                type="button"
-                className="w-full py-2.5 rounded-xl text-[12px] font-medium text-text-muted border border-border hover:text-accent hover:border-accent transition-colors select-none"
-              >
-                👑 Админ-панель
-              </button>
-            </Link>
-          )}
         </motion.div>
       </div>
     </main>

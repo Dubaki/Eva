@@ -1,31 +1,38 @@
 /**
  * Supabase Edge Function: process-bot-notifications
  *
- * Вызывается через HTTP POST из триггеров БД (pg_net / webhook)
- * или напрямую через Supabase Functions API.
+ * Поддерживает два режима вызова:
  *
- * Payload:
- * {
- *   "event": "dominant_trait_set" | "referrals_reached_2",
- *   "profile_id": "uuid",
- *   "tg_id": 123456789,
- *   "trait": "S",           // для dominant_trait_set
- *   "mixed_trait": "SU"    // для referrals_reached_2
- * }
+ * 1. Database Webhook (Supabase Database Functions → Webhook):
+ *    Payload: стандартный Supabase webhook (INSERT/UPDATE)
+ *    {
+ *      "type": "INSERT" | "UPDATE",
+ *      "table": "profiles",
+ *      "record": { "id": "...", "tg_id": 123, "dominant_trait": "S", "shadow_trait": "U", ... },
+ *      "old_record": { ... } | null
+ *    }
+ *
+ * 2. Direct API call (из Next.js через bot-notification.ts):
+ *    {
+ *      "event": "dominant_trait_set" | "referrals_reached_2",
+ *      "profile_id": "uuid",
+ *      "tg_id": 123456789,
+ *      "trait": "S",
+ *      "mixed_trait": "SU"
+ *    }
  *
  * Env vars:
  *   TELEGRAM_BOT_TOKEN — токен бота
- *   SUPABASE_URL — URL Supabase проекта
- *   SUPABASE_SERVICE_ROLE_KEY — сервисный ключ
  *   APP_URL — базовый URL приложения (для картинок)
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
-const SUPABASE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 const APP_URL = Deno.env.get('APP_URL') || 'https://eva-app.vercel.app'
+
+console.log('[init] BOT_TOKEN configured:', BOT_TOKEN ? 'yes' : 'no')
+console.log('[init] APP_URL:', APP_URL)
 
 // Картинки опор — абсолютные URL
 const TRAIT_IMAGES: Record<string, string> = {
@@ -89,7 +96,7 @@ const DOMINANT_TRAIT_TEXTS: Record<string, string> = {
 
 Ты держишь ситуацию. Регулируешь. Управляешь.
 
-Это даёт ощущение безопасности. Но лишает свободы.
+Это даёт ощущение безопасности. Но лищает свободы.
 
 Искажённый контроль проявляется как:
 — невозможность расслабиться
@@ -238,21 +245,22 @@ const MIXED_TRAIT_TEXTS: Record<string, string> = {
 ⚡️ Внутри звучит: «Я должна всё предусмотреть, иначе будет плохо»`,
 }
 
-interface RequestPayload {
-  event: 'dominant_trait_set' | 'referrals_reached_2'
-  profile_id: string
-  tg_id: number
-  trait?: string
-  mixed_trait?: string
-}
+// ── Telegram API helpers ────────────────────────────────────────────
 
-async function sendPhoto(chatId: number, photo: string, caption?: string): Promise<Response> {
+async function sendPhoto(chatId: number, photo: string, caption?: string): Promise<boolean> {
+  if (!BOT_TOKEN) {
+    console.error('[sendPhoto] TELEGRAM_BOT_TOKEN not set')
+    return false
+  }
+
   const body: Record<string, unknown> = {
     chat_id: chatId,
     photo,
     parse_mode: 'HTML',
   }
   if (caption) body.caption = caption
+
+  console.log(`[sendPhoto] Sending to chatId=${chatId}, photo=${photo}`)
 
   const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
     method: 'POST',
@@ -263,11 +271,20 @@ async function sendPhoto(chatId: number, photo: string, caption?: string): Promi
   if (!res.ok) {
     const errText = await res.text()
     console.error(`[sendPhoto] Failed (${res.status}):`, errText)
+    return false
   }
-  return res
+  console.log('[sendPhoto] Success')
+  return true
 }
 
-async function sendMessage(chatId: number, text: string): Promise<Response> {
+async function sendMessage(chatId: number, text: string): Promise<boolean> {
+  if (!BOT_TOKEN) {
+    console.error('[sendMessage] TELEGRAM_BOT_TOKEN not set')
+    return false
+  }
+
+  console.log(`[sendMessage] Sending to chatId=${chatId}`)
+
   const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -281,12 +298,35 @@ async function sendMessage(chatId: number, text: string): Promise<Response> {
   if (!res.ok) {
     const errText = await res.text()
     console.error(`[sendMessage] Failed (${res.status}):`, errText)
+    return false
   }
-  return res
+  console.log('[sendMessage] Success')
+  return true
 }
+
+// ── Webhook payload type (Supabase Database Webhook) ────────────────
+
+interface WebhookPayload {
+  type: 'INSERT' | 'UPDATE' | 'DELETE'
+  table: string
+  record: Record<string, unknown>
+  old_record?: Record<string, unknown> | null
+  schema: string
+}
+
+interface DirectPayload {
+  event: 'dominant_trait_set' | 'referrals_reached_2'
+  profile_id: string
+  tg_id: number
+  trait?: string
+  mixed_trait?: string
+}
+
+// ── Main handler ─────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
   if (!BOT_TOKEN) {
+    console.error('[handler] TELEGRAM_BOT_TOKEN not configured')
     return new Response(JSON.stringify({ error: 'TELEGRAM_BOT_TOKEN not configured' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
@@ -301,9 +341,9 @@ serve(async (req: Request) => {
     })
   }
 
-  let payload: RequestPayload
+  let raw: unknown
   try {
-    payload = await req.json()
+    raw = await req.json()
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
       status: 400,
@@ -311,44 +351,117 @@ serve(async (req: Request) => {
     })
   }
 
-  const { event, profile_id, tg_id, trait, mixed_trait } = payload
+  console.log('[handler] Received payload:', JSON.stringify(raw, null, 2))
 
-  if (!event || !profile_id || !tg_id) {
-    return new Response(JSON.stringify({ error: 'Missing required fields: event, profile_id, tg_id' }), {
+  // ── Mode 1: Direct API call from Next.js ──────────────────────────
+  const direct = raw as DirectPayload
+  if (direct.event && direct.tg_id) {
+    console.log(`[handler] Direct mode: event=${direct.event}, tg_id=${direct.tg_id}`)
+
+    if (direct.event === 'dominant_trait_set') {
+      const traitKey = direct.trait || 'S'
+      const imageUrl = TRAIT_IMAGES[traitKey] || TRAIT_IMAGES['S']
+      const text = DOMINANT_TRAIT_TEXTS[traitKey] || DOMINANT_TRAIT_TEXTS['S']
+
+      const ok = await sendPhoto(direct.tg_id, imageUrl, text)
+      return new Response(
+        JSON.stringify({ success: true, event: 'dominant_trait_set', tg_id: direct.tg_id, sent: ok }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (direct.event === 'referrals_reached_2') {
+      const mixedKey = direct.mixed_trait || 'SU'
+      const text = MIXED_TRAIT_TEXTS[mixedKey] || MIXED_TRAIT_TEXTS['SU']
+
+      const ok = await sendMessage(direct.tg_id, text)
+      return new Response(
+        JSON.stringify({ success: true, event: 'referrals_reached_2', tg_id: direct.tg_id, sent: ok }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
+    return new Response(JSON.stringify({ error: `Unknown event: ${direct.event}` }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     })
   }
 
-  // ── Event A: dominant_trait just set ───────────────────────────
-  if (event === 'dominant_trait_set') {
-    const traitKey = trait || 'S'
+  // ── Mode 2: Database Webhook from Supabase ────────────────────────
+  const webhook = raw as WebhookPayload
+
+  if (!webhook.type || !webhook.table || !webhook.record) {
+    console.error('[handler] Unrecognized payload format')
+    return new Response(JSON.stringify({ error: 'Unrecognized payload format' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  console.log(`[handler] Webhook mode: type=${webhook.type}, table=${webhook.table}`)
+
+  if (webhook.table !== 'profiles') {
+    console.log('[handler] Ignoring — not profiles table')
+    return new Response(JSON.stringify({ ignored: true }), { status: 200 })
+  }
+
+  const record = webhook.record
+  const oldRecord = webhook.old_record || {}
+  const tgId = record.tg_id as number | null
+  const dominantTrait = record.dominant_trait as string | null
+  const shadowTrait = record.shadow_trait as string | null
+  const oldDominantTrait = oldRecord.dominant_trait as string | null
+  const oldReferralsCount = (oldRecord.referrals_count as number) ?? 0
+  const newReferralsCount = (record.referrals_count as number) ?? 0
+
+  if (!tgId) {
+    console.log('[handler] No tg_id in record, skipping')
+    return new Response(JSON.stringify({ skipped: 'no_tg_id' }), { status: 200 })
+  }
+
+  // ── Rule A: dominant_trait was just set (was null, now not null) ──
+  if (webhook.type === 'INSERT' && dominantTrait) {
+    console.log(`[handler] INSERT with dominant_trait=${dominantTrait}, sending photo to tgId=${tgId}`)
+
+    const traitKey = dominantTrait.toUpperCase()
     const imageUrl = TRAIT_IMAGES[traitKey] || TRAIT_IMAGES['S']
     const text = DOMINANT_TRAIT_TEXTS[traitKey] || DOMINANT_TRAIT_TEXTS['S']
 
-    const photoRes = await sendPhoto(tg_id, imageUrl, text)
-
+    const ok = await sendPhoto(tgId, imageUrl, text)
     return new Response(
-      JSON.stringify({ success: true, event: 'dominant_trait_set', tg_id, photo_status: photoRes.status }),
+      JSON.stringify({ success: true, action: 'dominant_trait_insert', tg_id: tgId, sent: ok }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     )
   }
 
-  // ── Event B: referrals_count reached 2 ────────────────────────
-  if (event === 'referrals_reached_2') {
-    const mixedKey = mixed_trait || 'SU'
-    const text = MIXED_TRAIT_TEXTS[mixedKey] || MIXED_TRAIT_TEXTS['SU']
+  if (webhook.type === 'UPDATE' && !oldDominantTrait && dominantTrait) {
+    console.log(`[handler] UPDATE: dominant_trait set from null to ${dominantTrait}, sending photo to tgId=${tgId}`)
 
-    const msgRes = await sendMessage(tg_id, text)
+    const traitKey = dominantTrait.toUpperCase()
+    const imageUrl = TRAIT_IMAGES[traitKey] || TRAIT_IMAGES['S']
+    const text = DOMINANT_TRAIT_TEXTS[traitKey] || DOMINANT_TRAIT_TEXTS['S']
 
+    const ok = await sendPhoto(tgId, imageUrl, text)
     return new Response(
-      JSON.stringify({ success: true, event: 'referrals_reached_2', tg_id, msg_status: msgRes.status }),
+      JSON.stringify({ success: true, action: 'dominant_trait_updated', tg_id: tgId, sent: ok }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     )
   }
 
-  return new Response(JSON.stringify({ error: `Unknown event: ${event}` }), {
-    status: 400,
-    headers: { 'Content-Type': 'application/json' },
-  })
+  // ── Rule B: referrals_count reached 2 ─────────────────────────────
+  if (webhook.type === 'UPDATE' && oldReferralsCount < 2 && newReferralsCount >= 2 && dominantTrait && shadowTrait) {
+    console.log(`[handler] UPDATE: referrals_count ${oldReferralsCount} -> ${newReferralsCount}, sending mixed trait to tgId=${tgId}`)
+
+    const mixedKey = [dominantTrait.toUpperCase(), shadowTrait.toUpperCase()].sort().join('')
+    const text = MIXED_TRAIT_TEXTS[mixedKey] || `Твоя смешанная опора: ${mixedKey}`
+
+    const ok = await sendMessage(tgId, text)
+    return new Response(
+      JSON.stringify({ success: true, action: 'referrals_reached_2', tg_id: tgId, mixed_trait: mixedKey, sent: ok }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+
+  console.log('[handler] No matching rule triggered, skipping')
+  return new Response(JSON.stringify({ skipped: 'no_matching_rule' }), { status: 200 })
 })

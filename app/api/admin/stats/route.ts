@@ -33,9 +33,9 @@ export async function GET(req: NextRequest) {
     .eq('id', payload.sub)
     .single()
 
-  // Also check for admin access via PIN (passed as X-Admin-Access header from client)
-  const adminAccessHeader = req.headers.get('x-admin-access')
-  const isAdminViaPin = adminAccessHeader === 'true'
+  // Also check for admin access via PIN (passed as X-Admin-Pin header from client)
+  const adminPinHeader = req.headers.get('x-admin-pin')
+  const isAdminViaPin = adminPinHeader === '2026'
 
   if (profileError) {
     console.error('[admin/stats] Profile lookup error:', profileError)

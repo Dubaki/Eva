@@ -155,7 +155,7 @@ export default function ResultPage() {
 
   // ── Share via Telegram ───────────────────────────────────────────────
   const handleShare = useCallback(() => {
-    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('Пройди этот тест и узнай свою внутреннюю опору!')}`
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('Пройди этот тест и узнай, какой механизм снова и снова приводит тебя к одним и тем же проблемам.')}`
     const tgWebApp = (window as unknown as {
       Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } }
     }).Telegram?.WebApp
@@ -458,7 +458,7 @@ export default function ResultPage() {
               className="text-center"
             >
               <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap mb-5">
-                Это нормально. Более того — это и есть часть механизма. Искажённая опора устроена так, что ты не видишь её напрямую. И именно по этому снова и снова оказываешься в одних и тех же ситуациях.
+                Это нормально. Более того — это и есть часть механизма. Искажённая опора устроена так, что ты не видишь её напрямую. И именно поэтому снова и снова оказываешься в одних и тех же ситуациях.
               </p>
               <p className="text-text-secondary text-[14px] leading-relaxed mb-5 whitespace-pre-wrap">
                 Базовая опора — это только часть картины. Есть ещё смешанные конфигурации, которые активируются в стрессе.{' '}
