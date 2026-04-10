@@ -37,6 +37,50 @@ const TRAIT_LABELS: Record<string, string> = {
   K: 'Сверхбдительность',
 }
 
+/**
+ * Compress an image file client-side using Canvas API.
+ * Target: ~500KB. Max dimension: 1920px. Quality: 0.7.
+ */
+async function compressImage(file: File, maxSizeKB = 500): Promise<Blob> {
+  const MAX_DIM = 1920
+  const quality = 0.7
+
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let { width, height } = img
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) {
+            height = Math.round((height / width) * MAX_DIM)
+            width = MAX_DIM
+          } else {
+            width = Math.round((width / height) * MAX_DIM)
+            height = MAX_DIM
+          }
+        }
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, width, height)
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) resolve(blob)
+            else resolve(file) // fallback to original
+          },
+          'image/jpeg',
+          quality
+        )
+      }
+      img.src = e.target!.result as string
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
 type Tab = 'stats' | 'crm' | 'broadcast' | 'gifts'
 type SortField = 'created_at' | 'invites_count' | 'last_test_date'
 type SortDir = 'asc' | 'desc'
@@ -191,13 +235,21 @@ export default function AdminPanel() {
     }
   }
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      setBroadcastPhoto(file)
+      let processedFile: File = file
+      // Compress if > 5MB
+      if (file.size > 5 * 1024 * 1024) {
+        console.log(`[admin] Compressing image: ${(file.size / 1024 / 1024).toFixed(1)}MB`)
+        const blob = await compressImage(file)
+        processedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' })
+        console.log(`[admin] Compressed to: ${(processedFile.size / 1024 / 1024).toFixed(1)}MB`)
+      }
+      setBroadcastPhoto(processedFile)
       const reader = new FileReader()
       reader.onload = () => setBroadcastPhotoPreview(reader.result as string)
-      reader.readAsDataURL(file)
+      reader.readAsDataURL(processedFile)
     }
   }
 
@@ -282,61 +334,38 @@ export default function AdminPanel() {
   }
 
   return (
-    <main className="flex flex-col min-h-screen bg-bg-primary">
-      <div className="flex flex-col flex-1 px-5 pt-8 pb-8 max-w-lg mx-auto w-full gap-6">
+    <main className="flex flex-col min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
+      <div className="flex flex-col flex-1 px-4 pt-6 pb-8 max-w-lg mx-auto w-full gap-5">
 
-        {/* Header */}
-        <div className="text-center">
-          <h1 className="text-[24px] font-bold text-text-primary">👑 Админ-панель</h1>
-          <p className="text-text-muted text-sm mt-1">Статистика проекта EVA</p>
+        {/* Header — Glass */}
+        <div className="bg-white/70 backdrop-blur-md border border-white/30 shadow-lg rounded-2xl p-5 text-center">
+          <h1 className="text-[26px] font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            👑 Админ-панель
+          </h1>
+          <p className="text-gray-400 text-sm mt-1">Статистика проекта EVA</p>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveTab('stats')}
-            className={`flex-1 py-2.5 rounded-xl text-[14px] font-semibold transition-colors ${
-              activeTab === 'stats'
-                ? 'bg-accent text-white'
-                : 'bg-bg-secondary text-text-muted border border-border hover:text-accent'
-            }`}
-          >
-            📊 Статистика
-          </button>
-          <button
-            type="button"
-            onClick={() => { setActiveTab('crm'); setBroadcastResult(null) }}
-            className={`flex-1 py-2.5 rounded-xl text-[14px] font-semibold transition-colors ${
-              activeTab === 'crm'
-                ? 'bg-accent text-white'
-                : 'bg-bg-secondary text-text-muted border border-border hover:text-accent'
-            }`}
-          >
-            👥 CRM
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('broadcast')}
-            className={`flex-1 py-2.5 rounded-xl text-[14px] font-semibold transition-colors ${
-              activeTab === 'broadcast'
-                ? 'bg-accent text-white'
-                : 'bg-bg-secondary text-text-muted border border-border hover:text-accent'
-            }`}
-          >
-            📢 Рассылка
-          </button>
-          <button
-            type="button"
-            onClick={() => { setActiveTab('gifts'); setBroadcastResult(null) }}
-            className={`flex-1 py-2.5 rounded-xl text-[14px] font-semibold transition-colors ${
-              activeTab === 'gifts'
-                ? 'bg-accent text-white'
-                : 'bg-bg-secondary text-text-muted border border-border hover:text-accent'
-            }`}
-          >
-            🎁 Подарки
-          </button>
+        {/* Tabs — pill bar */}
+        <div className="bg-white/60 backdrop-blur-md border border-white/20 shadow-md rounded-2xl p-1.5 flex gap-1">
+          {([
+            ['stats', '📊 Статистика'],
+            ['crm', '👥 CRM'],
+            ['broadcast', '📢 Рассылка'],
+            ['gifts', '🎁 Подарки'],
+          ] as [Tab, string][]).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => { setActiveTab(key); setBroadcastResult(null) }}
+              className={`flex-1 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-300 ${
+                activeTab === key
+                  ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30 scale-[1.02]'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         {/* ════════════ STATS TAB ════════════ */}
@@ -344,46 +373,68 @@ export default function AdminPanel() {
           <>
             {/* Summary cards */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-bg-secondary rounded-xl p-4 border border-border text-center">
-                <p className="text-text-muted text-xs uppercase tracking-widest mb-1">Всего пользователей</p>
-                <p className="text-[28px] font-bold text-text-primary">{stats.totalUsers}</p>
-              </div>
-              <div className="bg-bg-secondary rounded-xl p-4 border border-border text-center">
-                <p className="text-text-muted text-xs uppercase tracking-widest mb-1">Прошли тест</p>
-                <p className="text-[28px] font-bold text-accent">{stats.completedTests}</p>
-              </div>
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 }}
+                className="bg-white/70 backdrop-blur-md border border-white/30 shadow-xl rounded-2xl p-5 text-center hover:shadow-2xl transition-all duration-300"
+              >
+                <p className="text-gray-400 text-[11px] uppercase tracking-widest mb-2 font-medium">Всего пользователей</p>
+                <p className="text-[32px] font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">{stats.totalUsers}</p>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="bg-white/70 backdrop-blur-md border border-white/30 shadow-xl rounded-2xl p-5 text-center hover:shadow-2xl transition-all duration-300"
+              >
+                <p className="text-gray-400 text-[11px] uppercase tracking-widest mb-2 font-medium">Прошли тест</p>
+                <p className="text-[32px] font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{stats.completedTests}</p>
+              </motion.div>
             </div>
 
             {/* Trait distribution */}
-            <div className="bg-bg-secondary rounded-xl p-5 border border-border">
-              <p className="text-text-muted text-xs uppercase tracking-widest mb-3 text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="bg-white/70 backdrop-blur-md border border-white/30 shadow-xl rounded-2xl p-5"
+            >
+              <p className="text-gray-400 text-[11px] uppercase tracking-widest mb-4 text-center font-medium">
                 Распределение по опорам
               </p>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-3">
                 {Object.entries(TRAIT_LABELS).map(([key, label]) => {
                   const count = stats.traitCounts[key] ?? 0
                   const pct = stats.completedTests > 0 ? Math.round((count / stats.completedTests) * 100) : 0
                   return (
                     <div key={key} className="flex items-center gap-3">
-                      <span className="text-[13px] font-medium text-text-primary w-[130px] text-right">
+                      <span className="text-[13px] font-medium text-gray-700 w-[130px] text-right">
                         {label}
                       </span>
-                      <div className="flex-1 h-2 bg-bg-tertiary rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-accent"
-                          style={{ width: `${pct}%` }}
+                      <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.6, ease: 'easeOut' }}
+                          className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500"
                         />
                       </div>
-                      <span className="text-[12px] text-text-muted tabular-nums w-12">{count}</span>
+                      <span className="text-[12px] text-gray-400 tabular-nums w-12 text-right">{count}</span>
                     </div>
                   )
                 })}
               </div>
-            </div>
+            </motion.div>
 
-            {/* Recent users */}
-            <div className="bg-bg-secondary rounded-xl p-5 border border-border">
-              <p className="text-text-muted text-xs uppercase tracking-widest mb-3 text-center">
+            {/* Recent users — Glass card */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-white/70 backdrop-blur-md border border-white/30 shadow-xl rounded-2xl p-5"
+            >
+              <p className="text-gray-400 text-[11px] uppercase tracking-widest mb-4 text-center font-medium">
                 Последние 50 пользователей
               </p>
               {stats.recentUsers.length === 0 ? (
@@ -415,7 +466,7 @@ export default function AdminPanel() {
                   ))}
                 </div>
               )}
-            </div>
+            </motion.div>
           </>
         )}
 
