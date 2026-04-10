@@ -18,7 +18,8 @@
       "Bash(dir *)",
       "Bash(rmdir *)",
       "Bash(git reset *)",
-      "Bash(copy *)"
+      "Bash(copy *)",
+      "Bash(findstr *)"
     ]
   },
   "$version": 3

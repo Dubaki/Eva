@@ -215,7 +215,14 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      save_test_result: {
+        Args: {
+          p_tg_id: number
+          p_primary_support: string
+          p_secondary_support: string
+        }
+        Returns: void
+      }
     }
     Enums: {
       [_ in never]: never

@@ -100,62 +100,55 @@ export async function POST(request: NextRequest) {
     console.log('Баллы:', { S: scores.scoreS, U: scores.scoreU, P: scores.scoreP, R: scores.scoreR, K: scores.scoreK })
     console.log('Доминирующая:', scores.dominantTrait, 'Теневая:', scores.secondaryTrait)
 
-    // Сохраняем в БД
+    // Сохраняем в БД через RPC save_test_result
     if (profileId) {
-      console.log('[test/submit] Saving to DB for profile:', profileId)
+      console.log('[test/submit] Saving to DB via RPC for profile:', profileId)
       try {
-        const { error: dbError } = await supabase.from('test_results').upsert(
-          {
-            profile_id: profileId,
-            score_s: scores.scoreS,
-            score_u: scores.scoreU,
-            score_p: scores.scoreP,
-            score_r: scores.scoreR,
-            score_k: scores.scoreK,
-            dominant_trait: scores.dominantTrait,
-            secondary_trait: scores.secondaryTrait,
-            answers: scores.answers,
-          },
-          {
-            onConflict: 'profile_id',
-          }
-        )
+        // Получаем tg_id для RPC вызова
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('tg_id')
+          .eq('id', profileId)
+          .single()
+
+        if (!profile?.tg_id) {
+          console.error('[test/submit] Profile not found or missing tg_id for profile:', profileId)
+          return NextResponse.json(
+            { success: false, error: 'Профиль не найден' },
+            { status: 404 }
+          )
+        }
+
+        const tgId = Number(profile.tg_id)
+        const primary = scores.dominantTrait.toUpperCase()
+        const secondary = scores.secondaryTrait.toUpperCase()
+
+        const { error: dbError } = await supabase.rpc('save_test_result', {
+          p_tg_id: tgId,
+          p_primary_support: primary,
+          p_secondary_support: secondary,
+        })
 
         if (dbError) {
-          console.error('ОШИБКА СОХРАНЕНИЯ В БД:', JSON.stringify(dbError))
+          console.error('ОШИБКА СОХРАНЕНИЯ В БД (RPC):', JSON.stringify(dbError))
           return NextResponse.json(
             { success: false, error: 'Ошибка сохранения результатов' },
             { status: 500 }
           )
         }
 
-        console.log('[test/submit] DB save successful')
+        console.log('[test/submit] DB save via RPC successful')
 
-        // Update profile: last_test_date + dominant_trait + shadow_trait
-        const { data: updatedProfile } = await supabase
-          .from('profiles')
-          .update({
-            updated_at: new Date().toISOString(),
-            last_test_date: new Date().toISOString(),
-            dominant_trait: scores.dominantTrait.toUpperCase(),
-            shadow_trait: scores.secondaryTrait.toUpperCase(),
-          })
-          .select('tg_id')
-          .eq('id', profileId)
-          .single()
+        // Fire-and-forget: send result to Telegram (legacy path)
+        sendResultToTelegram(tgId, scores.dominantTrait, traitInfo.description)
 
-        if (updatedProfile?.tg_id) {
-          // Fire-and-forget: send result to Telegram (legacy path)
-          sendResultToTelegram(updatedProfile.tg_id, scores.dominantTrait, traitInfo.description)
-
-          // Fire-and-forget: trigger Edge Function for bot notification
-          triggerBotNotification({
-            event: 'dominant_trait_set',
-            profile_id: profileId,
-            tg_id: updatedProfile.tg_id,
-            trait: scores.dominantTrait.toUpperCase(),
-          }).catch((err) => console.error('[test/submit] Edge function trigger error:', err))
-        }
+        // Fire-and-forget: trigger Edge Function for bot notification
+        triggerBotNotification({
+          event: 'dominant_trait_set',
+          profile_id: profileId,
+          tg_id: tgId,
+          trait: primary,
+        }).catch((err) => console.error('[test/submit] Edge function trigger error:', err))
       } catch (error) {
         console.error('ОШИБКА СОХРАНЕНИЯ В БД:', error)
         return NextResponse.json(
