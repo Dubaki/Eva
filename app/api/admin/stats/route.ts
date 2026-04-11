@@ -86,11 +86,19 @@ export async function GET(req: NextRequest) {
   }
 
   // Recent 50 users with their test results and referral data
-  const { data: recentUsers } = await supabase
+  const { data: recentUsers, error: usersError } = await supabase
     .from('profiles')
-    .select('id, tg_id, username, created_at, invites_count, last_test_date, contact_author_clicked')
+    .select('id, tg_id, username, created_at, invites_count, last_test_date')
     .order('created_at', { ascending: false })
     .limit(50)
+
+  if (usersError) {
+    console.error('[admin/stats] Error fetching recent users:', usersError.message)
+  }
+
+  if (!recentUsers || recentUsers.length === 0) {
+    console.error('[admin/stats] recentUsers is empty — no users in DB or query returned 0 results')
+  }
 
   // Enrich with test results
   const recentUsersWithResults = await Promise.all(
@@ -115,7 +123,7 @@ export async function GET(req: NextRequest) {
         invites_count: user.invites_count ?? 0,
         last_test_date: lastTest,
         next_test_available: nextTestAvailable,
-        contact_author_clicked: user.contact_author_clicked ?? false,
+        contact_author_clicked: false,
       }
     })
   )

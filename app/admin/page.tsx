@@ -417,29 +417,6 @@ export default function AdminPanel() {
                 <p className="text-[32px] font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{stats.completedTests}</p>
               </motion.div>
             </div>
-
-            {/* Trait distribution — compact inline stats */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-              className="bg-white/70 backdrop-blur-md border border-white/30 shadow-xl rounded-2xl p-4"
-            >
-              <p className="text-gray-400 text-[11px] uppercase tracking-widest mb-3 text-center font-medium">
-                Распределение по опорам
-              </p>
-              <div className="grid grid-cols-5 gap-2">
-                {Object.entries(TRAIT_LABELS).map(([key, label]) => {
-                  const count = stats.traitCounts[key] ?? 0
-                  return (
-                    <div key={key} className="flex flex-col items-center gap-1">
-                      <span className="text-[10px] text-gray-400 font-medium">{label.split(' ')[0]}</span>
-                      <span className="text-[18px] font-bold text-gray-700">{count}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            </motion.div>
           </>
         )}
 
