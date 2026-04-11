@@ -259,68 +259,98 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
     // ── Referral engine: increment referrer's count, notify at 2 ──
     // ONLY if this is the user's FIRST subscription (anti-abuse)
     if (!wasAlreadySubscribed) {
-    try {
-      const supabase = getSupabaseServer()
+      console.log(`!!! STEP 4 !!! Processing referral reward. Current user tg_id: ${userId}`)
 
-      // Find current user's profile
-      const { data: currentUser } = await supabase
-        .from('profiles')
-        .select('id, referrer_id')
-        .eq('tg_id', userId)
-        .single()
+      try {
+        const supabase = getSupabaseServer()
 
-      if (currentUser?.referrer_id) {
-        // Get referrer's current invites_count and tg_id
-        const { data: referrer } = await supabase
+        // Find current user's profile to get referrer_id
+        const { data: currentUser, error: cuErr } = await supabase
           .from('profiles')
-          .select('id, tg_id, invites_count, dominant_trait, shadow_trait')
-          .eq('id', currentUser.referrer_id)
+          .select('id, referrer_id')
+          .eq('tg_id', Number(userId))
           .single()
 
-        if (referrer) {
-          const oldInvites = referrer.invites_count ?? 0
-          const newInvites = oldInvites + 1
+        if (cuErr) {
+          console.error(`!!! STEP 4.1 ERROR !!! Could not find current user profile: ${cuErr.message}`)
+        } else {
+          console.log(`!!! STEP 4.1 !!! Found current user. id=${currentUser.id}, referrer_id=${currentUser.referrer_id ?? 'NULL'}`)
+        }
 
-          // Increment invites_count
-          await supabase
+        if (currentUser?.referrer_id) {
+          console.log(`!!! STEP 5 !!! Referrer exists. Looking up referrer by id='${currentUser.referrer_id}'`)
+
+          // Look up referrer by UUID (primary key)
+          const { data: referrer, error: refErr } = await supabase
             .from('profiles')
-            .update({ invites_count: newInvites })
-            .eq('id', referrer.id)
+            .select('id, tg_id, invites_count, dominant_trait, shadow_trait')
+            .eq('id', currentUser.referrer_id)
+            .single()
 
-          // If invites_count reached 2, send notification with mixed trait
-          if (newInvites === 2 && referrer.dominant_trait && referrer.shadow_trait) {
-            const traits = [
-              referrer.dominant_trait.toUpperCase(),
-              referrer.shadow_trait.toUpperCase(),
-            ].sort()
-            const key = traits.join('')
-            const mixedTraitText = MIXED_TRAIT_TEXTS[key] ?? ''
+          if (refErr) {
+            console.error(`!!! STEP 5.1 ERROR !!! Could not find referrer: ${refErr.message}`)
+          } else if (!referrer) {
+            console.log(`!!! STEP 5.2 WARNING !!! Referrer with id='${currentUser.referrer_id}' not found in DB`)
+          } else {
+            console.log(`!!! STEP 6 !!! Referrer found. tg_id=${referrer.tg_id}, current invites_count=${referrer.invites_count ?? 0}`)
 
-            const tmaUrl = getTmaUrl()
-            const notifyMarkup: InlineKeyboard = {
-              inline_keyboard: [
-                [{ text: '✨ Посмотреть', web_app: { url: tmaUrl } }],
-              ],
+            const oldInvites = referrer.invites_count ?? 0
+            const newInvites = oldInvites + 1
+
+            // Increment invites_count
+            const { error: updErr } = await supabase
+              .from('profiles')
+              .update({ invites_count: newInvites })
+              .eq('id', referrer.id)
+
+            if (updErr) {
+              console.error(`!!! STEP 7 ERROR !!! Failed to increment invites_count: ${updErr.message}`)
+            } else {
+              console.log(`!!! STEP 7 SUCCESS !!! invites_count updated: ${oldInvites} → ${newInvites} for referrer id='${referrer.id}' (tg_id=${referrer.tg_id})`)
             }
 
-            const notificationText = mixedTraitText
-              ? `🎉 <b>Твой второй уровень открыт!</b>\n\nПришло время узнать твою теневую опору:\n\n${mixedTraitText}`
-              : `🎉 <b>Бинго!</b> Две твои подруги зашли в бота. Твоя скрытая (теневая) опора разблокирована!\n\nЗаходи в приложение, чтобы посмотреть результат.`
+            // If invites_count reached 2, send notification with mixed trait
+            if (newInvites === 2 && referrer.dominant_trait && referrer.shadow_trait) {
+              console.log(`!!! STEP 8 !!! Referrer reached 2 invites — sending mixed trait notification`)
 
-            await sendMessage({
-              chatId: referrer.tg_id,
-              text: notificationText,
-              replyMarkup: notifyMarkup,
-              parseMode: 'HTML',
-            })
+              const traits = [
+                referrer.dominant_trait.toUpperCase(),
+                referrer.shadow_trait.toUpperCase(),
+              ].sort()
+              const key = traits.join('')
+              const mixedTraitText = MIXED_TRAIT_TEXTS[key] ?? ''
 
-            console.log(`[webhook] Referral notification (invites_count=2) sent to referrer tg_id=${referrer.tg_id}`)
+              const tmaUrl = getTmaUrl()
+              const notifyMarkup: InlineKeyboard = {
+                inline_keyboard: [
+                  [{ text: '✨ Посмотреть', web_app: { url: tmaUrl } }],
+                ],
+              }
+
+              const notificationText = mixedTraitText
+                ? `🎉 <b>Твой второй уровень открыт!</b>\n\nПришло время узнать твою теневую опору:\n\n${mixedTraitText}`
+                : `🎉 <b>Бинго!</b> Две твои подруги зашли в бота. Твоя скрытая (теневая) опора разблокирована!\n\nЗаходи в приложение, чтобы посмотреть результат.`
+
+              const sent = await sendMessage({
+                chatId: referrer.tg_id,
+                text: notificationText,
+                replyMarkup: notifyMarkup,
+                parseMode: 'HTML',
+              })
+
+              if (!sent) {
+                console.error(`!!! STEP 8 ERROR !!! Failed to send notification (sendMessage returned false)`)
+              } else {
+                console.log(`!!! STEP 8 SUCCESS !!! Mixed trait notification sent to referrer tg_id=${referrer.tg_id}`)
+              }
+            }
           }
+        } else {
+          console.log(`!!! STEP 4.2 !!! No referrer_id for user tg_id=${userId} — skipping referral reward`)
         }
+      } catch (refErr) {
+        console.error(`!!! STEP 9 ERROR !!! Referral engine threw unexpected error:`, refErr)
       }
-    } catch (refErr) {
-      console.error('[webhook] Referral engine error (non-fatal):', refErr)
-    }
     } // end if (!wasAlreadySubscribed)
 
     const successCaption =
