@@ -334,19 +334,19 @@ export default function AdminPanel() {
   }
 
   return (
-    <main className="flex flex-col min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
-      <div className="flex flex-col flex-1 px-4 pt-6 pb-8 max-w-lg mx-auto w-full gap-5">
+    <main className="flex flex-col h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 overflow-hidden">
+      <div className="flex flex-col flex-1 min-h-0 px-4 pt-4 pb-3 max-w-lg mx-auto w-full gap-3">
 
         {/* Header — Glass */}
-        <div className="bg-white/70 backdrop-blur-md border border-white/30 shadow-lg rounded-2xl p-5 text-center">
-          <h1 className="text-[26px] font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+        <div className="bg-white/70 backdrop-blur-md border border-white/30 shadow-lg rounded-2xl px-5 py-3 text-center shrink-0">
+          <h1 className="text-[22px] font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
             👑 Админ-панель
           </h1>
-          <p className="text-gray-400 text-sm mt-1">Статистика проекта EVA</p>
+          <p className="text-gray-400 text-xs mt-0.5">Статистика проекта EVA</p>
         </div>
 
         {/* Tabs — pill bar */}
-        <div className="bg-white/60 backdrop-blur-md border border-white/20 shadow-md rounded-2xl p-1.5 flex gap-1">
+        <div className="bg-white/60 backdrop-blur-md border border-white/20 shadow-md rounded-2xl p-1.5 flex gap-1 shrink-0">
           {([
             ['stats', '📊 Статистика'],
             ['crm', '👥 CRM'],
@@ -357,7 +357,7 @@ export default function AdminPanel() {
               key={key}
               type="button"
               onClick={() => { setActiveTab(key); setBroadcastResult(null) }}
-              className={`flex-1 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-300 ${
+              className={`flex-1 py-2 rounded-xl text-[12px] font-semibold transition-all duration-300 ${
                 activeTab === key
                   ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30 scale-[1.02]'
                   : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
@@ -367,6 +367,9 @@ export default function AdminPanel() {
             </button>
           ))}
         </div>
+
+        {/* ════════════ SCROLLABLE CONTENT AREA ════════════ */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
 
         {/* ════════════ STATS TAB ════════════ */}
         {activeTab === 'stats' && (
@@ -393,157 +396,39 @@ export default function AdminPanel() {
               </motion.div>
             </div>
 
-            {/* Trait distribution */}
+            {/* Trait distribution — compact inline stats */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="bg-white/70 backdrop-blur-md border border-white/30 shadow-xl rounded-2xl p-5"
+              className="bg-white/70 backdrop-blur-md border border-white/30 shadow-xl rounded-2xl p-4"
             >
-              <p className="text-gray-400 text-[11px] uppercase tracking-widest mb-4 text-center font-medium">
+              <p className="text-gray-400 text-[11px] uppercase tracking-widest mb-3 text-center font-medium">
                 Распределение по опорам
               </p>
-              <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-5 gap-2">
                 {Object.entries(TRAIT_LABELS).map(([key, label]) => {
                   const count = stats.traitCounts[key] ?? 0
-                  const pct = stats.completedTests > 0 ? Math.round((count / stats.completedTests) * 100) : 0
                   return (
-                    <div key={key} className="flex items-center gap-3">
-                      <span className="text-[13px] font-medium text-gray-700 w-[130px] text-right">
-                        {label}
-                      </span>
-                      <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${pct}%` }}
-                          transition={{ duration: 0.6, ease: 'easeOut' }}
-                          className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500"
-                        />
-                      </div>
-                      <span className="text-[12px] text-gray-400 tabular-nums w-12 text-right">{count}</span>
+                    <div key={key} className="flex flex-col items-center gap-1">
+                      <span className="text-[10px] text-gray-400 font-medium">{label.split(' ')[0]}</span>
+                      <span className="text-[18px] font-bold text-gray-700">{count}</span>
                     </div>
                   )
                 })}
               </div>
-            </motion.div>
-
-            {/* Recent users — Glass card */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="bg-white/70 backdrop-blur-md border border-white/30 shadow-xl rounded-2xl p-5"
-            >
-              <p className="text-gray-400 text-[11px] uppercase tracking-widest mb-4 text-center font-medium">
-                Последние 50 пользователей
-              </p>
-              {stats.recentUsers.length === 0 ? (
-                <p className="text-text-muted text-sm text-center py-4">Пока нет пользователей</p>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {stats.recentUsers.slice(0, 20).map((u, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between py-2 border-b border-border last:border-b-0"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-medium text-text-primary truncate">
-                          {u.username ? `@${u.username}` : `ID: ${u.tg_id}`}
-                        </p>
-                        <p className="text-[11px] text-text-muted">
-                          {new Date(u.created_at).toLocaleDateString('ru-RU')}
-                        </p>
-                      </div>
-                      <div className="text-right ml-3">
-                        <p className="text-[12px] text-accent font-medium">
-                          {u.dominantTrait ? TRAIT_LABELS[u.dominantTrait] ?? u.dominantTrait : '—'}
-                        </p>
-                        <p className="text-[10px] text-text-muted">
-                          {u.secondaryTrait ?? 'нет'}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </motion.div>
           </>
         )}
 
         {/* ════════════ CRM TAB ════════════ */}
         {activeTab === 'crm' && (
-          <div className="flex flex-col gap-5">
-            {/* Top Referrers */}
+          <div className="flex flex-col gap-3">
+            {/* All users table */}
             <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-                <p className="text-gray-500 text-xs uppercase tracking-widest font-medium">🏆 Топ рефереры</p>
-              </div>
-
-              {stats.recentUsers.length === 0 ? (
-                <p className="text-gray-400 text-sm text-center py-8">Пока нет пользователей</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-[13px]">
-                    <thead>
-                      <tr className="border-b border-gray-100">
-                        <th className="text-left py-3 px-3 text-gray-400 font-medium">#</th>
-                        <th className="text-left py-3 px-3 text-gray-400 font-medium">Username</th>
-                        <th className="text-center py-3 px-3 text-gray-400 font-medium">TG ID</th>
-                        <th className="text-center py-3 px-3 text-gray-400 font-medium">🔗 Реф.</th>
-                        <th className="text-center py-3 px-3 text-gray-400 font-medium">✉️</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[...stats.recentUsers]
-                        .sort((a, b) => (b.invites_count ?? 0) - (a.invites_count ?? 0))
-                        .filter((u) => (u.invites_count ?? 0) > 0)
-                        .map((u, i) => (
-                          <tr key={i} className="border-b border-gray-50 last:border-b-0 hover:bg-gray-50/50 transition-colors">
-                            <td className="py-2.5 px-3 text-gray-400">{i + 1}</td>
-                            <td className="py-2.5 px-3">
-                              {u.username ? (
-                                <a
-                                  href={`https://t.me/${u.username}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-accent font-medium hover:underline"
-                                >
-                                  @{u.username}
-                                </a>
-                              ) : (
-                                <span className="text-gray-400">—</span>
-                              )}
-                            </td>
-                            <td className="py-2.5 px-3 text-center text-gray-500 font-mono text-[12px]">
-                              {u.tg_id}
-                            </td>
-                            <td className="py-2.5 px-3 text-center">
-                              <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-accent/10 text-accent font-semibold text-[13px]">
-                                {u.invites_count ?? 0}
-                              </span>
-                            </td>
-                            <td className="py-2.5 px-3 text-center">
-                              <button
-                                type="button"
-                                onClick={() => openMessageModal(u.tg_id, u.username)}
-                                className="text-[12px] px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-accent hover:text-white transition-all font-medium"
-                              >
-                                Написать
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            {/* All users table (existing) */}
-            <div className="bg-bg-secondary rounded-xl border border-border overflow-hidden">
-              <div className="p-4 border-b border-border flex items-center justify-between">
-                <p className="text-text-muted text-xs uppercase tracking-widest">Все пользователи</p>
-                <div className="flex gap-2">
+              <div className="p-3 border-b border-gray-100 flex items-center justify-between">
+                <p className="text-gray-500 text-xs uppercase tracking-widest font-medium">👥 Все пользователи</p>
+                <div className="flex gap-1.5">
                   {(['created_at', 'invites_count', 'last_test_date'] as SortField[]).map((field) => {
                     const labels: Record<SortField, string> = {
                       created_at: '📅 Дата',
@@ -563,10 +448,10 @@ export default function AdminPanel() {
                             setSortDir('desc')
                           }
                         }}
-                        className={`text-[12px] font-medium px-3 py-1.5 rounded-lg transition-colors ${
+                        className={`text-[11px] font-medium px-2.5 py-1.5 rounded-lg transition-colors ${
                           isActive
-                            ? 'bg-accent text-white'
-                            : 'bg-bg-primary text-text-muted border border-border hover:text-accent'
+                            ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md'
+                            : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                         }`}
                       >
                         {labels[field]} {isActive && (sortDir === 'asc' ? '↑' : '↓')}
@@ -577,17 +462,17 @@ export default function AdminPanel() {
               </div>
 
               {stats.recentUsers.length === 0 ? (
-                <p className="text-text-muted text-sm text-center py-8">Пока нет пользователей</p>
+                <p className="text-gray-400 text-sm text-center py-8">Пока нет пользователей</p>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-[13px]">
+                  <table className="w-full text-[12px]">
                     <thead>
-                      <tr className="border-b border-border">
-                        <th className="text-left py-3 px-3 text-text-muted font-medium">Пользователь</th>
-                        <th className="text-left py-3 px-3 text-text-muted font-medium">Опора</th>
-                        <th className="text-center py-3 px-3 text-text-muted font-medium">🔗</th>
-                        <th className="text-center py-3 px-3 text-text-muted font-medium">Тест</th>
-                        <th className="text-center py-3 px-3 text-text-muted font-medium">✉️</th>
+                      <tr className="border-b border-gray-100">
+                        <th className="text-left py-2.5 px-2 text-gray-400 font-medium">Username</th>
+                        <th className="text-left py-2.5 px-2 text-gray-400 font-medium">Опора</th>
+                        <th className="text-center py-2.5 px-2 text-gray-400 font-medium">🔗</th>
+                        <th className="text-center py-2.5 px-2 text-gray-400 font-medium">Тест</th>
+                        <th className="text-center py-2.5 px-2 text-gray-400 font-medium">✉️</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -604,51 +489,58 @@ export default function AdminPanel() {
                           }
                           return mul * (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0)
                         })
-                        .map((u, i) => {
-                          const daysUntilTest = u.next_test_available
-                            ? Math.ceil((new Date(u.next_test_available).getTime() - Date.now()) / (24 * 60 * 60 * 1000))
-                            : null
-                          return (
-                            <tr key={i} className="border-b border-border last:border-b-0 hover:bg-bg-tertiary transition-colors">
-                              <td className="py-2.5 px-3">
-                                <p className="font-medium text-text-primary truncate max-w-[140px]">
-                                  {u.username ? `@${u.username}` : `${u.tg_id}`}
+                        .map((u, i) => (
+                            <tr key={i} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50/50 transition-colors">
+                              <td className="py-2.5 px-2">
+                                <p className="font-medium text-gray-700 truncate max-w-[120px]">
+                                  {u.username ? (
+                                    <a
+                                      href={`https://t.me/${u.username}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:underline"
+                                    >
+                                      @{u.username}
+                                    </a>
+                                  ) : (
+                                    <span className="text-gray-400 text-[11px]">{u.tg_id}</span>
+                                  )}
                                 </p>
-                                <p className="text-[10px] text-text-muted">
+                                <p className="text-[10px] text-gray-400">
                                   {new Date(u.created_at).toLocaleDateString('ru-RU')}
                                 </p>
                               </td>
-                              <td className="py-2.5 px-3 text-center">
+                              <td className="py-2.5 px-2 text-center">
                                 {u.dominantTrait ? (
-                                  <span className="text-accent font-medium">{TRAIT_LABELS[u.dominantTrait] ?? u.dominantTrait}</span>
+                                  <span className="text-blue-600 font-medium text-[11px]">{TRAIT_LABELS[u.dominantTrait] ?? u.dominantTrait}</span>
                                 ) : (
-                                  <span className="text-text-muted">—</span>
+                                  <span className="text-gray-400 text-[11px]">—</span>
                                 )}
                               </td>
-                              <td className="py-2.5 px-3 text-center">
-                                <span className="font-medium text-text-primary">{u.invites_count ?? 0}</span>
+                              <td className="py-2.5 px-2 text-center">
+                                <span className="font-medium text-gray-600">{u.invites_count ?? 0}</span>
                               </td>
-                              <td className="py-2.5 px-3 text-center">
+                              <td className="py-2.5 px-2 text-center">
                                 {u.last_test_date ? (
-                                  <span className="text-text-muted text-[11px]">
+                                  <span className="text-gray-400 text-[11px]">
                                     {new Date(u.last_test_date).toLocaleDateString('ru-RU')}
                                   </span>
                                 ) : (
-                                  <span className="text-text-muted text-[11px]">нет</span>
+                                  <span className="text-gray-400 text-[11px]">нет</span>
                                 )}
                               </td>
-                              <td className="py-2.5 px-3 text-center">
+                              <td className="py-2.5 px-2 text-center">
                                 <button
                                   type="button"
                                   onClick={() => openMessageModal(u.tg_id, u.username)}
-                                  className="text-[11px] px-2.5 py-1 rounded-md bg-bg-primary text-text-muted border border-border hover:border-accent hover:text-accent transition-all"
+                                  className="text-[11px] px-2 py-1 rounded-md bg-gray-50 text-gray-500 hover:bg-blue-500 hover:text-white transition-all font-medium"
                                 >
-                                  Написать
+                                  ✉️
                                 </button>
                               </td>
                             </tr>
                           )
-                        })}
+                        )}
                     </tbody>
                   </table>
                 </div>
@@ -718,22 +610,22 @@ export default function AdminPanel() {
 
         {/* ════════════ BROADCAST TAB ════════════ */}
         {activeTab === 'broadcast' && (
-          <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-gray-100">
-            <p className="text-gray-400 text-xs uppercase tracking-widest mb-5 text-center font-medium">
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 shadow-sm border border-gray-100">
+            <p className="text-gray-400 text-xs uppercase tracking-widest mb-4 text-center font-medium">
               Рассылка всем пользователям
             </p>
 
             {/* Photo upload */}
-            <div className="mb-4">
-              <label className="text-[13px] font-medium text-gray-600 mb-2 block">📷 Фото (необязательно)</label>
-              <div className="flex items-center gap-4">
-                <label className="flex-1 flex items-center justify-center py-8 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-accent hover:bg-accent/5 transition-all">
+            <div className="mb-3">
+              <label className="text-[12px] font-medium text-gray-600 mb-2 block">📷 Фото (необязательно)</label>
+              <div className="flex items-center gap-3">
+                <label className="flex-1 flex items-center justify-center py-6 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50/50 transition-all">
                   {broadcastPhotoPreview ? (
-                    <img src={broadcastPhotoPreview} alt="Preview" className="max-h-32 rounded-lg object-cover" />
+                    <img src={broadcastPhotoPreview} alt="Preview" className="max-h-28 rounded-lg object-cover" />
                   ) : (
                     <div className="text-center">
                       <p className="text-2xl mb-1">🖼️</p>
-                      <p className="text-gray-400 text-[13px]">Нажмите для загрузки фото</p>
+                      <p className="text-gray-400 text-[12px]">Нажмите для загрузки</p>
                     </div>
                   )}
                   <input
@@ -747,7 +639,7 @@ export default function AdminPanel() {
                   <button
                     type="button"
                     onClick={() => { setBroadcastPhoto(null); setBroadcastPhotoPreview(null) }}
-                    className="text-gray-400 hover:text-red-500 transition-colors text-xl"
+                    className="text-gray-400 hover:text-red-500 transition-colors text-xl shrink-0"
                   >
                     ✕
                   </button>
@@ -759,8 +651,8 @@ export default function AdminPanel() {
               value={broadcastMsg}
               onChange={(e) => setBroadcastMsg(e.target.value)}
               placeholder="Введите текст рассылки (поддерживается HTML)..."
-              rows={5}
-              className="w-full py-3 px-4 bg-gray-50 border border-gray-200 rounded-xl text-[14px] text-gray-800 placeholder:text-gray-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none mb-4"
+              rows={4}
+              className="w-full py-2.5 px-3 bg-gray-50 border border-gray-200 rounded-xl text-[13px] text-gray-800 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all resize-none mb-3"
             />
 
             <motion.button
@@ -768,35 +660,35 @@ export default function AdminPanel() {
               whileTap={{ scale: broadcasting ? 1 : 0.97 }}
               onClick={handleBroadcast}
               disabled={broadcasting || (!broadcastMsg.trim() && !broadcastPhoto)}
-              className={`w-full py-3.5 rounded-xl font-semibold text-[15px] text-white transition-all shadow-md ${
+              className={`w-full py-3 rounded-xl font-semibold text-[14px] text-white transition-all shadow-md ${
                 broadcasting || (!broadcastMsg.trim() && !broadcastPhoto)
                   ? 'opacity-60 cursor-not-allowed shadow-none'
                   : 'active:scale-[0.98] hover:shadow-lg'
               }`}
-              style={{ background: 'var(--accent)' }}
+              style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}
             >
-              {broadcasting ? '⏳ Отправка...' : '📢 Сделать рассылку всем пользователям'}
+              {broadcasting ? '⏳ Отправка...' : '📢 Сделать рассылку'}
             </motion.button>
 
             {broadcastResult && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mt-5 p-4 bg-gray-50 rounded-xl border border-gray-100 text-center"
+                className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-100 text-center"
               >
-                <p className="text-gray-800 text-[15px] font-semibold">
+                <p className="text-gray-800 text-[13px] font-semibold">
                   ✅ Рассылка завершена
                 </p>
-                <div className="flex items-center justify-center gap-4 mt-2">
-                  <span className="text-emerald-600 text-[13px] font-medium">
+                <div className="flex items-center justify-center gap-3 mt-1.5">
+                  <span className="text-emerald-600 text-[12px] font-medium">
                     Доставлено: {broadcastResult.sent}
                   </span>
                   {broadcastResult.failed > 0 && (
-                    <span className="text-red-500 text-[13px] font-medium">
+                    <span className="text-red-500 text-[12px] font-medium">
                       Ошибок: {broadcastResult.failed}
                     </span>
                   )}
-                  <span className="text-gray-400 text-[13px]">
+                  <span className="text-gray-400 text-[12px]">
                     Всего: {broadcastResult.total}
                   </span>
                 </div>
@@ -807,80 +699,81 @@ export default function AdminPanel() {
 
         {/* ════════════ GIFTS TAB ════════════ */}
         {activeTab === 'gifts' && (
-          <div className="flex flex-col gap-4">
-            <div className="bg-bg-secondary rounded-xl p-5 border border-border">
-              <p className="text-text-muted text-xs uppercase tracking-widest mb-4 text-center">
+          <div className="flex flex-col gap-3">
+            <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 border border-gray-100 shadow-sm">
+              <p className="text-gray-400 text-xs uppercase tracking-widest mb-3 text-center font-medium">
                 Ссылки на подарки по сферам
               </p>
 
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2.5">
                 <div>
-                  <label className="text-[13px] font-medium text-text-primary mb-1 block">💰 Деньги</label>
+                  <label className="text-[12px] font-medium text-gray-600 mb-1 block">💰 Деньги</label>
                   <input
                     type="text"
                     value={giftLinks.gift_money}
                     onChange={(e) => setGiftLinks({ ...giftLinks, gift_money: e.target.value })}
                     placeholder="https://t.me/..."
-                    className="w-full py-2.5 px-3 bg-bg-primary border border-border rounded-xl text-[14px] text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none transition-colors"
+                    className="w-full py-2.5 px-3 bg-gray-50 border border-gray-200 rounded-xl text-[13px] text-gray-800 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[13px] font-medium text-text-primary mb-1 block">❤️ Отношения</label>
+                  <label className="text-[12px] font-medium text-gray-600 mb-1 block">❤️ Отношения</label>
                   <input
                     type="text"
                     value={giftLinks.gift_relations}
                     onChange={(e) => setGiftLinks({ ...giftLinks, gift_relations: e.target.value })}
                     placeholder="https://t.me/..."
-                    className="w-full py-2.5 px-3 bg-bg-primary border border-border rounded-xl text-[14px] text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none transition-colors"
+                    className="w-full py-2.5 px-3 bg-gray-50 border border-gray-200 rounded-xl text-[13px] text-gray-800 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[13px] font-medium text-text-primary mb-1 block">🌿 Здоровье</label>
+                  <label className="text-[12px] font-medium text-gray-600 mb-1 block">🌿 Здоровье</label>
                   <input
                     type="text"
                     value={giftLinks.gift_health}
                     onChange={(e) => setGiftLinks({ ...giftLinks, gift_health: e.target.value })}
                     placeholder="https://t.me/..."
-                    className="w-full py-2.5 px-3 bg-bg-primary border border-border rounded-xl text-[14px] text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none transition-colors"
+                    className="w-full py-2.5 px-3 bg-gray-50 border border-gray-200 rounded-xl text-[13px] text-gray-800 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[13px] font-medium text-text-primary mb-1 block">📦 Другое</label>
+                  <label className="text-[12px] font-medium text-gray-600 mb-1 block">📦 Другое</label>
                   <input
                     type="text"
                     value={giftLinks.gift_other}
                     onChange={(e) => setGiftLinks({ ...giftLinks, gift_other: e.target.value })}
                     placeholder="https://t.me/..."
-                    className="w-full py-2.5 px-3 bg-bg-primary border border-border rounded-xl text-[14px] text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none transition-colors"
+                    className="w-full py-2.5 px-3 bg-gray-50 border border-gray-200 rounded-xl text-[13px] text-gray-800 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors"
                   />
                 </div>
               </div>
 
-              <div className="mt-5">
+              <div className="mt-4">
                 <motion.button
                   type="button"
                   whileTap={{ scale: saving ? 1 : 0.97 }}
                   onClick={handleSaveGifts}
                   disabled={saving}
-                  className={`w-full py-3 rounded-xl font-semibold text-[15px] text-white transition-all ${
+                  className={`w-full py-2.5 rounded-xl font-semibold text-[14px] text-white transition-all ${
                     saving ? 'opacity-60 cursor-not-allowed' : 'active:scale-[0.98]'
                   }`}
-                  style={{ background: 'var(--accent)' }}
+                  style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}
                 >
-                  {saving ? 'Сохранение...' : saved ? '✅ Сохранено!' : '💾 Сохранить ссылки'}
+                  {saving ? 'Сохранение...' : saved ? '✅ Сохранено!' : '💾 Сохранить'}
                 </motion.button>
               </div>
             </div>
           </div>
         )}
+        </div>{/* end scrollable content area */}
 
-        {/* Back button */}
+        {/* Back button — outside scrollable area */}
         <a
           href="/result"
-          className="block w-full py-3 bg-accent text-white rounded-xl font-semibold text-[15px] text-center active:scale-[0.98] transition-transform"
+          className="block w-full py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-semibold text-[14px] text-center active:scale-[0.98] transition-transform shadow-lg shadow-blue-500/20 shrink-0"
         >
           🔙 Назад в приложение
         </a>
