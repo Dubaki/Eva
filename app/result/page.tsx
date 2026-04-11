@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getTraitInfo } from '@/lib/scoring'
 import ConfirmModal from '@/components/ConfirmModal'
+import { openAuthorContact } from '@/lib/author-contact'
 
 type ResultData = {
   dominantTrait: string
@@ -240,7 +241,8 @@ export default function ResultPage() {
     const mixedKey = result ? getMixedTraitKey(result.scores) : ''
     const mixedTraitName = MIXED_TRAIT_NAMES[mixedKey] || 'Не определено'
 
-    // Mark contact_author_clicked in DB
+    // Mark contact_author_clicked in DB (openAuthorContact also does this,
+    // but we need the notify-author call first)
     if (userId) {
       fetch('/api/user/contact-author', {
         method: 'POST',
@@ -261,31 +263,13 @@ export default function ResultPage() {
       }),
     }).catch((err) => console.error('[notify-author] Error:', err))
 
-    openTelegramDM('Пробой')
-  }, [result, openTelegramDM])
+    openAuthorContact('Пробой')
+  }, [result])
 
   // ── Pyramid click: mark contact and open Telegram ────────────────────
   const handlePyramidClick = useCallback(() => {
-    const profileRaw = localStorage.getItem('eva_profile')
-    let userId: number | null = null
-    if (profileRaw) {
-      try {
-        const p = JSON.parse(profileRaw) as StoredProfile
-        userId = p.tg_id ?? null
-      } catch { /* ignore */ }
-    }
-
-    // Mark contact_author_clicked in DB
-    if (userId) {
-      fetch('/api/user/contact-author', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tgId: userId }),
-      }).catch((err) => console.error('[contact-author] Error:', err))
-    }
-
-    openTelegramDM('Пирамида')
-  }, [openTelegramDM])
+    openAuthorContact('Пирамида')
+  }, [])
 
   // ── "Пока не готова" handler ─────────────────────────────────────────
   const handleNotReady = useCallback(() => {

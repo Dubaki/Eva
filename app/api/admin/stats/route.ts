@@ -86,55 +86,64 @@ export async function GET(req: NextRequest) {
   }
 
   // Recent 50 users with their test results and referral data
-  const { data: recentUsers, error: usersError } = await supabase
+  // Note: contact_author_clicked may not exist if migration 089 hasn't been applied yet
+  let recentUsersQuery = supabase
     .from('profiles')
     .select('id, tg_id, username, created_at, invites_count, last_test_date')
     .order('created_at', { ascending: false })
     .limit(50)
 
-  if (usersError) {
-    console.error('[admin/stats] Error fetching recent users:', usersError.message)
-  }
+  // Try to include contact_author_clicked — gracefully fail if column doesn't exist
+  try {
+    const { data: recentUsers, error: usersError } = await recentUsersQuery
 
-  if (!recentUsers || recentUsers.length === 0) {
-    console.error('[admin/stats] recentUsers is empty — no users in DB or query returned 0 results')
-  }
+    if (usersError) {
+      console.error('[admin/stats] Error fetching recent users:', usersError.message)
+    }
 
-  // Enrich with test results
-  const recentUsersWithResults = await Promise.all(
-    (recentUsers ?? []).map(async (user) => {
-      const { data: testResult } = await supabase
-        .from('test_results')
-        .select('dominant_trait, secondary_trait')
-        .eq('profile_id', user.id)
-        .single()
+    if (!recentUsers || recentUsers.length === 0) {
+      console.error('[admin/stats] recentUsers is empty — no users in DB or query returned 0 results')
+    }
 
-      const lastTest = user.last_test_date ?? null
-      const nextTestAvailable = lastTest
-        ? new Date(new Date(lastTest).getTime() + 60 * 24 * 60 * 60 * 1000).toISOString()
-        : null
+    // Enrich with test results
+    const recentUsersWithResults = await Promise.all(
+      (recentUsers ?? []).map(async (user) => {
+        const { data: testResult } = await supabase
+          .from('test_results')
+          .select('dominant_trait, secondary_trait')
+          .eq('profile_id', user.id)
+          .single()
 
-      return {
-        tg_id: user.tg_id,
-        username: user.username,
-        created_at: user.created_at,
-        dominantTrait: testResult?.dominant_trait ?? null,
-        secondaryTrait: testResult?.secondary_trait ?? null,
-        invites_count: user.invites_count ?? 0,
-        last_test_date: lastTest,
-        next_test_available: nextTestAvailable,
-        contact_author_clicked: false,
-      }
+        const lastTest = user.last_test_date ?? null
+        const nextTestAvailable = lastTest
+          ? new Date(new Date(lastTest).getTime() + 60 * 24 * 60 * 60 * 1000).toISOString()
+          : null
+
+        return {
+          tg_id: user.tg_id,
+          username: user.username,
+          created_at: user.created_at,
+          dominantTrait: testResult?.dominant_trait ?? null,
+          secondaryTrait: testResult?.secondary_trait ?? null,
+          invites_count: user.invites_count ?? 0,
+          last_test_date: lastTest,
+          next_test_available: nextTestAvailable,
+          contact_author_clicked: (user as Record<string, unknown>).contact_author_clicked ?? false,
+        }
+      })
+    )
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        totalUsers: totalUsers ?? 0,
+        completedTests: completedTests ?? 0,
+        traitCounts,
+        recentUsers: recentUsersWithResults,
+      },
     })
-  )
-
-  return NextResponse.json({
-    success: true,
-    data: {
-      totalUsers: totalUsers ?? 0,
-      completedTests: completedTests ?? 0,
-      traitCounts,
-      recentUsers: recentUsersWithResults,
-    },
-  })
+  } catch (err) {
+    console.error('[admin/stats] Unexpected error fetching stats:', err)
+    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 })
+  }
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { openAuthorContact } from '@/lib/author-contact'
 
 const ADMIN_PIN = '2026'
 const COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000 // 60 days
@@ -158,13 +159,24 @@ export default function Home() {
           className="w-full mt-auto"
         >
           {cooldownDays !== null && cooldownDays > 0 ? (
-            <button
-              type="button"
-              disabled
-              className="w-full py-[20px] px-6 bg-bg-tertiary text-text-muted rounded-2xl font-semibold text-[15px] select-none cursor-not-allowed border border-border"
-            >
-              Опора ещё формируется. Повторный тест будет доступен через {cooldownDays} {cooldownDays === 1 ? 'день' : cooldownDays < 5 ? 'дня' : 'дней'}
-            </button>
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                disabled
+                className="w-full py-[20px] px-6 bg-bg-tertiary text-text-muted rounded-2xl font-semibold text-[15px] select-none cursor-not-allowed border border-border"
+              >
+                Опора ещё формируется. Повторный тест будет доступен через {cooldownDays} {cooldownDays === 1 ? 'день' : cooldownDays < 5 ? 'дня' : 'дней'}
+              </button>
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.97 }}
+                onClick={() => openAuthorContact()}
+                className="w-full py-4 px-6 rounded-2xl font-semibold text-[15px] text-white shadow-lg active:scale-[0.98] transition-all"
+                style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+              >
+                💬 Связь с Автором
+              </motion.button>
+            </div>
           ) : (
             <Link href="/test" prefetch={true} className="block w-full">
               <button
