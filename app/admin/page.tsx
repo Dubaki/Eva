@@ -369,17 +369,15 @@ export default function AdminPanel() {
               </h1>
               <p className="text-gray-400 text-xs mt-0.5">Статистика проекта EVA</p>
             </div>
-            {activeTab === 'stats' && (
-              <motion.button
-                type="button"
-                whileTap={{ scale: 0.9, rotate: -180 }}
-                onClick={refreshStats}
-                className="p-2 rounded-xl bg-white/60 hover:bg-white border border-gray-200 transition-all text-lg"
-                title="Обновить данные"
-              >
-                🔄
-              </motion.button>
-            )}
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.9, rotate: -180 }}
+              onClick={refreshStats}
+              className="p-2 rounded-xl bg-white/60 hover:bg-white border border-gray-200 transition-all text-lg"
+              title="Обновить данные"
+            >
+              🔄
+            </motion.button>
           </div>
         </div>
 

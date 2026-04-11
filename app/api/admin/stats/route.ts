@@ -3,6 +3,7 @@ import { verifyJwt } from '@/lib/jwt'
 import { getSupabaseServer } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
 
