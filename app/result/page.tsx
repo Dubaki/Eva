@@ -606,6 +606,8 @@ export default function ResultPage() {
               {'\n\n'}
               <i>Я даю этот доступ в обмен на расширение проекта</i>
             </p>
+
+            {/* Referral link box */}
             <div className="bg-bg-secondary rounded-xl p-4 border border-border mb-4">
               <div className="flex items-center gap-2">
                 <p className="text-accent text-[13px] break-all select-all flex-1">{refLink}</p>
@@ -628,6 +630,14 @@ export default function ResultPage() {
                 </motion.button>
               </div>
             </div>
+
+            {/* Motivational referral text */}
+            <div className="bg-bg-secondary rounded-xl p-4 border border-border mb-4">
+              <p className="text-text-secondary text-[14px] leading-relaxed whitespace-pre-wrap">
+                Чем больше друзей ты позовёшь, тем больше подарков и призов ты получишь! Каждый месяц у нас проходит розыгрыш среди тех, кто пригласил больше всех. За 5 приглашенных друзей — очень приятный приз 🎁. За 10 друзей — личная консультация бесплатно 🌟.
+              </p>
+            </div>
+
             <p className="text-text-secondary text-[14px] leading-relaxed mb-5">
               Когда 2 человека перейдут по ней и пройдут тест, я открою тебе второй слой — твою теневую опору.
             </p>
