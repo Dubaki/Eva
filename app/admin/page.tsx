@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 
@@ -124,6 +124,26 @@ export default function AdminPanel() {
     return headers
   }
 
+  const refreshStats = useCallback((): Promise<void> => {
+    const headers = adminHeaders()
+    const bustCache = `?t=${Date.now()}`
+    return fetch(`/api/admin/stats${bustCache}`, { headers, cache: 'no-store' })
+      .then((r) => {
+        if (!r.ok) {
+          return r.json().then((json) => {
+            console.error('[admin] Refresh error:', json.error)
+            if (json.error === 'Unauthorized') setUnauthorized(true)
+            return null
+          })
+        }
+        return r.json()
+      })
+      .then((json) => {
+        if (json?.success) setStats(json.data)
+      })
+      .catch((err) => console.error('[admin] Refresh fetch error:', err))
+  }, [])
+
   useEffect(() => {
     // Check authorization: either TESTER_IDS or isAdmin from PIN
     const profileRaw = localStorage.getItem('eva_profile')
@@ -147,26 +167,7 @@ export default function AdminPanel() {
     const headers = adminHeaders()
 
     // Fetch stats (PIN alone is sufficient for access)
-    fetch('/api/admin/stats', { headers, cache: 'no-store' })
-      .then((r) => {
-        if (!r.ok) {
-          return r.json().then((json) => {
-            console.error('[admin] API error:', r.status, json.error)
-            if (json.error === 'Unauthorized') setUnauthorized(true)
-            else setLoading(false)
-          })
-        }
-        return r.json()
-      })
-      .then((json) => {
-        if (json && json.success) {
-          setStats(json.data)
-        } else if (json && json.error) {
-          console.error('[admin] Server returned error:', json.error)
-        }
-      })
-      .catch((err) => console.error('[admin] Fetch error:', err))
-      .finally(() => setLoading(false))
+    refreshStats().finally(() => setLoading(false))
 
     // Fetch gift links
     fetch('/api/admin/gifts', { headers, cache: 'no-store' })
@@ -360,11 +361,26 @@ export default function AdminPanel() {
       <div className="flex flex-col flex-1 min-h-0 px-4 pt-4 pb-3 max-w-lg mx-auto w-full gap-3">
 
         {/* Header — Glass */}
-        <div className="bg-white/70 backdrop-blur-md border border-white/30 shadow-lg rounded-2xl px-5 py-3 text-center shrink-0">
-          <h1 className="text-[22px] font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            👑 Админ-панель
-          </h1>
-          <p className="text-gray-400 text-xs mt-0.5">Статистика проекта EVA</p>
+        <div className="bg-white/70 backdrop-blur-md border border-white/30 shadow-lg rounded-2xl px-5 py-3 shrink-0">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex-1 text-center">
+              <h1 className="text-[22px] font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                👑 Админ-панель
+              </h1>
+              <p className="text-gray-400 text-xs mt-0.5">Статистика проекта EVA</p>
+            </div>
+            {activeTab === 'stats' && (
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.9, rotate: -180 }}
+                onClick={refreshStats}
+                className="p-2 rounded-xl bg-white/60 hover:bg-white border border-gray-200 transition-all text-lg"
+                title="Обновить данные"
+              >
+                🔄
+              </motion.button>
+            )}
+          </div>
         </div>
 
         {/* Tabs — pill bar */}
