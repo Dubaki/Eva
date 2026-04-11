@@ -44,6 +44,7 @@ export interface Database {
           referrals_count: number
           reminded_at: string | null
           invites_count: number
+          current_step: number | null
           created_at: string
           updated_at: string
         }
@@ -63,6 +64,7 @@ export interface Database {
           referrals_count?: number
           reminded_at?: string | null
           invites_count?: number
+          current_step?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -82,6 +84,7 @@ export interface Database {
           referrals_count?: number
           reminded_at?: string | null
           invites_count?: number
+          current_step?: number | null
           created_at?: string
           updated_at?: string
         }

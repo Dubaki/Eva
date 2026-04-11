@@ -59,6 +59,18 @@ export async function POST(request: NextRequest) {
 
     console.log('[test/submit] УСПЕХ: Данные записаны в БД!')
 
+    // Reset current_step after successful test completion
+    const { error: resetError } = await supabaseAdmin
+      .from('profiles')
+      .update({ current_step: null })
+      .eq('tg_id', tgId)
+
+    if (resetError) {
+      console.error('[test/submit] Warning: failed to reset current_step:', resetError.message)
+    } else {
+      console.log('[test/submit] current_step reset to null')
+    }
+
     // Отправка уведомления (не блокирует ответ)
     triggerBotNotification({
       event: 'dominant_trait_set',

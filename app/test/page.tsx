@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { QUESTIONS, type Scale } from '@/lib/questions'
@@ -62,12 +62,93 @@ function ProgressBar({
   )
 }
 
+/** Debounce helper: saves step to DB only after the user stops navigating for a short delay */
+function useDebouncedStepSave(tgId: number | null) {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const saveStep = useCallback(
+    (step: number) => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(async () => {
+        if (!tgId) return
+        try {
+          await fetch('/api/test/progress', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ step, tgId }),
+          })
+        } catch (e) {
+          console.error('[test] Failed to save progress:', e)
+        }
+      }, 500)
+    },
+    [tgId],
+  )
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [])
+
+  return saveStep
+}
+
 export default function TestPage() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [selected, setSelected] = useState<'yes' | 'no' | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [answersMap, setAnswersMap] = useState<Record<number, number>>({})
   const router = useRouter()
+
+  // Extract tgId from Telegram WebApp
+  const tgIdRef = useRef<number | null>(null)
+  useEffect(() => {
+    const WebApp = typeof window !== 'undefined'
+      ? (window as unknown as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } } }).Telegram?.WebApp
+      : null
+    tgIdRef.current = WebApp?.initDataUnsafe?.user?.id ?? null
+  }, [])
+
+  const saveStep = useDebouncedStepSave(tgIdRef.current)
+
+  // Restore saved progress on mount
+  useEffect(() => {
+    let cancelled = false
+    const tgId = tgIdRef.current
+    if (!tgId) {
+      setLoading(false)
+      return
+    }
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/test/progress?tgId=${tgId}`)
+        const json = await res.json()
+        if (!cancelled && json.success && json.data) {
+          const { currentStep, answers } = json.data as { currentStep: number; answers: Record<number, number> | null }
+          if (currentStep > 0 && currentStep < QUESTIONS.length) {
+            setCurrentIndex(currentStep)
+            if (answers) {
+              setAnswersMap(answers)
+            }
+          }
+        }
+      } catch (e) {
+        console.error('[test] Failed to load progress:', e)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  // Save step when currentIndex changes (after loading is done)
+  useEffect(() => {
+    if (loading) return
+    saveStep(currentIndex)
+  }, [currentIndex, loading, saveStep])
 
   const question = QUESTIONS[currentIndex]
   const accentColor = SCALE_COLOR[question.scale]
@@ -152,6 +233,22 @@ export default function TestPage() {
     setCurrentIndex((i) => i - 1)
     setSelected(null)
   }, [canGoBack])
+
+  // Show loading while restoring progress
+  if (loading) {
+    return (
+      <main className="flex flex-col min-h-screen bg-bg-primary overflow-hidden items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <motion.div
+            className="w-12 h-12 border-2 border-accent border-t-transparent rounded-full"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          />
+          <p className="text-text-secondary text-sm">Загружаю прогресс...</p>
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main className="flex flex-col min-h-screen bg-bg-primary overflow-hidden">
