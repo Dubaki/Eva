@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyJwt } from '@/lib/jwt'
 import { getSupabaseServer } from '@/lib/supabase/server'
 
+export const dynamic = 'force-dynamic'
+
 const DEBUG_PROFILE_ID = '00000000-0000-0000-0000-000000000001'
 
 export async function GET(req: NextRequest) {

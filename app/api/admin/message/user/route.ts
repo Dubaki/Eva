@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServer } from '@/lib/supabase/server'
 
+export const dynamic = 'force-dynamic'
+
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
 const BASE = 'https://api.telegram.org'
 

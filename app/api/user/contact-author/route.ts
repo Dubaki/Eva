@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * POST /api/user/contact-author
  * Marks contact_author_clicked = true for the current user.

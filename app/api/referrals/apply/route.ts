@@ -4,6 +4,8 @@ import { getSupabaseServer } from '@/lib/supabase/server'
 import { triggerBotNotification } from '@/lib/bot-notification'
 import { MIXED_TRAIT_TEXTS } from '@/lib/telegram'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(req: NextRequest) {
   const jwtSecret = process.env.SUPABASE_JWT_SECRET
   if (!jwtSecret) {

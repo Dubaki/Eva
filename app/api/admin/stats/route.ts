@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyJwt } from '@/lib/jwt'
 import { getSupabaseServer } from '@/lib/supabase/server'
 
+export const dynamic = 'force-dynamic'
+
 const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
 
 export async function GET(req: NextRequest) {
