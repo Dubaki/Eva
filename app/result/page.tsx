@@ -198,6 +198,16 @@ export default function ResultPage() {
     }
   }, [surveyAnswers, surveyStep])
 
+  // ── Close Mini App ───────────────────────────────────────────────────
+  const closeApp = useCallback(() => {
+    const tgWebApp = (window as unknown as {
+      Telegram?: { WebApp?: { close?: () => void } }
+    }).Telegram?.WebApp
+    if (tgWebApp?.close) {
+      tgWebApp.close()
+    }
+  }, [])
+
   // ── Open Telegram DM ─────────────────────────────────────────────────
   const openTelegramDM = useCallback((prefill: string) => {
     const tgWebApp = (window as unknown as {
@@ -441,7 +451,7 @@ export default function ResultPage() {
                   type="button"
                   whileTap={{ scale: 0.95 }}
                   className="flex-1 py-3 rounded-xl font-semibold text-[15px] text-white"
-                  style={{ background: 'var(--accent)' }}
+                  style={{ background: '#2563eb' }}
                   onClick={() => handleSurpriseAnswer('yes')}
                 >
                   Да
@@ -501,15 +511,15 @@ export default function ResultPage() {
               <div className="flex gap-3">
                 <motion.button type="button" whileTap={{ scale: 0.95 }}
                   className="flex-1 py-3 rounded-xl font-semibold text-[15px] text-white"
-                  style={{ background: 'var(--accent)' }}
+                  style={{ background: '#2563eb' }}
                   onClick={() => setFunnelStep('referral-gate')}>
-                  Да!!!
+                  Узнать теневую опору
                 </motion.button>
                 <motion.button type="button" whileTap={{ scale: 0.95 }}
                   className="flex-1 py-3 rounded-xl font-semibold text-[15px] border"
                   style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                   onClick={() => setFunnelStep('cooldown-message')}>
-                  Не сегодня
+                  Пока не буду
                 </motion.button>
               </div>
             </motion.div>
@@ -557,15 +567,15 @@ export default function ResultPage() {
               <div className="flex gap-3">
                 <motion.button type="button" whileTap={{ scale: 0.95 }}
                   className="flex-1 py-3 rounded-xl font-semibold text-[15px] text-white"
-                  style={{ background: 'var(--accent)' }}
+                  style={{ background: '#2563eb' }}
                   onClick={() => setFunnelStep('referral-gate')}>
-                  Да!!!
+                  Узнать теневую опору
                 </motion.button>
                 <motion.button type="button" whileTap={{ scale: 0.95 }}
                   className="flex-1 py-3 rounded-xl font-semibold text-[15px] border"
                   style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                   onClick={() => setFunnelStep('cooldown-message')}>
-                  Не сегодня
+                  Пока не буду
                 </motion.button>
               </div>
             </motion.div>
@@ -586,15 +596,15 @@ export default function ResultPage() {
             <div className="flex flex-col gap-3">
               <motion.button type="button" whileTap={{ scale: 0.97 }}
                 className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
-                style={{ background: 'var(--accent)' }}
+                style={{ background: '#2563eb' }}
                 onClick={() => handleCooldownButton(true)}>
                 Узнать 2 опору сейчас
               </motion.button>
               <motion.button type="button" whileTap={{ scale: 0.97 }}
                 className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
-                style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                style={{ background: '#2563eb' }}
                 onClick={() => handleCooldownButton(true)}>
-                🎁 Пригласить друга — получить приз
+                Пригласить друга — получить приз
               </motion.button>
               <motion.button type="button" whileTap={{ scale: 0.97 }}
                 className="w-full py-3 rounded-xl font-semibold text-[15px] border"
@@ -618,14 +628,22 @@ export default function ResultPage() {
               <b>Я обычно открываю этот слой только тем, кто идёт в работу.</b>{'\n'}
               Потому что важно не просто увидеть, а понять, как это устроено и что с этим делать.
               {'\n\n'}
-              🔥 <b>Сейчас у тебя есть возможность открыть свою теневую опору через участие</b>
+              Сейчас у тебя есть возможность открыть свою теневую опору через участие
             </p>
-            <motion.button type="button" whileTap={{ scale: 0.97 }}
-              className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
-              style={{ background: 'var(--accent)' }}
-              onClick={handleReferralGate}>
-              Открыть за рекомендацию
-            </motion.button>
+            <div className="flex flex-col gap-3">
+              <motion.button type="button" whileTap={{ scale: 0.97 }}
+                className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
+                style={{ background: '#2563eb' }}
+                onClick={handleReferralGate}>
+                Открыть за рекомендацию
+              </motion.button>
+              <motion.button type="button" whileTap={{ scale: 0.97 }}
+                className="w-full py-3 rounded-xl font-semibold text-[15px] border"
+                style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                onClick={() => setFunnelStep('survey')}>
+                Пока не буду узнавать теневую опору
+              </motion.button>
+            </div>
           </motion.div>
         )}
 
@@ -643,26 +661,17 @@ export default function ResultPage() {
               <i>Я даю этот доступ в обмен на расширение проекта</i>
             </p>
 
-            {/* Referral link box */}
+            {/* Referral link box with copy button */}
             <div className="bg-bg-secondary rounded-xl p-4 border border-border mb-4">
               <div className="flex items-center gap-2">
                 <p className="text-accent text-[13px] break-all select-all flex-1">{refLink}</p>
                 <motion.button
                   type="button"
                   whileTap={{ scale: 0.9 }}
-                  className="flex-shrink-0 p-2 rounded-lg bg-bg-primary border border-border hover:border-accent transition-colors"
+                  className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-[12px] font-medium hover:bg-blue-700 transition-colors"
                   onClick={handleCopyLink}
-                  title="Скопировать"
                 >
-                  {copied ? (
-                    <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                  )}
+                  {copied ? 'Скопировано' : 'Копировать'}
                 </motion.button>
               </div>
             </div>
@@ -684,17 +693,21 @@ export default function ResultPage() {
             <div className="flex flex-col gap-3">
               <motion.button type="button" whileTap={{ scale: 0.97 }}
                 className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
-                style={{ background: 'var(--accent)' }}
+                style={{ background: '#2563eb' }}
                 onClick={handleShare}>
                 Поделиться
               </motion.button>
               <motion.button type="button" whileTap={{ scale: 0.97 }}
                 className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
-                style={{ background: 'var(--accent)' }}
+                style={{ background: '#2563eb' }}
                 onClick={() => setFunnelStep('survey')}>
                 Дальше — больше
               </motion.button>
             </div>
+
+            <p className="text-text-muted text-[13px] mt-4">
+              Больше друзей — больше бонусов.
+            </p>
           </motion.div>
         )}
 
@@ -784,20 +797,25 @@ export default function ResultPage() {
             <div className="flex flex-col gap-3">
               <motion.button type="button" whileTap={{ scale: 0.97 }}
                 className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
-                style={{ background: 'var(--accent)' }}
+                style={{ background: '#2563eb' }}
                 onClick={() => {
                   handleProboyClick()
+                  setTimeout(() => closeApp(), 1000)
                 }}>
-                Жёсткий быстрый
+                Жесткий быстрый
               </motion.button>
               <motion.button type="button" whileTap={{ scale: 0.97 }}
-                className="w-full py-3 rounded-xl font-semibold text-[15px] border"
-                style={{ background: 'transparent', borderColor: 'var(--accent)', color: 'var(--accent)' }}
-                onClick={handlePyramidClick}>
+                className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
+                style={{ background: '#2563eb' }}
+                onClick={() => {
+                  handlePyramidClick()
+                  setTimeout(() => closeApp(), 1000)
+                }}>
                 Мягкий постепенный
               </motion.button>
               <motion.button type="button" whileTap={{ scale: 0.97 }}
-                className="w-full py-3 rounded-xl text-[14px] text-text-muted"
+                className="w-full py-3 rounded-xl font-semibold text-[15px] border"
+                style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                 onClick={handleNotReady}>
                 Пока не готова
               </motion.button>
@@ -823,9 +841,9 @@ export default function ResultPage() {
             </p>
             <motion.button type="button" whileTap={{ scale: 0.97 }}
               className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
-              style={{ background: 'var(--accent)' }}
+              style={{ background: '#2563eb' }}
               onClick={handleClaimGift}>
-              🎁 Забрать подарок
+              Забрать подарок
             </motion.button>
           </motion.div>
         )}
@@ -839,13 +857,6 @@ export default function ResultPage() {
             className="bg-bg-secondary rounded-xl p-6 border text-center"
             style={{ borderColor: 'color-mix(in srgb, var(--success) 40%, var(--border))' }}
           >
-            <motion.div
-              className="text-5xl mb-4"
-              animate={{ scale: [1, 1.15, 1] }}
-              transition={{ duration: 1, repeat: Infinity, ease: 'easeInOut' }}
-            >
-              🎁
-            </motion.div>
             <p className="text-text-primary text-[17px] font-semibold mb-2">
               Переходим к подарку...
             </p>

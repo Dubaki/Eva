@@ -236,27 +236,28 @@ export default function Home() {
                 whileTap={{ scale: 0.97 }}
                 onClick={() => window.location.href = '/result?referral=1'}
                 className="w-full py-4 px-6 rounded-2xl font-semibold text-[16px] text-white shadow-lg active:scale-[0.98] transition-all"
-                style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+                style={{ background: '#2563eb' }}
               >
-                🎁 Забрать приз
+                Забрать приз
               </motion.button>
               <motion.button
                 type="button"
                 whileTap={{ scale: 0.97 }}
                 onClick={() => openAuthorContact()}
                 className="w-full py-3.5 px-6 rounded-2xl font-semibold text-[15px] text-white shadow-md active:scale-[0.98] transition-all"
-                style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                style={{ background: '#2563eb' }}
               >
-                💬 Связь с Автором
+                Связь с Автором
               </motion.button>
             </div>
           ) : (
             <Link href="/test" prefetch={true} className="block w-full">
               <button
                 type="button"
-                className="w-full py-[20px] px-6 bg-accent text-white rounded-2xl font-semibold text-[17px] tracking-[-0.01em] active:scale-[0.98] transition-all duration-200 select-none shadow-lg shadow-accent/25"
+                className="w-full py-[20px] px-6 rounded-2xl font-semibold text-[17px] tracking-[-0.01em] active:scale-[0.98] transition-all duration-200 select-none shadow-lg text-white"
+                style={{ background: '#2563eb' }}
               >
-                ✨ Пройти тест
+                Пройти тест
               </button>
             </Link>
           )}
