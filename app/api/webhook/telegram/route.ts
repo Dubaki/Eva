@@ -90,24 +90,33 @@ async function handleStart(chatId: number, userId: number, refCode: number | nul
     try {
       const supabase = getSupabaseServer()
 
-      // Find referrer's profile
-      const { data: referrer } = await supabase
+      console.log(`[webhook] Attempting referral linking: tg_id=${userId}, refCode=${refCode}`)
+
+      // Find referrer's profile by tg_id (the numeric ID)
+      const { data: referrer, error: refErr } = await supabase
         .from('profiles')
-        .select('id, invites_count')
+        .select('id, tg_id, invites_count')
         .eq('tg_id', refCode)
         .single()
 
+      if (refErr) {
+        console.log(`[webhook] Referrer lookup error for tg_id=${refCode}: ${refErr.message}`)
+      }
+
       if (referrer && referrer.id) {
-        // Set referrer_id for the new user (invites_count will be incremented
-        // in handleSubscriptionCheck when user actually subscribes)
-        await supabase
+        // Set referrer_id (UUID) for the new user
+        const { error: updateErr } = await supabase
           .from('profiles')
           .update({ referrer_id: referrer.id })
           .eq('tg_id', userId)
 
-        console.log(`[webhook] Referral linked: tg_id=${userId} → referrer tg_id=${refCode}`)
+        if (updateErr) {
+          console.error(`[webhook] Failed to set referrer_id for tg_id=${userId}: ${updateErr.message}`)
+        } else {
+          console.log(`[webhook] ✅ Referral linked: tg_id=${userId} → referrer tg_id=${refCode} (profile id=${referrer.id})`)
+        }
       } else {
-        console.log(`[webhook] Referral code ${refCode} not found in profiles`)
+        console.log(`[webhook] ⚠️ Referrer tg_id=${refCode} not found in profiles — referral NOT linked yet`)
       }
     } catch (refErr) {
       console.error('[webhook] Referral linking in /start failed (non-fatal):', refErr)
