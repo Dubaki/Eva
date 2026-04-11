@@ -1,12 +1,13 @@
 const BOT_USERNAME =
   process.env.NEXT_PUBLIC_BOT_USERNAME ?? 'sprosievubot'
+const MINI_APP_NAME = 'app'
 
 /**
- * Generates a Telegram referral deep link.
- * Format: https://t.me/sprosievubot?start=ref_<tgId>
+ * Generates a Telegram referral deep link to the Mini App.
+ * Format: https://t.me/sprosievubot/app?startapp=<tgId>
  */
 export function getReferralLink(tgId: number): string {
-  return `https://t.me/${BOT_USERNAME}?start=ref_${tgId}`
+  return `https://t.me/${BOT_USERNAME}/${MINI_APP_NAME}?startapp=${tgId}`
 }
 
 /**
