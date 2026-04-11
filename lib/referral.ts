@@ -11,27 +11,13 @@ export function getReferralLink(tgId: number): string {
 
 /**
  * Opens the Telegram share sheet for the referral link.
- * Tries navigator.share first (multi-select on mobile), falls back to Telegram share URL.
+ * Uses Telegram WebApp openTelegramLink with t.me/share/url for multi-select forwarding.
  */
 export function shareReferralLink(
   link: string,
   text = 'Пройди тест и узнай свою внутреннюю опору',
 ): void {
   const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`
-
-  // Try native Web Share API first — on mobile it allows multi-select
-  if (navigator.share) {
-    navigator.share({
-      title: 'EVA — Тест на опоры',
-      text,
-      url: link,
-    }).catch(() => {
-      // User cancelled — fallback to Telegram
-      openInTelegram(shareUrl)
-    })
-    return
-  }
-
   openInTelegram(shareUrl)
 }
 

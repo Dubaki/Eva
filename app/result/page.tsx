@@ -155,28 +155,14 @@ export default function ResultPage() {
     setFunnelStep('referral-link')
   }, [userTgId])
 
-  // ── Share via Telegram (multi-select) ────────────────────────────────────
+  // ── Share via Telegram (multi-select forward dialog) ────────────────
   const handleShare = useCallback(() => {
     const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('Пройди этот тест и узнай, какой механизм снова и снова приводит тебя к одним и тем же проблемам.')}`
     const tgWebApp = (window as unknown as {
       Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } }
     }).Telegram?.WebApp
 
-    // Try native Web Share API first — on mobile it allows multi-select
-    if (navigator.share) {
-      navigator.share({
-        title: 'EVA — Тест на опоры',
-        text: 'Пройди этот тест и узнай свою внутреннюю опору!',
-        url: refLink,
-      }).catch(() => {
-        // User cancelled share — fallback to Telegram share URL
-        if (tgWebApp?.openTelegramLink) {
-          tgWebApp.openTelegramLink(shareUrl)
-        } else {
-          window.open(shareUrl, '_blank')
-        }
-      })
-    } else if (tgWebApp?.openTelegramLink) {
+    if (tgWebApp?.openTelegramLink) {
       tgWebApp.openTelegramLink(shareUrl)
     } else {
       window.open(shareUrl, '_blank')
