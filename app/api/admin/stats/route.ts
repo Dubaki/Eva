@@ -131,13 +131,20 @@ export async function GET(req: NextRequest) {
     })
   )
 
-  return NextResponse.json({
-    success: true,
-    data: {
-      totalUsers: totalUsers ?? 0,
-      completedTests: completedTests ?? 0,
-      traitCounts,
-      recentUsers: recentUsersWithResults,
+  return NextResponse.json(
+    {
+      success: true,
+      data: {
+        totalUsers: totalUsers ?? 0,
+        completedTests: completedTests ?? 0,
+        traitCounts,
+        recentUsers: recentUsersWithResults,
+      },
     },
-  })
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+      },
+    }
+  )
 }

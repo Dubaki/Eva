@@ -147,7 +147,7 @@ export default function AdminPanel() {
     const headers = adminHeaders()
 
     // Fetch stats (PIN alone is sufficient for access)
-    fetch('/api/admin/stats', { headers })
+    fetch('/api/admin/stats', { headers, cache: 'no-store' })
       .then((r) => {
         if (!r.ok) {
           return r.json().then((json) => {
@@ -169,7 +169,7 @@ export default function AdminPanel() {
       .finally(() => setLoading(false))
 
     // Fetch gift links
-    fetch('/api/admin/gifts', { headers })
+    fetch('/api/admin/gifts', { headers, cache: 'no-store' })
       .then((r) => r.json())
       .then((json) => {
         if (json.success && json.data) {

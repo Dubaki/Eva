@@ -60,7 +60,14 @@ export async function GET(req: NextRequest) {
     links[key] = data?.find((r) => r.key === key)?.value ?? ''
   }
 
-  return NextResponse.json({ success: true, data: links })
+  return NextResponse.json(
+    { success: true, data: links },
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+      },
+    }
+  )
 }
 
 export async function POST(req: NextRequest) {
