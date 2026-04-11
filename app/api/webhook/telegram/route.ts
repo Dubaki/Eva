@@ -280,10 +280,10 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
         if (currentUser?.referrer_id) {
           console.log(`!!! STEP 5 !!! Referrer exists. Looking up referrer by id='${currentUser.referrer_id}'`)
 
-          // Look up referrer by UUID (primary key)
+          // Look up referrer by UUID (primary key) — invites_count only
           const { data: referrer, error: refErr } = await supabase
             .from('profiles')
-            .select('id, tg_id, invites_count, dominant_trait, shadow_trait')
+            .select('id, tg_id, invites_count')
             .eq('id', currentUser.referrer_id)
             .single()
 
@@ -309,16 +309,33 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
               console.log(`!!! STEP 7 SUCCESS !!! invites_count updated: ${oldInvites} → ${newInvites} for referrer id='${referrer.id}' (tg_id=${referrer.tg_id})`)
             }
 
-            // If invites_count reached 2, send notification with mixed trait
-            if (newInvites === 2 && referrer.dominant_trait && referrer.shadow_trait) {
-              console.log(`!!! STEP 8 !!! Referrer reached 2 invites — sending mixed trait notification`)
+            // If invites_count reached 2, fetch test results and send mixed trait notification
+            if (newInvites === 2) {
+              console.log(`!!! STEP 8 !!! Referrer reached 2 invites — fetching test results for mixed trait notification`)
 
-              const traits = [
-                referrer.dominant_trait.toUpperCase(),
-                referrer.shadow_trait.toUpperCase(),
-              ].sort()
-              const key = traits.join('')
-              const mixedTraitText = MIXED_TRAIT_TEXTS[key] ?? ''
+              // Get traits from test_results (not from profiles!)
+              const { data: testResult, error: trErr } = await supabase
+                .from('test_results')
+                .select('dominant_trait, secondary_trait')
+                .eq('profile_id', referrer.id)
+                .single()
+
+              if (trErr) {
+                console.error(`!!! STEP 8.1 ERROR !!! Could not fetch test_results for referrer: ${trErr.message}`)
+              } else if (!testResult || !testResult.dominant_trait || !testResult.secondary_trait) {
+                console.log(`!!! STEP 8.2 WARNING !!! test_results missing for referrer — sending generic notification`)
+              }
+
+              const primaryTrait = testResult?.dominant_trait ?? ''
+              const secondaryTrait = testResult?.secondary_trait ?? ''
+
+              let mixedTraitText = ''
+              if (primaryTrait && secondaryTrait) {
+                const traits = [primaryTrait.toUpperCase(), secondaryTrait.toUpperCase()].sort()
+                const key = traits.join('')
+                mixedTraitText = MIXED_TRAIT_TEXTS[key] ?? ''
+                console.log(`!!! STEP 8.3 !!! Mixed trait key: ${key}`)
+              }
 
               const tmaUrl = getTmaUrl()
               const notifyMarkup: InlineKeyboard = {
@@ -339,9 +356,9 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
               })
 
               if (!sent) {
-                console.error(`!!! STEP 8 ERROR !!! Failed to send notification (sendMessage returned false)`)
+                console.error(`!!! STEP 8.4 ERROR !!! Failed to send notification (sendMessage returned false)`)
               } else {
-                console.log(`!!! STEP 8 SUCCESS !!! Mixed trait notification sent to referrer tg_id=${referrer.tg_id}`)
+                console.log(`!!! STEP 8.5 SUCCESS !!! Mixed trait notification sent to referrer tg_id=${referrer.tg_id}`)
               }
             }
           }
