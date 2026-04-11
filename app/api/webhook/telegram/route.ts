@@ -337,16 +337,18 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
                 console.log(`!!! STEP 8.3 !!! Mixed trait key: ${key}`)
               }
 
-              const tmaUrl = getTmaUrl()
+              const AUTHOR_CHAT_URL = process.env.TELEGRAM_AUTHOR_CHAT_URL ?? 'https://t.me/evapatrakhina'
+
               const notifyMarkup: InlineKeyboard = {
                 inline_keyboard: [
-                  [{ text: '✨ Посмотреть', web_app: { url: tmaUrl } }],
+                  [{ text: '✨ Посмотреть', web_app: { url: getTmaUrl() } }],
+                  [{ text: 'Напиши мне, если есть вопросы', url: AUTHOR_CHAT_URL }],
                 ],
               }
 
               const notificationText = mixedTraitText
                 ? `🎉 <b>Твой второй уровень открыт!</b>\n\nПришло время узнать твою теневую опору:\n\n${mixedTraitText}`
-                : `🎉 <b>Бинго!</b> Две твои подруги зашли в бота. Твоя скрытая (теневая) опора разблокирована!\n\nЗаходи в приложение, чтобы посмотреть результат.`
+                : `🎉 <b>Твой второй уровень открыт!</b>\n\nДве твои подруги зашли в бота. Заходи в приложение, чтобы посмотреть результат.`
 
               const sent = await sendMessage({
                 chatId: referrer.tg_id,
@@ -414,6 +416,46 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
       text: 'Подписка не найдена. Пожалуйста, подпишитесь на канал и попробуйте снова.',
       showAlert: true,
     })
+  }
+}
+
+async function handleShareInstruction(chatId: number, userId: number): Promise<void> {
+  try {
+    const supabase = getSupabaseServer()
+
+    // Get user's referral link
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('tg_id')
+      .eq('tg_id', userId)
+      .single()
+
+    const refLink = profile
+      ? `https://t.me/sprosievubot?start=ref_${profile.tg_id}`
+      : 'https://t.me/sprosievubot'
+
+    // Message 1: Instruction
+    await sendMessage({
+      chatId,
+      text: `📋 <b>Как поделиться тестом:</b>\n\n` +
+        `1. Скопируй текст ниже (нажми и удерживай)\n` +
+        `2. Отправь его подруге в личные сообщения\n` +
+        `3. Или перешли в чат/группу\n\n` +
+        `Когда она пройдёт тест — тебе откроется теневая опора!`,
+      parseMode: 'HTML',
+    })
+
+    // Message 2: Ready-to-forward text with link
+    await sendMessage({
+      chatId,
+      text: `✨ Пройди тест и узнай, какой механизм снова и снова приводит тебя к одним и тем же проблемам.\n\n` +
+        `👉 ${refLink}`,
+      parseMode: 'HTML',
+    })
+
+    console.log(`[share_instruction] Sent instruction to tg_id=${userId}`)
+  } catch (err) {
+    console.error('[share_instruction] Error:', err)
   }
 }
 
@@ -530,6 +572,10 @@ export async function POST(req: NextRequest) {
 
           if (data === 'check_subscription' || refMatch) {
             await handleSubscriptionCheck(callbackId, from.id, chatId, refCode)
+          } else if (data === 'share_clicked') {
+            // User clicked share in Mini App — send instruction + ready-to-forward text
+            await answerCallbackQuery({ callbackQueryId: callbackId })
+            await handleShareInstruction(chatId, from.id)
           } else {
             // Unknown callback — just respond with default message
             await handleDefaultMessage(chatId, undefined)

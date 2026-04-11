@@ -162,18 +162,24 @@ export default function ResultPage() {
     setFunnelStep('referral-link')
   }, [userTgId])
 
-  // ── Share via Telegram (multi-select forward dialog) ────────────────
+  // ── Share via Telegram (triggers bot to send ready-to-forward message) ──
   const handleShare = useCallback(() => {
-    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('Пройди этот тест и узнай, какой механизм снова и снова приводит тебя к одним и тем же проблемам.')}`
     const tgWebApp = (window as unknown as {
-      Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } }
+      Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void; sendData?: (data: string) => void } }
     }).Telegram?.WebApp
 
+    // Open bot chat with callback trigger
+    const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME ?? 'sprosievubot'
+    const botUrl = `https://t.me/${botUsername}`
+
     if (tgWebApp?.openTelegramLink) {
-      tgWebApp.openTelegramLink(shareUrl)
+      tgWebApp.openTelegramLink(botUrl)
     } else {
-      window.open(shareUrl, '_blank')
+      window.open(botUrl, '_blank')
     }
+
+    // Also copy link as fallback
+    navigator.clipboard.writeText(refLink).catch(() => {})
   }, [refLink])
 
   // ── Copy link ────────────────────────────────────────────────────────
