@@ -204,6 +204,22 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
   if (isSubscribed) {
     // BOT STEP 3: Update DB
     console.log(`!!! CRITICAL !!! [BOT STEP 3] Attempting DB update for tg_id=${Number(userId)}`)
+
+    // ── Anti-abuse: check if user was already subscribed BEFORE update ──
+    let wasAlreadySubscribed = false
+    try {
+      const supabaseCheck = getSupabaseServer()
+      const { data: existingProfile } = await supabaseCheck
+        .from('profiles')
+        .select('is_subscribed')
+        .eq('tg_id', Number(userId))
+        .single()
+      wasAlreadySubscribed = existingProfile?.is_subscribed === true
+      console.log(`!!! CRITICAL !!! [BOT STEP 3] wasAlreadySubscribed: ${wasAlreadySubscribed}`)
+    } catch (checkErr) {
+      console.warn(`[BOT STEP 3] Could not check existing subscription (user may not exist yet):`, checkErr)
+    }
+
     try {
       const supabase = getSupabaseServer()
       console.log(`!!! CRITICAL !!! [BOT STEP 3] Supabase client created successfully`)
@@ -232,6 +248,8 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
     await answerCallbackQuery({ callbackQueryId })
 
     // ── Referral engine: increment referrer's count, notify at 2 ──
+    // ONLY if this is the user's FIRST subscription (anti-abuse)
+    if (!wasAlreadySubscribed) {
     try {
       const supabase = getSupabaseServer()
 
@@ -294,6 +312,7 @@ async function handleSubscriptionCheck(callbackQueryId: string, userId: number, 
     } catch (refErr) {
       console.error('[webhook] Referral engine error (non-fatal):', refErr)
     }
+    } // end if (!wasAlreadySubscribed)
 
     const successCaption =
       `🎉 <b>Подписка подтверждена!</b>\n\n` +

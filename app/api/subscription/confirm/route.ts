@@ -61,8 +61,18 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // ── Step 2: Update is_subscribed in DB ──
+    // ── Step 2: Update is_subscribed in DB (with anti-abuse check) ──
     const supabase = getSupabaseServer()
+
+    // Check current subscription status BEFORE update
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('is_subscribed')
+      .eq('tg_id', tgId)
+      .single()
+
+    const wasAlreadySubscribed = existingProfile?.is_subscribed === true
+    console.log(`[subscription/confirm] wasAlreadySubscribed: ${wasAlreadySubscribed}`)
 
     const { error: upsertErr } = await supabase
       .from('profiles')
@@ -84,7 +94,12 @@ export async function POST(req: NextRequest) {
 
     console.log(`[subscription/confirm] is_subscribed updated for tgId=${tgId}`)
 
-    // ── Step 3: Process referral (increment inviter's invites_count) ──
+    // ── Step 3: Process referral ONLY on FIRST subscription (anti-abuse) ──
+    if (wasAlreadySubscribed) {
+      console.log(`[subscription/confirm] User was already subscribed — skipping referral increment (anti-abuse)`)
+      return NextResponse.json({ success: true, data: { isSubscribed: true } })
+    }
+
     if (inviterTgId) {
       console.log(`[subscription/confirm] Processing referral: inviterTgId=${inviterTgId}`)
 
