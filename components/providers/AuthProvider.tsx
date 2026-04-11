@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 
 const JWT_KEY = 'eva_token'
 const REAUTH_BUFFER_S = 60 // re-auth if token expires within 60s
+const REFERRER_KEY = 'eva_inviter_tg_id' // persist inviter ID across navigation
 
 function isTokenValid(token: string): boolean {
   try {
@@ -61,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       Telegram?: {
         WebApp?: {
           initData?: string
-          initDataUnsafe?: { start_param?: string }
+          initDataUnsafe?: { start_param?: string; user?: { id?: number } }
         }
       }
     }).Telegram?.WebApp
@@ -71,8 +72,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!initData) return // not running inside Telegram — skip silently
 
     const startParam = tgWebApp?.initDataUnsafe?.start_param
+
+    // Persist inviter ID in localStorage so it survives navigation & re-open
+    if (startParam) {
+      console.log(`[AuthProvider] Deep link param found: ${startParam}`)
+      const raw = startParam.startsWith('ref_') ? startParam.slice(4) : startParam.startsWith('ref') ? startParam.slice(3) : startParam
+      const inviterId = parseInt(raw, 10)
+      if (!isNaN(inviterId)) {
+        localStorage.setItem(REFERRER_KEY, String(inviterId))
+      }
+    }
+
     doAuth(initData, startParam).catch(() => {})
   }, [])
 
   return <>{children}</>
+}
+
+/**
+ * Read the persisted inviter Telegram ID from localStorage.
+ * Returns `null` if no inviter was recorded.
+ */
+export function getStoredInviterTgId(): number | null {
+  if (typeof window === 'undefined') return null
+  const raw = localStorage.getItem(REFERRER_KEY)
+  if (!raw) return null
+  const id = parseInt(raw, 10)
+  return isNaN(id) ? null : id
 }

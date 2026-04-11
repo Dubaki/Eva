@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { openAuthorContact } from '@/lib/author-contact'
+import { getStoredInviterTgId } from '@/components/providers/AuthProvider'
 
 const ADMIN_PIN = '2026'
 const COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000 // 60 days
@@ -19,6 +20,8 @@ export default function Home() {
   const [checking, setChecking] = useState(true)
   const [notSubscribed, setNotSubscribed] = useState(false)
   const [cooldownDays, setCooldownDays] = useState<number | null>(null)
+  const [confirmingSub, setConfirmingSub] = useState(false)
+  const [subError, setSubError] = useState<string | null>(null)
 
   useEffect(() => {
     // Get tgId directly from Telegram WebApp
@@ -82,6 +85,52 @@ export default function Home() {
     }
   }, [])
 
+  // ── Confirm subscription from Mini App ──
+  const handleConfirmSubscription = useCallback(async () => {
+    setConfirmingSub(true)
+    setSubError(null)
+
+    const WebApp = (window as unknown as {
+      Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } }
+    }).Telegram?.WebApp
+    const currentTgId = WebApp?.initDataUnsafe?.user?.id ?? null
+
+    if (!currentTgId) {
+      setSubError('Не удалось определить ваш Telegram ID')
+      setConfirmingSub(false)
+      return
+    }
+
+    const inviterTgId = getStoredInviterTgId()
+    console.log(`[Home] Deep link param found: ${inviterTgId ?? 'none'}`)
+    console.log(`[Home] Sending inviter ID to API: ${inviterTgId ?? 'none'}`)
+
+    try {
+      const res = await fetch('/api/subscription/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tgId: currentTgId, inviterTgId }),
+      })
+
+      const json = await res.json()
+
+      if (json.success) {
+        console.log('[Home] Subscription confirmed, reloading page…')
+        // Reload to re-run status check (Gate 1 will now pass)
+        window.location.reload()
+      } else {
+        const errMsg = json.error === 'not_subscribed'
+          ? 'Подписка не найдена. Пожалуйста, подпишитесь на канал и попробуйте снова.'
+          : (json.error || 'Произошла ошибка. Попробуйте ещё раз.')
+        setSubError(errMsg)
+      }
+    } catch {
+      setSubError('Ошибка сети. Проверьте интернет-соединение и попробуйте снова.')
+    }
+
+    setConfirmingSub(false)
+  }, [])
+
   // ── Loading gate ──
   if (checking) {
     return (
@@ -107,11 +156,26 @@ export default function Home() {
           <p className="text-4xl mb-4">🔒</p>
           <h1 className="text-[22px] font-bold text-text-primary mb-3">Доступ закрыт</h1>
           <p className="text-text-secondary text-[15px] leading-relaxed mb-6">
-            Пожалуйста, откройте бота в Telegram, подпишитесь на канал и нажмите «Я подписалась».
+            Пожалуйста, подпишитесь на канал автора, чтобы получить доступ к тесту.
           </p>
-          <p className="text-text-muted text-[13px]">
-            После подписки весь функционал станет доступен автоматически.
-          </p>
+          {subError && (
+            <p className="text-red-400 text-[13px] mb-4">{subError}</p>
+          )}
+          <div className="flex flex-col gap-3">
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.97 }}
+              disabled={confirmingSub}
+              onClick={handleConfirmSubscription}
+              className="w-full py-3 rounded-xl font-semibold text-[15px] text-white disabled:opacity-50"
+              style={{ background: 'var(--accent)' }}
+            >
+              {confirmingSub ? 'Проверяю…' : '✅ Я подписалась'}
+            </motion.button>
+            <p className="text-text-muted text-[13px]">
+              После подписки весь функционал станет доступен автоматически.
+            </p>
+          </div>
         </motion.div>
       </main>
     )
@@ -170,7 +234,7 @@ export default function Home() {
               <motion.button
                 type="button"
                 whileTap={{ scale: 0.97 }}
-                onClick={() => window.location.href = '/result'}
+                onClick={() => window.location.href = '/result?referral=1'}
                 className="w-full py-4 px-6 rounded-2xl font-semibold text-[16px] text-white shadow-lg active:scale-[0.98] transition-all"
                 style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
               >

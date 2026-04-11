@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getTraitInfo } from '@/lib/scoring'
@@ -66,6 +67,7 @@ type FunnelStep =
   | 'gift-claiming'
 
 export default function ResultPage() {
+  const searchParams = useSearchParams()
   const [result, setResult] = useState<ResultData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -115,7 +117,12 @@ export default function ResultPage() {
         setUserTgId(p.tg_id ?? null)
       } catch { /* ignore */ }
     }
-  }, [])
+
+    // Auto-navigate to referral screen if coming from "Забрать приз" button
+    if (searchParams.get('referral') === '1') {
+      setFunnelStep('referral-gate')
+    }
+  }, [searchParams])
 
   // ── Surprise answer (with custom modal) ───────────────────────────────
   const handleSurpriseAnswer = useCallback((answer: 'yes' | 'no') => {
@@ -348,7 +355,10 @@ export default function ResultPage() {
     )
   }
 
-  if (!result) {
+  // ── Referral-only mode (from "Забрать приз" button) ──
+  const isReferralMode = searchParams.get('referral') === '1'
+
+  if (!isReferralMode && !result) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-bg-primary px-6">
         <div className="text-center">
@@ -362,8 +372,12 @@ export default function ResultPage() {
     )
   }
 
-  const traitInfo = getTraitInfo(result.dominantTrait)
-  const resultImgSrc = RESULT_IMG[result.dominantTrait] ?? '/hero.png'
+  const traitInfo = result ? getTraitInfo(result.dominantTrait) : null
+  const resultImgSrc = result ? (RESULT_IMG[result.dominantTrait] ?? '/hero.png') : '/hero.png'
+
+  // Safe accessors — only non-null when result exists
+  const tTitle = traitInfo?.title ?? ''
+  const tDescription = traitInfo?.description ?? ''
 
   return (
     <main className="flex flex-col min-h-screen bg-bg-primary">
@@ -381,7 +395,7 @@ export default function ResultPage() {
             >
               <Image
                 src={resultImgSrc}
-                alt={`Результат: ${traitInfo.title}`}
+                alt={`Результат: ${tTitle}`}
                 fill
                 priority
                 className="object-contain"
@@ -399,7 +413,7 @@ export default function ResultPage() {
                 Ваша доминирующая опора
               </p>
               <h1 className="text-[28px] font-bold tracking-[-0.02em] leading-tight" style={{ color: 'var(--accent)' }}>
-                {traitInfo.title}
+                {tTitle}
               </h1>
             </motion.div>
 
@@ -409,7 +423,7 @@ export default function ResultPage() {
               transition={{ duration: 0.4, delay: 0.3 }}
               className="bg-bg-secondary rounded-xl p-5 border border-border"
             >
-              <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap">{traitInfo.description}</p>
+              <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap">{tDescription}</p>
             </motion.div>
 
             {/* Surprise question */}
@@ -456,10 +470,10 @@ export default function ResultPage() {
               className="text-center"
             >
               <div className="relative w-full max-h-[30vh] mb-4 rounded-2xl overflow-hidden" style={{ minHeight: '160px' }}>
-                <Image src={resultImgSrc} alt={traitInfo.title} fill className="object-contain"
+                <Image src={resultImgSrc} alt={tTitle} fill className="object-contain"
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
               </div>
-              <h1 className="text-[24px] font-bold" style={{ color: 'var(--accent)' }}>{traitInfo.title}</h1>
+              <h1 className="text-[24px] font-bold" style={{ color: 'var(--accent)' }}>{tTitle}</h1>
             </motion.div>
 
             <motion.div
@@ -468,7 +482,7 @@ export default function ResultPage() {
               transition={{ duration: 0.4, delay: 0.2 }}
               className="bg-bg-secondary rounded-xl p-5 border border-border"
             >
-              <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap">{traitInfo.description}</p>
+              <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap">{tDescription}</p>
             </motion.div>
 
             <motion.div
@@ -512,10 +526,10 @@ export default function ResultPage() {
               className="text-center"
             >
               <div className="relative w-full max-h-[30vh] mb-4 rounded-2xl overflow-hidden" style={{ minHeight: '160px' }}>
-                <Image src={resultImgSrc} alt={traitInfo.title} fill className="object-contain"
+                <Image src={resultImgSrc} alt={tTitle} fill className="object-contain"
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
               </div>
-              <h1 className="text-[24px] font-bold" style={{ color: 'var(--accent)' }}>{traitInfo.title}</h1>
+              <h1 className="text-[24px] font-bold" style={{ color: 'var(--accent)' }}>{tTitle}</h1>
             </motion.div>
 
             <motion.div
@@ -524,7 +538,7 @@ export default function ResultPage() {
               transition={{ duration: 0.4, delay: 0.2 }}
               className="bg-bg-secondary rounded-xl p-5 border border-border"
             >
-              <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap">{traitInfo.description}</p>
+              <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap">{tDescription}</p>
             </motion.div>
 
             <motion.div
