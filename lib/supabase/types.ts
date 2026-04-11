@@ -45,6 +45,7 @@ export interface Database {
           reminded_at: string | null
           invites_count: number
           current_step: number | null
+          contact_author_clicked: boolean
           created_at: string
           updated_at: string
         }
@@ -65,6 +66,7 @@ export interface Database {
           reminded_at?: string | null
           invites_count?: number
           current_step?: number | null
+          contact_author_clicked?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -85,6 +87,7 @@ export interface Database {
           reminded_at?: string | null
           invites_count?: number
           current_step?: number | null
+          contact_author_clicked?: boolean
           created_at?: string
           updated_at?: string
         }

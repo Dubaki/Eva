@@ -19,6 +19,7 @@ type AdminStats = {
     invites_count: number
     last_test_date: string | null
     next_test_available: string | null
+    contact_author_clicked: boolean
   }>
 }
 
@@ -105,6 +106,7 @@ export default function AdminPanel() {
   const [broadcastPhotoPreview, setBroadcastPhotoPreview] = useState<string | null>(null)
   const [broadcasting, setBroadcasting] = useState(false)
   const [broadcastResult, setBroadcastResult] = useState<{ sent: number; failed: number; total: number } | null>(null)
+  const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set())
   // CRM direct message modal
   const [msgModalOpen, setMsgModalOpen] = useState(false)
   const [msgTargetTgId, setMsgTargetTgId] = useState<number | null>(null)
@@ -212,6 +214,9 @@ export default function AdminPanel() {
       if (broadcastPhoto) {
         formData.append('photo', broadcastPhoto)
       }
+      if (selectedUsers.size > 0) {
+        formData.append('target_tg_ids', JSON.stringify(Array.from(selectedUsers)))
+      }
 
       const res = await fetch('/api/admin/broadcast', {
         method: 'POST',
@@ -227,12 +232,29 @@ export default function AdminPanel() {
         setBroadcastMsg('')
         setBroadcastPhoto(null)
         setBroadcastPhotoPreview(null)
+        setSelectedUsers(new Set())
       }
     } catch (err) {
       console.error('[admin] Broadcast error:', err)
     } finally {
       setBroadcasting(false)
     }
+  }
+
+  const toggleUserSelection = (tgId: number) => {
+    setSelectedUsers((prev) => {
+      const next = new Set(prev)
+      if (next.has(tgId)) next.delete(tgId)
+      else next.add(tgId)
+      return next
+    })
+  }
+
+  const toggleAllUsers = () => {
+    if (!stats) return
+    const allIds = stats.recentUsers.map((u) => u.tg_id)
+    const allSelected = allIds.every((id) => selectedUsers.has(id))
+    setSelectedUsers(allSelected ? new Set() : new Set(allIds))
   }
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -468,6 +490,14 @@ export default function AdminPanel() {
                   <table className="w-full text-[12px]">
                     <thead>
                       <tr className="border-b border-gray-100">
+                        <th className="text-center py-2.5 px-1 text-gray-400 font-medium w-8">
+                          <input
+                            type="checkbox"
+                            checked={stats.recentUsers.every((u) => selectedUsers.has(u.tg_id))}
+                            onChange={toggleAllUsers}
+                            className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                        </th>
                         <th className="text-left py-2.5 px-2 text-gray-400 font-medium">Username</th>
                         <th className="text-left py-2.5 px-2 text-gray-400 font-medium">Опора</th>
                         <th className="text-center py-2.5 px-2 text-gray-400 font-medium">🔗</th>
@@ -490,25 +520,37 @@ export default function AdminPanel() {
                           return mul * (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0)
                         })
                         .map((u, i) => (
-                            <tr key={i} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50/50 transition-colors">
+                            <tr key={i} className={`border-b border-gray-100 last:border-b-0 hover:bg-gray-50/50 transition-colors ${
+                              selectedUsers.has(u.tg_id) ? 'bg-blue-50/60' : ''
+                            }`}>
+                              <td className="py-2.5 px-1 text-center">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedUsers.has(u.tg_id)}
+                                  onChange={() => toggleUserSelection(u.tg_id)}
+                                  className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                />
+                              </td>
                               <td className="py-2.5 px-2">
-                                <p className="font-medium text-gray-700 truncate max-w-[120px]">
-                                  {u.username ? (
-                                    <a
-                                      href={`https://t.me/${u.username}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-blue-600 hover:underline"
-                                    >
-                                      @{u.username}
-                                    </a>
-                                  ) : (
-                                    <span className="text-gray-400 text-[11px]">{u.tg_id}</span>
-                                  )}
-                                </p>
-                                <p className="text-[10px] text-gray-400">
-                                  {new Date(u.created_at).toLocaleDateString('ru-RU')}
-                                </p>
+                                <div className="flex flex-col gap-0.5">
+                                  <p className="font-medium text-gray-700 truncate max-w-[120px]">
+                                    {u.username ? (
+                                      <a
+                                        href={`https://t.me/${u.username}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:underline"
+                                      >
+                                        @{u.username}
+                                      </a>
+                                    ) : (
+                                      <span className="text-gray-400 text-[11px]">{u.tg_id}</span>
+                                    )}
+                                  </p>
+                                  <p className="text-[10px] text-gray-400">
+                                    {new Date(u.created_at).toLocaleDateString('ru-RU')}
+                                  </p>
+                                </div>
                               </td>
                               <td className="py-2.5 px-2 text-center">
                                 {u.dominantTrait ? (
@@ -530,13 +572,20 @@ export default function AdminPanel() {
                                 )}
                               </td>
                               <td className="py-2.5 px-2 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => openMessageModal(u.tg_id, u.username)}
-                                  className="text-[11px] px-2 py-1 rounded-md bg-gray-50 text-gray-500 hover:bg-blue-500 hover:text-white transition-all font-medium"
-                                >
-                                  ✉️
-                                </button>
+                                <div className="flex flex-col items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => openMessageModal(u.tg_id, u.username)}
+                                    className="text-[11px] px-2 py-1 rounded-md bg-gray-50 text-gray-500 hover:bg-blue-500 hover:text-white transition-all font-medium"
+                                  >
+                                    ✉️
+                                  </button>
+                                  {u.contact_author_clicked && (
+                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600 text-[9px] font-semibold leading-none">
+                                      🔥 Запросил
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           )
@@ -611,9 +660,22 @@ export default function AdminPanel() {
         {/* ════════════ BROADCAST TAB ════════════ */}
         {activeTab === 'broadcast' && (
           <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 shadow-sm border border-gray-100">
-            <p className="text-gray-400 text-xs uppercase tracking-widest mb-4 text-center font-medium">
-              Рассылка всем пользователям
-            </p>
+            <div className="text-center mb-4">
+              <p className="text-gray-400 text-xs uppercase tracking-widest font-medium">
+                {selectedUsers.size > 0
+                  ? `Рассылка выбранным (${selectedUsers.size})`
+                  : 'Рассылка всем пользователям'}
+              </p>
+              {selectedUsers.size > 0 && (
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab('crm') }}
+                  className="text-[11px] text-blue-500 hover:text-blue-700 mt-1 font-medium"
+                >
+                  ← Выбрать в CRM
+                </button>
+              )}
+            </div>
 
             {/* Photo upload */}
             <div className="mb-3">

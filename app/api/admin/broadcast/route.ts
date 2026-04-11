@@ -71,8 +71,8 @@ async function sendPhotoMessage(chatId: number, photoBuffer: Buffer, caption: st
 }
 
 /**
- * POST /api/admin/broadcast — send broadcast to all users
- * Accepts FormData: message (text) + photo (optional file)
+ * POST /api/admin/broadcast — send broadcast to all users or selected users
+ * Accepts FormData: message (text), photo (optional file), target_tg_ids (optional JSON array)
  */
 export async function POST(req: NextRequest) {
   const isAdmin = await checkAdmin(req)
@@ -83,15 +83,28 @@ export async function POST(req: NextRequest) {
   // Parse FormData
   let message = ''
   let photoBuffer: Buffer | null = null
+  let targetTgIds: number[] | null = null
 
   try {
     const formData = await req.formData()
     message = formData.get('message') as string ?? ''
     const photoFile = formData.get('photo') as File | null
+    const targetIdsRaw = formData.get('target_tg_ids') as string | null
 
     if (photoFile && photoFile.size > 0) {
       const bytes = await photoFile.arrayBuffer()
       photoBuffer = Buffer.from(bytes)
+    }
+
+    if (targetIdsRaw) {
+      try {
+        targetTgIds = JSON.parse(targetIdsRaw) as number[]
+        if (!Array.isArray(targetTgIds) || !targetTgIds.every((id) => typeof id === 'number')) {
+          targetTgIds = null
+        }
+      } catch {
+        targetTgIds = null
+      }
     }
   } catch {
     return NextResponse.json({ success: false, error: 'Invalid form data' }, { status: 400 })
@@ -103,17 +116,31 @@ export async function POST(req: NextRequest) {
 
   const supabase = getSupabaseServer()
 
-  // Get all user tg_ids
-  const { data: users, error } = await supabase
-    .from('profiles')
-    .select('tg_id')
+  // Get user tg_ids — either selected or all
+  let users: Array<{ tg_id: number }>
+  if (targetTgIds && targetTgIds.length > 0) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('tg_id')
+      .in('tg_id', targetTgIds)
 
-  if (error || !users) {
-    return NextResponse.json({ success: false, error: 'Database error' }, { status: 500 })
+    if (error || !data) {
+      return NextResponse.json({ success: false, error: 'Database error' }, { status: 500 })
+    }
+    users = data
+  } else {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('tg_id')
+
+    if (error || !data) {
+      return NextResponse.json({ success: false, error: 'Database error' }, { status: 500 })
+    }
+    users = data
   }
 
   const totalUsers = users.length
-  console.log(`[broadcast] Starting broadcast to ${totalUsers} users (hasPhoto: ${!!photoBuffer})`)
+  console.log(`[broadcast] Starting broadcast to ${totalUsers} users (hasPhoto: ${!!photoBuffer}, targeted: ${!!targetTgIds})`)
 
   // Send messages with per-user try/catch — one blocked user won't stop the rest
   let sent = 0

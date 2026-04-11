@@ -226,6 +226,15 @@ export default function ResultPage() {
     const mixedKey = result ? getMixedTraitKey(result.scores) : ''
     const mixedTraitName = MIXED_TRAIT_NAMES[mixedKey] || 'Не определено'
 
+    // Mark contact_author_clicked in DB
+    if (userId) {
+      fetch('/api/user/contact-author', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tgId: userId }),
+      }).catch((err) => console.error('[contact-author] Error:', err))
+    }
+
     fetch('/api/notify-author', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -240,6 +249,29 @@ export default function ResultPage() {
 
     openTelegramDM('Пробой')
   }, [result, openTelegramDM])
+
+  // ── Pyramid click: mark contact and open Telegram ────────────────────
+  const handlePyramidClick = useCallback(() => {
+    const profileRaw = localStorage.getItem('eva_profile')
+    let userId: number | null = null
+    if (profileRaw) {
+      try {
+        const p = JSON.parse(profileRaw) as StoredProfile
+        userId = p.tg_id ?? null
+      } catch { /* ignore */ }
+    }
+
+    // Mark contact_author_clicked in DB
+    if (userId) {
+      fetch('/api/user/contact-author', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tgId: userId }),
+      }).catch((err) => console.error('[contact-author] Error:', err))
+    }
+
+    openTelegramDM('Пирамида')
+  }, [openTelegramDM])
 
   // ── "Пока не готова" handler ─────────────────────────────────────────
   const handleNotReady = useCallback(() => {
@@ -753,7 +785,7 @@ export default function ResultPage() {
               <motion.button type="button" whileTap={{ scale: 0.97 }}
                 className="w-full py-3 rounded-xl font-semibold text-[15px] border"
                 style={{ background: 'transparent', borderColor: 'var(--accent)', color: 'var(--accent)' }}
-                onClick={() => openTelegramDM('Пирамида')}>
+                onClick={handlePyramidClick}>
                 Мягкий постепенный
               </motion.button>
               <motion.button type="button" whileTap={{ scale: 0.97 }}

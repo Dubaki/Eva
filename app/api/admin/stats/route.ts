@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
   // Recent 50 users with their test results and referral data
   const { data: recentUsers } = await supabase
     .from('profiles')
-    .select('id, tg_id, username, created_at, invites_count, last_test_date')
+    .select('id, tg_id, username, created_at, invites_count, last_test_date, contact_author_clicked')
     .order('created_at', { ascending: false })
     .limit(50)
 
@@ -115,6 +115,7 @@ export async function GET(req: NextRequest) {
         invites_count: user.invites_count ?? 0,
         last_test_date: lastTest,
         next_test_available: nextTestAvailable,
+        contact_author_clicked: user.contact_author_clicked ?? false,
       }
     })
   )
