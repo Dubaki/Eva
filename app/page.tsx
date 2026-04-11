@@ -170,8 +170,17 @@ export default function Home() {
               <motion.button
                 type="button"
                 whileTap={{ scale: 0.97 }}
+                onClick={() => window.location.href = '/result'}
+                className="w-full py-4 px-6 rounded-2xl font-semibold text-[16px] text-white shadow-lg active:scale-[0.98] transition-all"
+                style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+              >
+                🎁 Забрать приз
+              </motion.button>
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.97 }}
                 onClick={() => openAuthorContact()}
-                className="w-full py-4 px-6 rounded-2xl font-semibold text-[15px] text-white shadow-lg active:scale-[0.98] transition-all"
+                className="w-full py-3.5 px-6 rounded-2xl font-semibold text-[15px] text-white shadow-md active:scale-[0.98] transition-all"
                 style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
               >
                 💬 Связь с Автором
