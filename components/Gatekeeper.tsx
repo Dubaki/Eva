@@ -6,7 +6,12 @@ import { motion } from 'framer-motion'
 const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
 const COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000 // 60 days
 
-export default function Gatekeeper({ children }: { children: React.ReactNode }) {
+export type GatekeeperState =
+  | { checking: true }
+  | { checking: false; blocked: true; reason: 'not_subscribed' | 'cooldown' | 'no_webapp'; cooldownDays?: number }
+  | { checking: false; blocked: false; cooldownDays?: number }
+
+export default function Gatekeeper({ children, onStatus }: { children: React.ReactNode; onStatus?: (status: GatekeeperState) => void }) {
   const [checking, setChecking] = useState(true)
   const [blocked, setBlocked] = useState(false)
   const [reason, setReason] = useState<'not_subscribed' | 'cooldown' | 'no_webapp' | null>(null)
@@ -58,16 +63,15 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
           return
         }
 
-        // Gate 2: Cooldown check
+        // Gate 2: Cooldown check — DO NOT REDIRECT, just inform
         if (lastTestDate) {
           const elapsed = Date.now() - new Date(lastTestDate).getTime()
           if (elapsed < COOLDOWN_MS) {
             const daysLeft = Math.ceil((COOLDOWN_MS - elapsed) / (24 * 60 * 60 * 1000))
             setCooldownDays(daysLeft)
-            if (hasTestResult) {
-              window.location.href = '/result'
-              return
-            }
+            // If user has a test result, they're on cooldown — but we DON'T redirect
+            // They can still access results and referrals, just not start a new test
+            console.log(`[Gatekeeper] User on cooldown: ${daysLeft} days remaining`)
           }
         }
 

@@ -154,17 +154,31 @@ export default function ResultPage() {
     setFunnelStep('referral-link')
   }, [userTgId])
 
-  // ── Share via Telegram ───────────────────────────────────────────────
+  // ── Share via Telegram (multi-select) ────────────────────────────────────
   const handleShare = useCallback(() => {
     const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('Пройди этот тест и узнай, какой механизм снова и снова приводит тебя к одним и тем же проблемам.')}`
     const tgWebApp = (window as unknown as {
       Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } }
     }).Telegram?.WebApp
 
-    if (tgWebApp?.openTelegramLink) {
+    // Try native Web Share API first — on mobile it allows multi-select
+    if (navigator.share) {
+      navigator.share({
+        title: 'EVA — Тест на опоры',
+        text: 'Пройди этот тест и узнай свою внутреннюю опору!',
+        url: refLink,
+      }).catch(() => {
+        // User cancelled share — fallback to Telegram share URL
+        if (tgWebApp?.openTelegramLink) {
+          tgWebApp.openTelegramLink(shareUrl)
+        } else {
+          window.open(shareUrl, '_blank')
+        }
+      })
+    } else if (tgWebApp?.openTelegramLink) {
       tgWebApp.openTelegramLink(shareUrl)
-    } else if (navigator.share) {
-      navigator.share({ title: 'EVA', text: 'Пройди этот тест!', url: refLink }).catch(() => { /* ignore */ })
+    } else {
+      window.open(shareUrl, '_blank')
     }
   }, [refLink])
 
@@ -591,6 +605,12 @@ export default function ResultPage() {
                 style={{ background: 'var(--accent)' }}
                 onClick={() => handleCooldownButton(true)}>
                 Узнать 2 опору сейчас
+              </motion.button>
+              <motion.button type="button" whileTap={{ scale: 0.97 }}
+                className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
+                style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                onClick={() => handleCooldownButton(true)}>
+                🎁 Пригласить друга — получить приз
               </motion.button>
               <motion.button type="button" whileTap={{ scale: 0.97 }}
                 className="w-full py-3 rounded-xl font-semibold text-[15px] border"

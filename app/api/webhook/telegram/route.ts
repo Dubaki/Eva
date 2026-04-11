@@ -98,20 +98,14 @@ async function handleStart(chatId: number, userId: number, refCode: number | nul
         .single()
 
       if (referrer && referrer.id) {
-        // Set referrer_id for the new user
+        // Set referrer_id for the new user (invites_count will be incremented
+        // in handleSubscriptionCheck when user actually subscribes)
         await supabase
           .from('profiles')
           .update({ referrer_id: referrer.id })
           .eq('tg_id', userId)
 
-        // Increment referrer's invites_count
-        const newCount = (referrer.invites_count ?? 0) + 1
-        await supabase
-          .from('profiles')
-          .update({ invites_count: newCount })
-          .eq('id', referrer.id)
-
-        console.log(`[webhook] Referral linked: tg_id=${userId} → referrer tg_id=${refCode}, invites_count=${newCount}`)
+        console.log(`[webhook] Referral linked: tg_id=${userId} → referrer tg_id=${refCode}`)
       } else {
         console.log(`[webhook] Referral code ${refCode} not found in profiles`)
       }

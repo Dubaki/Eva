@@ -263,11 +263,11 @@ export async function deleteWebhook(): Promise<boolean> {
 
 /**
  * Extracts the referral code from a /start command text.
- * E.g. "/start ref12345" → 12345
+ * E.g. "/start ref_12345" → 12345  or  "/start ref12345" → 12345
  */
 export function extractReferralCode(text: string): number | null {
-  // Match /start ref<digits> or just ref<digits>
-  const match = text.match(/\/start\s+ref(\d+)/i) || text.match(/ref(\d+)/i)
+  // Match /start ref_<digits> or /start ref<digits>
+  const match = text.match(/\/start\s+ref[_-]?(\d+)/i) || text.match(/ref[_-]?(\d+)/i)
   if (match) {
     const code = parseInt(match[1], 10)
     if (!isNaN(code) && code > 0) return code
