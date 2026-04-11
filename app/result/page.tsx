@@ -156,8 +156,8 @@ export default function ResultPage() {
   // ── Referral gate: "Открыть за рекомендацию" ─────────────────────────
   const handleReferralGate = useCallback(() => {
     const link = userTgId
-      ? `https://t.me/sprosievubot/app?startapp=${userTgId}`
-      : 'https://t.me/sprosievubot/app'
+      ? `https://t.me/sprosievubot?start=ref_${userTgId}`
+      : 'https://t.me/sprosievubot'
     setRefLink(link)
     setFunnelStep('referral-link')
   }, [userTgId])
