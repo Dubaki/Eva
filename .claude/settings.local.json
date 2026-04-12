@@ -2,7 +2,16 @@
   "permissions": {
     "allow": [
       "Bash(npx tsc:*)",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "Bash(cat /c/eva/tasks/done/*.md)",
+      "Bash(grep -oE '^[0-9]+[a-z]?_?\\(.*\\)\\\\.md$')",
+      "Bash(sed 's/\\\\.md$//')",
+      "Read(//tmp/**)",
+      "Bash(cat)",
+      "Bash(bash /tmp/classify_tasks.sh)",
+      "Bash(ls /c/eva/tasks/done/*.md)",
+      "Bash(sed 's/_.*$//')",
+      "Bash(grep -l \"emergency\\\\|critical\\\\|hotfix\\\\|kill\\\\|patch\\\\|repair\\\\|revert\\\\|overhaul\\\\|debug\" /c/eva/tasks/done/*.md)"
     ]
   }
 }

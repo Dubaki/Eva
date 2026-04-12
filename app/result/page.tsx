@@ -301,11 +301,11 @@ export default function ResultPage() {
 
   // ── "Забрать подарок" handler ────────────────────────────────────────
   const handleClaimGift = useCallback(async () => {
-    // Get user's selected_sphere from profile
+    // Determine sphere from survey answer (preferred) or profile
+    let selectedSphere = surveyAnswers[0] || ''
     const token = localStorage.getItem('eva_token')
-    let selectedSphere = 'other'
 
-    if (token) {
+    if (!selectedSphere && token) {
       try {
         const res = await fetch('/api/user/status', {
           headers: { Authorization: `Bearer ${token}` },
@@ -369,7 +369,7 @@ export default function ResultPage() {
     setTimeout(() => {
       tgWebApp?.close?.()
     }, 2000)
-  }, [])
+  }, [surveyAnswers])
 
   // ── Loading / No result ──────────────────────────────────────────────
   if (loading) {
