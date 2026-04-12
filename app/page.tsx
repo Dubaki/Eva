@@ -183,35 +183,35 @@ export default function Home() {
 
   return (
     <main className="flex h-screen flex-col bg-bg-primary overflow-hidden">
-      <div className="flex flex-col flex-1 px-6 pt-12 pb-10 justify-between">
-        <div className="flex flex-col gap-6">
+      <div className="flex flex-col flex-1 px-6 pt-8 pb-6 justify-between overflow-y-auto">
+        <div className="flex flex-col gap-4">
           {/* Heading + body — no image */}
-          <motion.div {...fadeUp(0.22)} className="flex flex-col gap-3">
+          <motion.div {...fadeUp(0.22)} className="flex flex-col gap-2">
             <h1
-              className="text-[24px] font-bold leading-[1.2] tracking-[-0.02em] text-text-primary cursor-pointer select-none"
+              className="text-[22px] font-bold leading-[1.2] tracking-[-0.02em] text-text-primary cursor-pointer select-none"
               onClick={handleTitleClick}
             >
               У каждого человека есть внутренняя <span className="text-accent">«опора»</span>
             </h1>
-            <p className="text-[15px] leading-[1.6] text-text-secondary opacity-90">
+            <p className="text-[14px] leading-[1.5] text-text-secondary opacity-90">
               — способ держать себя в жизни. Часто эта опора искажается. Снаружи это выглядит как характер или привычки, а на деле — устойчивый механизм, который:
             </p>
-            <p className="text-[15px] leading-[1.7] text-text-secondary opacity-90">
+            <p className="text-[14px] leading-[1.6] text-text-secondary opacity-90">
               — повторяет одни и те же сценарии{'\n'}
               — создаёт одни и те же проблемы{'\n'}
               — не даёт выйти из замкнутого круга
             </p>
-            <p className="text-[15px] leading-[1.6] text-text-primary font-medium opacity-90">
+            <p className="text-[14px] leading-[1.5] text-text-primary font-medium opacity-90">
               Сейчас ты увидишь, какая опора у тебя доминирует.
             </p>
           </motion.div>
 
           {/* Meta pills */}
           <motion.div {...fadeUp(0.38)} className="flex gap-2">
-            <span className="text-[13px] font-medium text-text-muted bg-bg-secondary border border-border rounded-full px-3.5 py-2 leading-none">
+            <span className="text-[12px] font-medium text-text-muted bg-bg-secondary border border-border rounded-full px-3 py-1.5 leading-none">
               25 вопросов
             </span>
-            <span className="text-[13px] font-medium text-text-muted bg-bg-secondary border border-border rounded-full px-3.5 py-2 leading-none">
+            <span className="text-[12px] font-medium text-text-muted bg-bg-secondary border border-border rounded-full px-3 py-1.5 leading-none">
               ~5 минут
             </span>
           </motion.div>
@@ -223,11 +223,11 @@ export default function Home() {
           className="w-full mt-auto"
         >
           {cooldownDays !== null && cooldownDays > 0 ? (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2">
               <button
                 type="button"
                 disabled
-                className="w-full py-[20px] px-6 bg-bg-tertiary text-text-muted rounded-2xl font-semibold text-[15px] select-none cursor-not-allowed border border-border"
+                className="w-full py-3 px-4 bg-bg-tertiary text-text-muted rounded-xl font-semibold text-[13px] select-none cursor-not-allowed border border-border"
               >
                 Опора ещё формируется. Повторный тест будет доступен через {cooldownDays} {cooldownDays === 1 ? 'день' : cooldownDays < 5 ? 'дня' : 'дней'}
               </button>
@@ -235,7 +235,7 @@ export default function Home() {
                 type="button"
                 whileTap={{ scale: 0.97 }}
                 onClick={() => window.location.href = '/result?referral=1'}
-                className="w-full py-4 px-6 rounded-2xl font-semibold text-[16px] text-white shadow-lg active:scale-[0.98] transition-all"
+                className="w-full py-3 px-4 rounded-xl font-semibold text-[15px] text-white shadow-lg active:scale-[0.98] transition-all"
                 style={{ background: '#2563eb' }}
               >
                 Забрать приз
@@ -244,7 +244,7 @@ export default function Home() {
                 type="button"
                 whileTap={{ scale: 0.97 }}
                 onClick={() => openAuthorContact()}
-                className="w-full py-3.5 px-6 rounded-2xl font-semibold text-[15px] text-white shadow-md active:scale-[0.98] transition-all"
+                className="w-full py-3 px-4 rounded-xl font-semibold text-[14px] text-white shadow-md active:scale-[0.98] transition-all"
                 style={{ background: '#2563eb' }}
               >
                 Связь с Автором
@@ -254,7 +254,7 @@ export default function Home() {
             <Link href="/test" prefetch={true} className="block w-full">
               <button
                 type="button"
-                className="w-full py-[20px] px-6 rounded-2xl font-semibold text-[17px] tracking-[-0.01em] active:scale-[0.98] transition-all duration-200 select-none shadow-lg text-white"
+                className="w-full py-3 px-4 rounded-xl font-semibold text-[16px] active:scale-[0.98] transition-all duration-200 select-none shadow-lg text-white"
                 style={{ background: '#2563eb' }}
               >
                 Пройти тест

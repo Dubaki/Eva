@@ -162,13 +162,26 @@ export default function ResultPage() {
     setFunnelStep('referral-link')
   }, [userTgId])
 
-  // ── Share via Telegram (triggers bot to send ready-to-forward message) ──
-  const handleShare = useCallback(() => {
+  // ── Share via Telegram: call API to trigger bot messages, then open bot ──
+  const handleShare = useCallback(async () => {
     const tgWebApp = (window as unknown as {
-      Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void; sendData?: (data: string) => void } }
+      Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } }; openTelegramLink?: (url: string) => void } }
     }).Telegram?.WebApp
+    const currentTgId = tgWebApp?.initDataUnsafe?.user?.id ?? null
 
-    // Open bot chat with callback trigger
+    if (currentTgId) {
+      try {
+        await fetch('/api/user/share-clicked', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tgId: currentTgId }),
+        })
+      } catch (err) {
+        console.error('[share] API call failed:', err)
+      }
+    }
+
+    // Open bot chat
     const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME ?? 'sprosievubot'
     const botUrl = `https://t.me/${botUsername}`
 
@@ -680,17 +693,6 @@ export default function ResultPage() {
                   {copied ? 'Скопировано' : 'Копировать'}
                 </motion.button>
               </div>
-            </div>
-
-            {/* Referral program text */}
-            <div className="bg-bg-secondary rounded-xl p-4 border border-border mb-4">
-              <p className="text-text-secondary text-[14px] leading-relaxed whitespace-pre-wrap">
-{`Чем больше ты приглашаешь друзей, тем больше призов ты получаешь!
-• за 2х подруг тебе откроется твоя смешанная опора!
-• за 5 подруг приятный приз
-• за 10 подруг бесплатная личная Online консультация
-В конце каждого месяца я разыграю супер приз среди тех, кто больше привёл подруг - результаты розыгрыша я размещу в канале!`}
-              </p>
             </div>
 
             <p className="text-text-secondary text-[14px] leading-relaxed mb-5">
