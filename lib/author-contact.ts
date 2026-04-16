@@ -1,5 +1,3 @@
-import WebApp from '@twa-dev/sdk'
-
 /**
  * Global helper: track author contact clicks.
  * Fires a fire-and-forget request to mark `contact_author_clicked = true`,
@@ -14,6 +12,11 @@ const AUTHOR_USERNAME = 'evapatrakhina'
  * @param prefill - Optional prefill text appended to the URL as `?text=...`
  */
 export function openAuthorContact(prefill?: string): void {
+  // SSR check
+  if (typeof window === 'undefined') return;
+
+  const WebApp = (window as any).Telegram?.WebApp;
+
   // Fire-and-forget: mark contact in DB
   try {
     const profileRaw = typeof localStorage !== 'undefined'
@@ -39,12 +42,15 @@ export function openAuthorContact(prefill?: string): void {
     : `https://t.me/${AUTHOR_USERNAME}`
 
   try {
-    WebApp.openTelegramLink(url)
-    
-    // Auto-close Mini App after a short delay so the user lands in the chat
-    setTimeout(() => {
-      WebApp.close()
-    }, 1000)
+    if (WebApp?.openTelegramLink) {
+      WebApp.openTelegramLink(url)
+      // Auto-close Mini App after a short delay so the user lands in the chat
+      setTimeout(() => {
+        WebApp.close()
+      }, 1000)
+    } else {
+      window.open(url, '_blank')
+    }
   } catch (err) {
     console.error('[openAuthorContact] WebApp navigation failed:', err)
     window.open(url, '_blank')

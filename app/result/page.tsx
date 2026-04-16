@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
-import WebApp from '@twa-dev/sdk'
 import { getTraitInfo } from '@/lib/scoring'
 import ConfirmModal from '@/components/ConfirmModal'
 import { openAuthorContact } from '@/lib/author-contact'
@@ -165,7 +164,10 @@ export default function ResultPage() {
 
   // ── Share via Telegram: call API to trigger bot messages, then open share sheet ──
   const handleShare = useCallback(async () => {
-    const currentTgId = WebApp.initDataUnsafe?.user?.id ?? null
+    if (typeof window === 'undefined') return
+
+    const WebApp = (window as any).Telegram?.WebApp
+    const currentTgId = WebApp?.initDataUnsafe?.user?.id ?? null
 
     // 1. Notify backend to trigger CRM/Bot sequence
     if (currentTgId) {
@@ -185,12 +187,16 @@ export default function ResultPage() {
     
     try {
       // In newer SDK versions utils.shareURL exists
-      if ((WebApp as any).utils?.shareURL) {
-        (WebApp as any).utils.shareURL(refLink, shareText)
+      if (WebApp?.utils?.shareURL) {
+        WebApp.utils.shareURL(refLink, shareText)
       } else {
         // Fallback to t.me/share/url
         const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(shareText)}`
-        WebApp.openTelegramLink(shareUrl)
+        if (WebApp?.openTelegramLink) {
+          WebApp.openTelegramLink(shareUrl)
+        } else {
+          window.open(shareUrl, '_blank')
+        }
       }
     } catch (err) {
       console.error('[share] Native share failed, using fallback:', err)
@@ -227,21 +233,32 @@ export default function ResultPage() {
 
   // ── Close Mini App ───────────────────────────────────────────────────
   const closeApp = useCallback(() => {
-    WebApp.close()
+    if (typeof window !== 'undefined') {
+      (window as any).Telegram?.WebApp?.close?.()
+    }
   }, [])
 
   // ── Open Telegram DM ─────────────────────────────────────────────────
   const openTelegramDM = useCallback((prefill: string) => {
     const dmUrl = `https://t.me/${AUTHOR_USERNAME}${prefill ? `?text=${encodeURIComponent(prefill)}` : ''}`
 
-    try {
-      WebApp.openTelegramLink(dmUrl)
-      // Auto-close after 500ms
-      setTimeout(() => {
-        WebApp.close()
-      }, 500)
-    } catch (err) {
-      console.error('[openTelegramDM] Error:', err)
+    if (typeof window !== 'undefined') {
+      const WebApp = (window as any).Telegram?.WebApp
+      try {
+        if (WebApp?.openTelegramLink) {
+          WebApp.openTelegramLink(dmUrl)
+          // Auto-close after 500ms
+          setTimeout(() => {
+            WebApp.close()
+          }, 500)
+        } else {
+          window.open(dmUrl, '_blank')
+        }
+      } catch (err) {
+        console.error('[openTelegramDM] Error:', err)
+        window.open(dmUrl, '_blank')
+      }
+    } else {
       window.open(dmUrl, '_blank')
     }
   }, [])
@@ -349,20 +366,29 @@ export default function ResultPage() {
     }).catch((err) => console.error('[send-gift-message] Error:', err))
 
     // Open gift link and close
-    try {
-      WebApp.openLink(giftUrl)
-    } catch (err) {
-      console.error('[claim-gift] openLink failed:', err)
+    if (typeof window !== 'undefined') {
+      const WebApp = (window as any).Telegram?.WebApp
+      try {
+        if (WebApp?.openLink) {
+          WebApp.openLink(giftUrl)
+        } else {
+          window.open(giftUrl, '_blank')
+        }
+      } catch (err) {
+        console.error('[claim-gift] openLink failed:', err)
+        window.open(giftUrl, '_blank')
+      }
+
+      // Show "Переходим к подарку..." then close after delay
+      setFunnelStep('gift-claiming')
+
+      // Auto-close after 2 seconds
+      setTimeout(() => {
+        WebApp?.close?.()
+      }, 2000)
+    } else {
       window.open(giftUrl, '_blank')
     }
-
-    // Show "Переходим к подарку..." then close after delay
-    setFunnelStep('gift-claiming')
-
-    // Auto-close after 2 seconds
-    setTimeout(() => {
-      WebApp.close()
-    }, 2000)
   }, [surveyAnswers])
 
 

@@ -23,6 +23,8 @@ export function shareReferralLink(
 }
 
 function openInTelegram(url: string): void {
+  if (typeof window === 'undefined') return
+
   try {
     const tgWebApp = (
       window as unknown as {
