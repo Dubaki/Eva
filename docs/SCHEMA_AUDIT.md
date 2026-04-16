@@ -25,6 +25,7 @@
 | `referrals_count` | INTEGER | DEFAULT 0 | Кэш количества рефералов |
 | `invites_count` | INTEGER | DEFAULT 0 | Счётчик подтвержденных подписок |
 | `current_step` | INTEGER | DEFAULT NULL | Текущий вопрос теста (persistence) |
+| `shared_at` | TIMESTAMPTZ | DEFAULT NULL | Дата последнего шеринга (Phase 11) |
 | `contact_author_clicked` | BOOLEAN | DEFAULT FALSE | Флаг запроса связи с автором |
 | `reminded_at` | TIMESTAMPTZ | NULL | Метка последнего напоминания |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | Дата регистрации |
