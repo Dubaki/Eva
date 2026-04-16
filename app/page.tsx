@@ -17,7 +17,9 @@ const fadeUp = (delay: number) => ({
 
 export default function Home() {
   const clickTimesRef = useRef<number[]>([])
-  const gatekeeper = useGatekeeper()
+  // Получаем данные о блокировке ТОЛЬКО из единого источника (Gatekeeper)
+  const gatekeeperState = useGatekeeper()
+  const cooldownDays = 'cooldownDays' in gatekeeperState ? gatekeeperState.cooldownDays : null
 
   const handleTitleClick = useCallback(() => {
     const now = Date.now()
@@ -27,34 +29,20 @@ export default function Home() {
     if (clickTimesRef.current.length >= 5) {
       clickTimesRef.current = []
       const pin = window.prompt('Введите PIN-код')
+      if (pin === null) return 
       if (pin === ADMIN_PIN) {
         localStorage.setItem('isAdmin', 'true')
         window.location.href = '/admin'
-      } else if (pin !== null) {
+      } else {
         alert('❌ Неверный PIN-код')
       }
     }
   }, [])
 
-  if (gatekeeper.checking) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-bg-primary">
-        <motion.div
-          className="w-10 h-10 border-2 border-accent border-t-transparent rounded-full"
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-        />
-      </main>
-    )
-  }
-
-  const cooldownDays = gatekeeper.blocked === false ? (gatekeeper.cooldownDays ?? null) : null
-
   return (
     <main className="flex h-screen flex-col bg-bg-primary overflow-hidden">
       <div className="flex flex-col flex-1 px-6 pt-8 pb-6 justify-between overflow-y-auto">
         <div className="flex flex-col gap-4">
-          {/* Heading + body — no image */}
           <motion.div {...fadeUp(0.22)} className="flex flex-col gap-2">
             <h1
               className="text-[22px] font-bold leading-[1.2] tracking-[-0.02em] text-text-primary cursor-pointer select-none"
@@ -75,7 +63,6 @@ export default function Home() {
             </p>
           </motion.div>
 
-          {/* Meta pills */}
           <motion.div {...fadeUp(0.38)} className="flex gap-2">
             <span className="text-[12px] font-medium text-text-muted bg-bg-secondary border border-border rounded-full px-3 py-1.5 leading-none">
               {QUESTIONS.length} вопросов
@@ -86,12 +73,8 @@ export default function Home() {
           </motion.div>
         </div>
 
-        {/* CTA button */}
-        <motion.div
-          {...fadeUp(0.52)}
-          className="w-full mt-auto"
-        >
-          {(cooldownDays !== null && cooldownDays > 0) ? (
+        <motion.div {...fadeUp(0.52)} className="w-full mt-auto">
+          {cooldownDays !== null && cooldownDays > 0 ? (
             <div className="flex flex-col gap-2">
               <button
                 type="button"

@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { getStoredInviterTgId } from '@/components/providers/AuthProvider'
 
 const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
-const COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000 // 60 days
+const COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000 
 
 export type GatekeeperState =
   | { checking: true }
@@ -22,24 +22,22 @@ export default function Gatekeeper({ children, onStatus }: { children: React.Rea
   const [subError, setSubError] = useState<string | null>(null)
 
   const check = useCallback(async () => {
-    // Get tgId directly from Telegram WebApp — no JWT needed
     const WebApp = typeof window !== 'undefined'
-      ? (window as unknown as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } } }).Telegram?.WebApp
+      ? (window as any).Telegram?.WebApp
       : null
     const currentTgId = WebApp?.initDataUnsafe?.user?.id ?? null
 
+    // АБСОЛЮТНАЯ БЛОКИРОВКА ЕСЛИ НЕТ ID (Уязвимость закрыта)
     if (!currentTgId) {
-      console.warn('[Gatekeeper] No WebApp tgId — user not in Telegram')
-      const newState: GatekeeperState = { checking: false, blocked: false }
+      console.warn('[Gatekeeper] No WebApp tgId — blocked')
+      const newState: GatekeeperState = { checking: false, blocked: true, reason: 'no_webapp' }
       setState(newState)
       onStatus?.(newState)
       return
     }
 
-    // Check if user is a tester (God mode)
     const isTester = TESTER_IDS.includes(String(currentTgId))
     if (isTester) {
-      console.log('[Gatekeeper] Tester bypass:', currentTgId)
       const newState: GatekeeperState = { checking: false, blocked: false }
       setState(newState)
       onStatus?.(newState)
@@ -47,15 +45,11 @@ export default function Gatekeeper({ children, onStatus }: { children: React.Rea
     }
 
     try {
-      // Fetch profile status via tg_id — no JWT, service_role on server side
       const res = await fetch(`/api/user/status?tg_id=${currentTgId}`)
       const json = await res.json()
 
-      console.log('[Gatekeeper] /api/user/status response:', JSON.stringify(json))
-
       if (!json.success) {
-        console.error('[Gatekeeper] Status check failed:', json.error)
-        const newState: GatekeeperState = { checking: false, blocked: false }
+        const newState: GatekeeperState = { checking: false, blocked: true, reason: 'not_subscribed' }
         setState(newState)
         onStatus?.(newState)
         return
@@ -63,9 +57,7 @@ export default function Gatekeeper({ children, onStatus }: { children: React.Rea
 
       const { isSubscribed, lastTestDate } = json.data
 
-      // Gate 1: Subscription check
       if (!isSubscribed) {
-        console.warn('[Gatekeeper] User not subscribed: isSubscribed=false')
         const newState: GatekeeperState = { checking: false, blocked: true, reason: 'not_subscribed' }
         setState(newState)
         onStatus?.(newState)
@@ -73,12 +65,10 @@ export default function Gatekeeper({ children, onStatus }: { children: React.Rea
       }
 
       let daysLeft = 0
-      // Gate 2: Cooldown check — DO NOT REDIRECT, just inform
       if (lastTestDate) {
         const elapsed = Date.now() - new Date(lastTestDate).getTime()
         if (elapsed < COOLDOWN_MS) {
           daysLeft = Math.ceil((COOLDOWN_MS - elapsed) / (24 * 60 * 60 * 1000))
-          console.log(`[Gatekeeper] User on cooldown: ${daysLeft} days remaining`)
         }
       }
 
@@ -86,8 +76,7 @@ export default function Gatekeeper({ children, onStatus }: { children: React.Rea
       setState(newState)
       onStatus?.(newState)
     } catch (err) {
-      console.error('[Gatekeeper] Error:', err)
-      const newState: GatekeeperState = { checking: false, blocked: false }
+      const newState: GatekeeperState = { checking: false, blocked: true, reason: 'not_subscribed' }
       setState(newState)
       onStatus?.(newState)
     }
@@ -101,9 +90,7 @@ export default function Gatekeeper({ children, onStatus }: { children: React.Rea
     setConfirmingSub(true)
     setSubError(null)
 
-    const WebApp = (window as unknown as {
-      Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } }
-    }).Telegram?.WebApp
+    const WebApp = (window as any).Telegram?.WebApp
     const currentTgId = WebApp?.initDataUnsafe?.user?.id ?? null
 
     if (!currentTgId) {
@@ -124,8 +111,7 @@ export default function Gatekeeper({ children, onStatus }: { children: React.Rea
       const json = await res.json()
 
       if (json.success) {
-        console.log('[Gatekeeper] Subscription confirmed, re-checking…')
-        await check()
+        await check() // Перепроверяем статус и пускаем в приложение
       } else {
         const errMsg = json.error === 'not_subscribed'
           ? 'Подписка не найдена. Пожалуйста, подпишитесь на канал и попробуйте снова.'
@@ -133,20 +119,15 @@ export default function Gatekeeper({ children, onStatus }: { children: React.Rea
         setSubError(errMsg)
       }
     } catch {
-      setSubError('Ошибка сети. Проверьте интернет-соединение и попробуйте снова.')
+      setSubError('Ошибка сети. Проверьте интернет-соединение.')
     }
-
     setConfirmingSub(false)
   }, [check])
 
   if (state.checking) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-bg-primary">
-        <motion.div
-          className="w-10 h-10 border-2 border-accent border-t-transparent rounded-full"
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-        />
+        <motion.div className="w-10 h-10 border-2 border-accent border-t-transparent rounded-full" animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} />
       </main>
     )
   }
@@ -155,19 +136,13 @@ export default function Gatekeeper({ children, onStatus }: { children: React.Rea
     if (state.reason === 'not_subscribed') {
       return (
         <main className="flex min-h-screen items-center justify-center bg-bg-primary px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center max-w-sm"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center max-w-sm w-full">
             <p className="text-4xl mb-4">🔒</p>
             <h1 className="text-[22px] font-bold text-text-primary mb-3">Доступ закрыт</h1>
             <p className="text-text-secondary text-[15px] leading-relaxed mb-6">
               Пожалуйста, подпишитесь на канал автора, чтобы получить доступ к приложению.
             </p>
-            {subError && (
-              <p className="text-red-400 text-[13px] mb-4">{subError}</p>
-            )}
+            {subError && <p className="text-red-400 text-[13px] mb-4">{subError}</p>}
             <div className="flex flex-col gap-3">
               <motion.button
                 type="button"
@@ -179,53 +154,30 @@ export default function Gatekeeper({ children, onStatus }: { children: React.Rea
               >
                 {confirmingSub ? 'Проверяю…' : '✅ Я подписалась'}
               </motion.button>
-              <p className="text-text-muted text-[13px]">
-                После подписки весь функционал станет доступен автоматически.
-              </p>
+              <p className="text-text-muted text-[13px]">После подписки функционал станет доступен.</p>
             </div>
           </motion.div>
         </main>
       )
     }
 
-    const reasonMessages: Record<string, { title: string; message: string; hint: string }> = {
-      cooldown: {
-        title: 'Тест ещё не доступен',
-        message: `Следующий тест будет доступен через ${state.cooldownDays} ${state.cooldownDays === 1 ? 'день' : (state.cooldownDays || 0) < 5 ? 'дня' : 'дней'}.`,
-        hint: 'Это нужно, чтобы ваши результаты были точными и значимыми.',
-      },
-      no_webapp: {
-        title: 'Откройте через Telegram',
-        message: 'Это приложение работает только внутри Telegram. Откройте бота и нажмите «Пройти тест».',
-        hint: 'Найдите бота в Telegram и запустите его.',
-      },
+    const msg = state.reason === 'cooldown' ? {
+      title: 'Тест ещё не доступен', message: `Следующий тест будет доступен через ${state.cooldownDays} дн.`, hint: 'Это нужно для точности.'
+    } : {
+      title: 'Откройте через Telegram', message: 'Это приложение работает только внутри Telegram. Откройте бота.', hint: 'Найдите бота в Telegram.'
     }
-
-    const msg = state.reason ? reasonMessages[state.reason] : reasonMessages.not_subscribed
 
     return (
       <main className="flex min-h-screen items-center justify-center bg-bg-primary px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center max-w-sm"
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center max-w-sm">
           <p className="text-4xl mb-4">⚠️</p>
           <h1 className="text-[22px] font-bold text-text-primary mb-3">{msg.title}</h1>
-          <p className="text-text-secondary text-[15px] leading-relaxed mb-6">
-            {msg.message}
-          </p>
-          <p className="text-text-muted text-[13px]">
-            {msg.hint}
-          </p>
+          <p className="text-text-secondary text-[15px] leading-relaxed mb-6">{msg.message}</p>
+          <p className="text-text-muted text-[13px]">{msg.hint}</p>
         </motion.div>
       </main>
     )
   }
 
-  return (
-    <GatekeeperContext.Provider value={state}>
-      {children}
-    </GatekeeperContext.Provider>
-  )
+  return <GatekeeperContext.Provider value={state}>{children}</GatekeeperContext.Provider>
 }
