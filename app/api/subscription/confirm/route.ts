@@ -71,6 +71,10 @@ export async function POST(req: NextRequest) {
     tgId = profileData.tg_id
     const wasAlreadySubscribed = profileData.is_subscribed === true
 
+    if (!tgId) {
+      return NextResponse.json({ success: false, error: 'Telegram ID missing' }, { status: 400 })
+    }
+
     console.log(`[subscription/confirm] Profile ${profileId} (tgId=${tgId}) checking subscription. Inviter: ${inviterTgId}`)
 
     // ── 3. Check channel membership via Telegram Bot API ──

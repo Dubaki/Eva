@@ -48,7 +48,7 @@ export default function Home() {
     )
   }
 
-  const cooldownDays = gatekeeper.blocked === false ? gatekeeper.cooldownDays : null
+  const cooldownDays = gatekeeper.blocked === false ? (gatekeeper.cooldownDays ?? null) : null
 
   return (
     <main className="flex h-screen flex-col bg-bg-primary overflow-hidden">
@@ -91,7 +91,7 @@ export default function Home() {
           {...fadeUp(0.52)}
           className="w-full mt-auto"
         >
-          {cooldownDays !== null && cooldownDays > 0 ? (
+          {(cooldownDays !== null && cooldownDays > 0) ? (
             <div className="flex flex-col gap-2">
               <button
                 type="button"
