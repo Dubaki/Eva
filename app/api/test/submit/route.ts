@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: dbError.message }, { status: 500 })
     }
 
-    await supabaseAdmin.from('profiles').update({ current_step: null }).eq('id', profileId)
+    await supabaseAdmin.from('profiles').update({ current_step: null, shared_at: null }).eq('id', profileId)
     triggerBotNotification({ event: 'dominant_trait_set', profile_id: profileId, tg_id: tgId, trait: primary }).catch(() => {})
 
     console.log('[API] --- ТЕСТ УСПЕШНО СОХРАНЕН --- \n')

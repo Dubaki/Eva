@@ -87,6 +87,18 @@ export default function ResultPage() {
   const [userTgId, setUserTgId] = useState<number | null>(null)
 
   useEffect(() => {
+    // Navigation safety: if user comes back to the app, redirect to home
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[result] App regained focus, redirecting to home cycle')
+        window.location.href = '/'
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [])
+
+  useEffect(() => {
     const stored = sessionStorage.getItem('eva_result')
     if (stored) {
       try { setResult(JSON.parse(stored)) } catch { /* ignore */ }
@@ -162,17 +174,16 @@ export default function ResultPage() {
     setFunnelStep('referral-link')
   }, [userTgId])
 
-  // ── Share via Telegram: call API to trigger bot messages, then open share sheet ──
+  // ── Share via Telegram: call API to trigger bot messages, then close ──
   const handleShare = useCallback(async () => {
     if (typeof window === 'undefined') return
 
     const WebApp = (window as any).Telegram?.WebApp
     const currentTgId = WebApp?.initDataUnsafe?.user?.id ?? null
 
-    // 1. Notify backend to trigger CRM/Bot sequence
     if (currentTgId) {
       try {
-        await fetch('/api/user/share-clicked', {
+        await fetch('/api/share', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tgId: currentTgId }),
@@ -182,31 +193,11 @@ export default function ResultPage() {
       }
     }
 
-    // 2. Open Native Share Sheet or fallback to openTelegramLink
-    const shareText = 'Пройди этот тест и узнай свою скрытую опору'
-    
-    try {
-      // In newer SDK versions utils.shareURL exists
-      if (WebApp?.utils?.shareURL) {
-        WebApp.utils.shareURL(refLink, shareText)
-      } else {
-        // Fallback to t.me/share/url
-        const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(shareText)}`
-        if (WebApp?.openTelegramLink) {
-          WebApp.openTelegramLink(shareUrl)
-        } else {
-          window.open(shareUrl, '_blank')
-        }
-      }
-    } catch (err) {
-      console.error('[share] Native share failed, using fallback:', err)
-      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(shareText)}`
-      window.open(shareUrl, '_blank')
+    // Always close the app after share attempt
+    if (WebApp?.close) {
+      WebApp.close()
     }
-
-    // Also copy link as additional fallback
-    navigator.clipboard.writeText(refLink).catch(() => {})
-  }, [refLink])
+  }, [])
 
 
   // ── Copy link ────────────────────────────────────────────────────────
@@ -645,7 +636,7 @@ export default function ResultPage() {
               <motion.button type="button" whileTap={{ scale: 0.97 }}
                 className="w-full py-3 rounded-xl font-semibold text-[15px] border"
                 style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                onClick={() => handleCooldownButton(false)}>
+                onClick={closeApp}>
                 Узнаю через 2 месяца
               </motion.button>
             </div>
@@ -676,7 +667,7 @@ export default function ResultPage() {
               <motion.button type="button" whileTap={{ scale: 0.97 }}
                 className="w-full py-3 rounded-xl font-semibold text-[15px] border"
                 style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                onClick={() => setFunnelStep('survey')}>
+                onClick={closeApp}>
                 Пока не буду узнавать теневую опору
               </motion.button>
             </div>
