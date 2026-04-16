@@ -17,9 +17,12 @@ const fadeUp = (delay: number) => ({
 
 export default function Home() {
   const clickTimesRef = useRef<number[]>([])
+  
   // Получаем данные о блокировке ТОЛЬКО из единого источника (Gatekeeper)
   const gatekeeperState = useGatekeeper()
-  const cooldownDays = 'cooldownDays' in gatekeeperState ? gatekeeperState.cooldownDays : null
+  
+  // ИСПРАВЛЕНИЕ: Гарантируем для Vercel, что это всегда число (0 если данных нет)
+  const cooldownDays = 'cooldownDays' in gatekeeperState ? (gatekeeperState.cooldownDays ?? 0) : 0
 
   const handleTitleClick = useCallback(() => {
     const now = Date.now()
@@ -74,7 +77,8 @@ export default function Home() {
         </div>
 
         <motion.div {...fadeUp(0.52)} className="w-full mt-auto">
-          {cooldownDays !== null && cooldownDays > 0 ? (
+          {/* ИСПРАВЛЕНИЕ: Теперь Vercel не ругается, так как переменная 100% число */}
+          {cooldownDays > 0 ? (
             <div className="flex flex-col gap-2">
               <button
                 type="button"
