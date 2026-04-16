@@ -240,25 +240,23 @@ export default function ResultPage() {
 
   // ── Open Telegram DM ─────────────────────────────────────────────────
   const openTelegramDM = useCallback((prefill: string) => {
+    if (typeof window === 'undefined') return
+    
     const dmUrl = `https://t.me/${AUTHOR_USERNAME}${prefill ? `?text=${encodeURIComponent(prefill)}` : ''}`
+    const WebApp = (window as any).Telegram?.WebApp
 
-    if (typeof window !== 'undefined') {
-      const WebApp = (window as any).Telegram?.WebApp
-      try {
-        if (WebApp?.openTelegramLink) {
-          WebApp.openTelegramLink(dmUrl)
-          // Auto-close after 500ms
-          setTimeout(() => {
-            WebApp.close()
-          }, 500)
-        } else {
-          window.open(dmUrl, '_blank')
-        }
-      } catch (err) {
-        console.error('[openTelegramDM] Error:', err)
+    try {
+      if (WebApp?.openTelegramLink) {
+        WebApp.openTelegramLink(dmUrl)
+        // Auto-close after 500ms
+        setTimeout(() => {
+          WebApp.close()
+        }, 500)
+      } else {
         window.open(dmUrl, '_blank')
       }
-    } else {
+    } catch (err) {
+      console.error('[openTelegramDM] Error:', err)
       window.open(dmUrl, '_blank')
     }
   }, [])
@@ -386,8 +384,6 @@ export default function ResultPage() {
       setTimeout(() => {
         WebApp?.close?.()
       }, 2000)
-    } else {
-      window.open(giftUrl, '_blank')
     }
   }, [surveyAnswers])
 

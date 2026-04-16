@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 
 const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
@@ -178,7 +179,7 @@ export default function AdminPanel() {
         }
       })
       .catch((err) => console.error('[admin] Gifts fetch error:', err))
-  }, [])
+  }, [refreshStats])
 
   const handleSaveGifts = async () => {
     setSaving(true)
@@ -674,7 +675,14 @@ export default function AdminPanel() {
               <div className="flex items-center gap-3">
                 <label className="flex-1 flex items-center justify-center py-6 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50/50 transition-all">
                   {broadcastPhotoPreview ? (
-                    <img src={broadcastPhotoPreview} alt="Preview" className="max-h-28 rounded-lg object-cover" />
+                    <Image 
+                      src={broadcastPhotoPreview} 
+                      alt="Preview" 
+                      width={200} 
+                      height={112} 
+                      className="max-h-28 w-auto rounded-lg object-cover" 
+                      unoptimized
+                    />
                   ) : (
                     <div className="text-center">
                       <p className="text-2xl mb-1">🖼️</p>
