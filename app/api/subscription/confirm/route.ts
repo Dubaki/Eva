@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getChatMember } from '@/lib/telegram-bot'
 
 export const dynamic = 'force-dynamic'
+const CHANNEL_ID = process.env.TELEGRAM_CHANNEL_ID
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,14 +12,22 @@ export async function POST(request: NextRequest) {
 
     if (!tgId) return NextResponse.json({ success: false, error: 'Не передан tgId' }, { status: 400 })
 
+    // 1. СТРОГАЯ ПРОВЕРКА ЧЕРЕЗ TELEGRAM (Синхронизация с ботом)
+    if (CHANNEL_ID) {
+      const isRealSub = await getChatMember(CHANNEL_ID, tgId)
+      if (!isRealSub) {
+        // Если реально не подписан - отбиваем!
+        return NextResponse.json({ success: false, error: 'not_subscribed' }, { status: 403 })
+      }
+    }
+
     const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
-    // 1. Ищем профиль (защита от дубликатов limit(1))
+    // 2. Ищем профиль
     let { data: profiles } = await supabaseAdmin.from('profiles').select('id, tg_id').eq('tg_id', tgId).limit(1)
-
     let profile = profiles && profiles.length > 0 ? profiles[0] : null
 
-    // 2. Если профиля нет — создаем
+    // 3. Если профиля нет — создаем легально
     if (!profile) {
       const { data: newProfiles } = await supabaseAdmin.from('profiles')
         .insert([{ tg_id: tgId, is_subscribed: true }])
@@ -27,7 +37,7 @@ export async function POST(request: NextRequest) {
 
     if (!profile) return NextResponse.json({ success: false, error: 'Ошибка БД' }, { status: 500 })
 
-    // 3. Обновляем статус
+    // 4. Обновляем статус
     await supabaseAdmin.from('profiles').update({ is_subscribed: true }).eq('tg_id', tgId)
 
     return NextResponse.json({ success: true })
