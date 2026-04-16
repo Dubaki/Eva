@@ -52,33 +52,40 @@ export async function POST(request: NextRequest) {
       if (data && data.length > 0) {
           tgId = data[0].tg_id
           console.log('[API] Успех! Найден tgId:', tgId)
-      }
-    } else if (bodyTgId) {
-      console.log('[API] 4. Токена нет. Ищем профиль по переданному tgId:', bodyTgId)
-      const { data: profiles, error: searchErr } = await supabaseAdmin.from('profiles').select('id, tg_id').eq('tg_id', bodyTgId).limit(1)
-      
-      if (searchErr) console.error('[API] Ошибка поиска БД:', searchErr)
-
-      if (profiles && profiles.length > 0) {
-        profileId = profiles[0].id
-        tgId = profiles[0].tg_id
-        console.log('[API] Успех! Профиль найден в БД. profileId:', profileId)
       } else {
-        console.log('[API] Профиль не найден. Пытаюсь создать (INSERT) новый профиль для tgId:', bodyTgId)
-        const { data: newProfiles, error: insertError } = await supabaseAdmin.from('profiles')
-          .insert([{ tg_id: bodyTgId, is_subscribed: true }])
-          .select('id, tg_id')
-        
-        if (insertError) {
-            console.error('[API] КРИТИЧЕСКАЯ ОШИБКА INSERT (БД отклонила создание):', insertError)
-        } else if (newProfiles && newProfiles.length > 0) {
-          profileId = newProfiles[0].id
-          tgId = newProfiles[0].tg_id
-          console.log('[API] Успех! Новый профиль создан. profileId:', profileId)
-        }
+          console.log('[API] 4. JWT валиден, но профиль не найден по profileId. Пробую bodyTgId как фолбек.')
       }
-    } else {
-        console.error('[API] ОШИБКА: Фронтенд не прислал ни токен, ни tgId в теле запроса!')
+    }
+
+    // Fallback: JWT was missing/invalid OR JWT profile lookup found no tg_id
+    if (!profileId || !tgId) {
+      if (bodyTgId) {
+        console.log('[API] 4. Ищем профиль по переданному tgId:', bodyTgId)
+        const { data: profiles, error: searchErr } = await supabaseAdmin.from('profiles').select('id, tg_id').eq('tg_id', bodyTgId).limit(1)
+
+        if (searchErr) console.error('[API] Ошибка поиска БД:', searchErr)
+
+        if (profiles && profiles.length > 0) {
+          profileId = profiles[0].id
+          tgId = profiles[0].tg_id
+          console.log('[API] Успех! Профиль найден в БД. profileId:', profileId)
+        } else {
+          console.log('[API] Профиль не найден. Пытаюсь создать (INSERT) новый профиль для tgId:', bodyTgId)
+          const { data: newProfiles, error: insertError } = await supabaseAdmin.from('profiles')
+            .insert([{ tg_id: bodyTgId, is_subscribed: true }])
+            .select('id, tg_id')
+
+          if (insertError) {
+              console.error('[API] КРИТИЧЕСКАЯ ОШИБКА INSERT (БД отклонила создание):', insertError)
+          } else if (newProfiles && newProfiles.length > 0) {
+            profileId = newProfiles[0].id
+            tgId = newProfiles[0].tg_id
+            console.log('[API] Успех! Новый профиль создан. profileId:', profileId)
+          }
+        }
+      } else {
+          console.error('[API] ОШИБКА: Фронтенд не прислал ни токен, ни tgId в теле запроса!')
+      }
     }
 
     if (!profileId || !tgId) {

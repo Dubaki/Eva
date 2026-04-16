@@ -60,7 +60,9 @@ function parseAndValidate(
 
   const authDate = parseInt(params.get('auth_date') ?? '0', 10)
   const age = Math.floor(Date.now() / 1000) - authDate
-  if (age > 300 || age < 0) return null
+  // Allow up to 24 hours — 5-min window breaks WebApp flows where user spends
+  // time subscribing before the JWT is issued. HMAC signature alone is sufficient.
+  if (age > 86400 || age < 0) return null
 
   const userRaw = params.get('user')
   if (!userRaw) return null

@@ -87,6 +87,25 @@ export default function Gatekeeper({ children, onStatus }: { children: React.Rea
       const json = await res.json()
 
       if (json.success) {
+        // Re-auth to ensure a fresh JWT is in localStorage before entering the test
+        try {
+          const initData = WebApp?.initData ?? ''
+          if (initData) {
+            const authRes = await fetch('/api/auth', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ initData }),
+            })
+            if (authRes.ok) {
+              const authJson = await authRes.json()
+              if (authJson.success && authJson.data?.token) {
+                localStorage.setItem('eva_token', authJson.data.token)
+              }
+            }
+          }
+        } catch {
+          // Non-fatal: bodyTgId fallback will handle submit if JWT is missing
+        }
         await check()
       } else {
         const errMsg = json.error === 'not_subscribed'
