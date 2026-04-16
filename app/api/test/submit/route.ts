@@ -67,6 +67,22 @@ export async function POST(request: NextRequest) {
       if (profile) {
         profileId = profile.id
         tgId = profile.tg_id
+      } else {
+        // Auto-registration for new users
+        console.log('[test/submit] Profile not found, creating new profile for tgId:', bodyTgId)
+        const { data: newProfile, error: createError } = await supabaseAdmin
+          .from('profiles')
+          .upsert({ tg_id: bodyTgId }, { onConflict: 'tg_id' })
+          .select('id, tg_id')
+          .single()
+        
+        if (createError || !newProfile) {
+          console.error('[test/submit] Failed to auto-register profile:', createError)
+        } else {
+          profileId = newProfile.id
+          tgId = newProfile.tg_id
+          console.log('[test/submit] Auto-registered new profile:', profileId)
+        }
       }
     }
 

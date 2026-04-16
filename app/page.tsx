@@ -1,14 +1,13 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { openAuthorContact } from '@/lib/author-contact'
-import { getStoredInviterTgId } from '@/components/providers/AuthProvider'
 import { QUESTIONS } from '@/lib/questions'
+import { useGatekeeper } from '@/components/Gatekeeper'
 
 const ADMIN_PIN = '2026'
-const COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000 // 60 days
 
 const fadeUp = (delay: number) => ({
   initial: { opacity: 0, y: 20 },
@@ -18,122 +17,26 @@ const fadeUp = (delay: number) => ({
 
 export default function Home() {
   const clickTimesRef = useRef<number[]>([])
-  const [checking, setChecking] = useState(true)
-  const [notSubscribed, setNotSubscribed] = useState(false)
-  const [cooldownDays, setCooldownDays] = useState<number | null>(null)
-  const [confirmingSub, setConfirmingSub] = useState(false)
-  const [subError, setSubError] = useState<string | null>(null)
-
-  useEffect(() => {
-    // Get tgId directly from Telegram WebApp
-    const WebApp = typeof window !== 'undefined'
-      ? (window as unknown as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } } }).Telegram?.WebApp
-      : null
-    const currentTgId = WebApp?.initDataUnsafe?.user?.id ?? null
-
-    if (!currentTgId) {
-      setChecking(false)
-      return // not in Telegram — skip checks, show normal page
-    }
-
-    fetch(`/api/user/status?tg_id=${currentTgId}`)
-      .then((r) => r.json())
-      .then((json) => {
-        if (!json.success) {
-          setChecking(false)
-          return
-        }
-
-        // Gate 1: Subscription check
-        if (!json.data?.isSubscribed) {
-          setNotSubscribed(true)
-          setChecking(false)
-          return
-        }
-
-        // Gate 2: Cooldown check
-        if (json.data?.lastTestDate) {
-          const lastTest = new Date(json.data.lastTestDate).getTime()
-          const elapsed = Date.now() - lastTest
-          const remaining = COOLDOWN_MS - elapsed
-          if (remaining > 0) {
-            setCooldownDays(Math.ceil(remaining / (24 * 60 * 60 * 1000)))
-          }
-        }
-
-        setChecking(false)
-      })
-      .catch(() => { setChecking(false) })
-  }, [])
+  const gatekeeper = useGatekeeper()
 
   const handleTitleClick = useCallback(() => {
     const now = Date.now()
-    // Clean old clicks (> 2 seconds)
     clickTimesRef.current = clickTimesRef.current.filter((t) => now - t < 2000)
     clickTimesRef.current.push(now)
 
     if (clickTimesRef.current.length >= 5) {
       clickTimesRef.current = []
-
       const pin = window.prompt('Введите PIN-код')
-      if (pin === null) return // cancelled
       if (pin === ADMIN_PIN) {
         localStorage.setItem('isAdmin', 'true')
         window.location.href = '/admin'
-      } else {
+      } else if (pin !== null) {
         alert('❌ Неверный PIN-код')
       }
     }
   }, [])
 
-  // ── Confirm subscription from Mini App ──
-  const handleConfirmSubscription = useCallback(async () => {
-    setConfirmingSub(true)
-    setSubError(null)
-
-    const WebApp = (window as unknown as {
-      Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } }
-    }).Telegram?.WebApp
-    const currentTgId = WebApp?.initDataUnsafe?.user?.id ?? null
-
-    if (!currentTgId) {
-      setSubError('Не удалось определить ваш Telegram ID')
-      setConfirmingSub(false)
-      return
-    }
-
-    const inviterTgId = getStoredInviterTgId()
-    console.log(`[Home] Deep link param found: ${inviterTgId ?? 'none'}`)
-    console.log(`[Home] Sending inviter ID to API: ${inviterTgId ?? 'none'}`)
-
-    try {
-      const res = await fetch('/api/subscription/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tgId: currentTgId, inviterTgId }),
-      })
-
-      const json = await res.json()
-
-      if (json.success) {
-        console.log('[Home] Subscription confirmed, reloading page…')
-        // Reload to re-run status check (Gate 1 will now pass)
-        window.location.reload()
-      } else {
-        const errMsg = json.error === 'not_subscribed'
-          ? 'Подписка не найдена. Пожалуйста, подпишитесь на канал и попробуйте снова.'
-          : (json.error || 'Произошла ошибка. Попробуйте ещё раз.')
-        setSubError(errMsg)
-      }
-    } catch {
-      setSubError('Ошибка сети. Проверьте интернет-соединение и попробуйте снова.')
-    }
-
-    setConfirmingSub(false)
-  }, [])
-
-  // ── Loading gate ──
-  if (checking) {
+  if (gatekeeper.checking) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-bg-primary">
         <motion.div
@@ -145,42 +48,7 @@ export default function Home() {
     )
   }
 
-  // ── Not subscribed gate ──
-  if (notSubscribed) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-bg-primary px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center max-w-sm"
-        >
-          <p className="text-4xl mb-4">🔒</p>
-          <h1 className="text-[22px] font-bold text-text-primary mb-3">Доступ закрыт</h1>
-          <p className="text-text-secondary text-[15px] leading-relaxed mb-6">
-            Пожалуйста, подпишитесь на канал автора, чтобы получить доступ к тесту.
-          </p>
-          {subError && (
-            <p className="text-red-400 text-[13px] mb-4">{subError}</p>
-          )}
-          <div className="flex flex-col gap-3">
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.97 }}
-              disabled={confirmingSub}
-              onClick={handleConfirmSubscription}
-              className="w-full py-3 rounded-xl font-semibold text-[15px] text-white disabled:opacity-50"
-              style={{ background: 'var(--accent)' }}
-            >
-              {confirmingSub ? 'Проверяю…' : '✅ Я подписалась'}
-            </motion.button>
-            <p className="text-text-muted text-[13px]">
-              После подписки весь функционал станет доступен автоматически.
-            </p>
-          </div>
-        </motion.div>
-      </main>
-    )
-  }
+  const cooldownDays = gatekeeper.blocked === false ? gatekeeper.cooldownDays : null
 
   return (
     <main className="flex h-screen flex-col bg-bg-primary overflow-hidden">
