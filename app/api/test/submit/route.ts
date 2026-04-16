@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseServer } from '@/lib/supabase/server'
-import { calculateScores, type Answer } from '@/lib/scoring'
-import { triggerBotNotification } from '@/lib/bot-notification'
 import { createClient } from '@supabase/supabase-js'
 import { verifyJwt } from '@/lib/jwt'
+import { calculateScores, type Answer } from '@/lib/scoring'
+import { triggerBotNotification } from '@/lib/bot-notification'
 import { QUESTIONS } from '@/lib/questions'
 
 export const dynamic = 'force-dynamic'
@@ -34,26 +33,24 @@ export async function POST(request: NextRequest) {
     const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
     if (profileId) {
-      const { data } = await supabaseAdmin.from('profiles').select('tg_id').eq('id', profileId).single()
-      if (data) tgId = data.tg_id
+      const { data } = await supabaseAdmin.from('profiles').select('tg_id').eq('id', profileId).limit(1)
+      if (data && data.length > 0) tgId = data[0].tg_id
     } else if (bodyTgId) {
-      // Ищем профиль
-      const { data: profile } = await supabaseAdmin.from('profiles').select('id, tg_id').eq('tg_id', bodyTgId).single()
+      // БРОНЯ: limit(1) спасает от краша базы при наличии дубликатов
+      const { data: profiles } = await supabaseAdmin.from('profiles').select('id, tg_id').eq('tg_id', bodyTgId).limit(1)
       
-      if (profile) {
-        profileId = profile.id
-        tgId = profile.tg_id
+      if (profiles && profiles.length > 0) {
+        profileId = profiles[0].id
+        tgId = profiles[0].tg_id
       } else {
-        // ЖЕСТКАЯ АВТОРЕГИСТРАЦИЯ ЕСЛИ ПРОФИЛЯ НЕТ
-        const { data: newProfile, error } = await supabaseAdmin.from('profiles')
+        // БРОНЯ: Простой insert вместо капризного upsert
+        const { data: newProfiles } = await supabaseAdmin.from('profiles')
           .insert([{ tg_id: bodyTgId, is_subscribed: true }])
-          .select('id, tg_id').single()
+          .select('id, tg_id')
         
-        if (newProfile) {
-          profileId = newProfile.id
-          tgId = newProfile.tg_id
-        } else {
-          return NextResponse.json({ success: false, error: 'Ошибка регистрации профиля' }, { status: 500 })
+        if (newProfiles && newProfiles.length > 0) {
+          profileId = newProfiles[0].id
+          tgId = newProfiles[0].tg_id
         }
       }
     }
@@ -74,8 +71,7 @@ export async function POST(request: NextRequest) {
 
     await supabaseAdmin.from('profiles').update({ current_step: null }).eq('id', profileId)
 
-    triggerBotNotification({ event: 'dominant_trait_set', profile_id: profileId, tg_id: tgId, trait: primary })
-      .catch(() => {})
+    triggerBotNotification({ event: 'dominant_trait_set', profile_id: profileId, tg_id: tgId, trait: primary }).catch(() => {})
 
     return NextResponse.json({ success: true, data: { dominantTrait: scores.dominantTrait, secondaryTrait: scores.secondaryTrait, scores } })
   } catch (err) {
