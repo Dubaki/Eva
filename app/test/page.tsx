@@ -165,6 +165,16 @@ export default function TestPage() {
   const currentAnswer = answersMap[question.id] ?? null
 
   const submitAnswers = useCallback(async (answers: Answer[]) => {
+    // ── Protection against broken state ──
+    if (answers.length !== QUESTIONS.length) {
+      console.error('[test/submit] State mismatch detected:', answers.length, 'vs', QUESTIONS.length)
+      setAnswersMap({})
+      setCurrentIndex(0)
+      setSubmitting(false)
+      alert('Данные рассинхронизированы. Тест запущен заново для корректного сохранения.')
+      return
+    }
+
     const startTime = Date.now()
     try {
       console.log('=== ТЕСТ ЗАВЕРШЕН (client) ===')

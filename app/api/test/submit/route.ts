@@ -15,23 +15,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // ── 1. JWT Authentication ──
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ success: false, error: 'Missing authorization token' }, { status: 401 })
-    }
-
-    const token = authHeader.slice(7)
-    const payload = verifyJwt(token, jwtSecret)
-    if (!payload || !payload.sub) {
-      return NextResponse.json({ success: false, error: 'Invalid or expired token' }, { status: 401 })
-    }
-
-    const profileId = payload.sub
-
-    // ── 2. Request Validation ──
+    // ── 1. Request Validation (Read body early for tgId fallback) ──
     const body = await request.json()
     const answers: Answer[] = body.answers
+    const bodyTgId = body.tgId
     
     if (!Array.isArray(answers) || answers.length !== QUESTIONS.length) {
       return NextResponse.json({ 
@@ -40,32 +27,61 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    // ── 2. Authentication ──
+    let profileId: string | null = null
+    let tgId: number | null = null
+
+    const authHeader = request.headers.get('authorization')
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.slice(7)
+      const payload = verifyJwt(token, jwtSecret)
+      if (payload && payload.sub) {
+        profileId = payload.sub
+      }
+    }
+
+    const supabaseAdminUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const supabaseAdminKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+    const supabaseAdmin = createClient(supabaseAdminUrl, supabaseAdminKey)
+
+    if (profileId) {
+      // Auth via JWT successful, now get tg_id for RPC
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('tg_id')
+        .eq('id', profileId)
+        .single()
+      
+      if (profile) {
+        tgId = profile.tg_id
+      }
+    } else if (bodyTgId) {
+      // Fallback: Auth via tgId from body
+      console.log('[test/submit] Using fallback tgId auth for tgId:', bodyTgId)
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('id, tg_id')
+        .eq('tg_id', bodyTgId)
+        .single()
+      
+      if (profile) {
+        profileId = profile.id
+        tgId = profile.tg_id
+      }
+    }
+
+    if (!profileId || !tgId) {
+      return NextResponse.json({ success: false, error: 'Missing or invalid authorization' }, { status: 401 })
+    }
+
     // ── 3. Scoring Logic ──
     const scores = calculateScores(answers)
     const primary = scores.dominantTrait.toUpperCase()
     const secondary = scores.secondaryTrait.toUpperCase()
 
-    console.log(`[test/submit] Profile ${profileId} completed test. Traits: ${primary}/${secondary}`)
+    console.log(`[test/submit] Profile ${profileId} (tgId: ${tgId}) completed test. Traits: ${primary}/${secondary}`)
 
     // ── 4. Database Persistence (Admin bypass for RPC) ──
-    const supabaseAdminUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseAdminKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-    const supabaseAdmin = createClient(supabaseAdminUrl, supabaseAdminKey)
-
-    // First, we need to get the numeric tg_id for the RPC (which uses tg_id)
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('tg_id')
-      .eq('id', profileId)
-      .single()
-
-    if (profileError || !profile) {
-      console.error('[test/submit] Profile not found for UUID:', profileId)
-      return NextResponse.json({ success: false, error: 'Profile not found' }, { status: 404 })
-    }
-
-    const tgId = profile.tg_id
-
     console.log('[test/submit] Calling RPC save_test_result for tg_id:', tgId)
 
     const { error: dbError } = await supabaseAdmin.rpc('save_test_result', {
