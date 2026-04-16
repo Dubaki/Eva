@@ -3,50 +3,66 @@ import { getSupabaseServer } from '@/lib/supabase/server'
 import { calculateScores, type Answer } from '@/lib/scoring'
 import { triggerBotNotification } from '@/lib/bot-notification'
 import { createClient } from '@supabase/supabase-js'
+import { verifyJwt } from '@/lib/jwt'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
+  const jwtSecret = process.env.SUPABASE_JWT_SECRET
+  if (!jwtSecret) {
+    return NextResponse.json({ success: false, error: 'Server misconfiguration' }, { status: 500 })
+  }
+
   try {
+    // ── 1. JWT Authentication ──
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ success: false, error: 'Missing authorization token' }, { status: 401 })
+    }
+
+    const token = authHeader.slice(7)
+    const payload = verifyJwt(token, jwtSecret)
+    if (!payload || !payload.sub) {
+      return NextResponse.json({ success: false, error: 'Invalid or expired token' }, { status: 401 })
+    }
+
+    const profileId = payload.sub
+
+    // ── 2. Request Validation ──
     const body = await request.json()
     const answers: Answer[] = body.answers
     
-    // ДОБАВЛЕНО: Читаем tgId напрямую из тела запроса или заголовка
-    const rawTgId = body.tgId || request.headers.get('x-tg-id')
-    const tgId = rawTgId ? Number(rawTgId) : null
-
-    console.log('[test/submit] === INCOMING REQUEST ===')
-    console.log('[test/submit] Extracted tgId:', tgId)
-
-    // Валидация ответов
     if (!Array.isArray(answers) || answers.length !== 25) {
       return NextResponse.json({ success: false, error: 'Ожидается 25 ответов' }, { status: 400 })
     }
 
-    // Рассчитываем баллы
+    // ── 3. Scoring Logic ──
     const scores = calculateScores(answers)
     const primary = scores.dominantTrait.toUpperCase()
     const secondary = scores.secondaryTrait.toUpperCase()
 
-    console.log('=== ТЕСТ ЗАВЕРШЕН ===')
-    console.log('Баллы:', scores)
+    console.log(`[test/submit] Profile ${profileId} completed test. Traits: ${primary}/${secondary}`)
 
-    // Если у нас нет tgId, мы не можем сохранить в базу
-    if (!tgId) {
-       console.error('[test/submit] CRITICAL: No tgId provided! Cannot save to DB.')
-       return NextResponse.json({ 
-         success: true, 
-         warning: 'Данные не сохранены в БД (нет tgId)',
-         data: { dominantTrait: scores.dominantTrait, secondaryTrait: scores.secondaryTrait, scores } 
-       })
-    }
-
-    // ПРОБИВАЕМ БД: Используем Service Role Key для обхода любых блокировок RLS
+    // ── 4. Database Persistence (Admin bypass for RPC) ──
     const supabaseAdminUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
     const supabaseAdminKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
     const supabaseAdmin = createClient(supabaseAdminUrl, supabaseAdminKey)
 
-    console.log('[test/submit] Calling RPC for tg_id:', tgId)
+    // First, we need to get the numeric tg_id for the RPC (which uses tg_id)
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('tg_id')
+      .eq('id', profileId)
+      .single()
+
+    if (profileError || !profile) {
+      console.error('[test/submit] Profile not found for UUID:', profileId)
+      return NextResponse.json({ success: false, error: 'Profile not found' }, { status: 404 })
+    }
+
+    const tgId = profile.tg_id
+
+    console.log('[test/submit] Calling RPC save_test_result for tg_id:', tgId)
 
     const { error: dbError } = await supabaseAdmin.rpc('save_test_result', {
       p_tg_id: tgId,
@@ -55,31 +71,23 @@ export async function POST(request: NextRequest) {
     })
 
     if (dbError) {
-      console.error('[test/submit] ОШИБКА БД:', dbError)
+      console.error('[test/submit] RPC Error:', dbError)
       return NextResponse.json({ success: false, error: dbError.message }, { status: 500 })
     }
 
-    console.log('[test/submit] УСПЕХ: Данные записаны в БД!')
-
     // Reset current_step after successful test completion
-    const { error: resetError } = await supabaseAdmin
+    await supabaseAdmin
       .from('profiles')
       .update({ current_step: null })
-      .eq('tg_id', tgId)
+      .eq('id', profileId)
 
-    if (resetError) {
-      console.error('[test/submit] Warning: failed to reset current_step:', resetError.message)
-    } else {
-      console.log('[test/submit] current_step reset to null')
-    }
-
-    // Отправка уведомления (не блокирует ответ)
+    // ── 5. Post-submit actions (Notifications) ──
     triggerBotNotification({
       event: 'dominant_trait_set',
-      profile_id: `tg-${tgId}`,
+      profile_id: profileId,
       tg_id: tgId,
       trait: primary,
-    }).catch(console.error)
+    }).catch(err => console.error('[test/submit] Notification failed:', err))
 
     return NextResponse.json({
       success: true,
@@ -90,7 +98,7 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (err) {
-    console.error('Unexpected error:', err)
+    console.error('[test/submit] Unexpected error:', err)
     return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 })
   }
 }

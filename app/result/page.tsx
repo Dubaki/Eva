@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
+import WebApp from '@twa-dev/sdk'
 import { getTraitInfo } from '@/lib/scoring'
 import ConfirmModal from '@/components/ConfirmModal'
 import { openAuthorContact } from '@/lib/author-contact'
@@ -162,13 +163,11 @@ export default function ResultPage() {
     setFunnelStep('referral-link')
   }, [userTgId])
 
-  // ── Share via Telegram: call API to trigger bot messages, then open bot ──
+  // ── Share via Telegram: call API to trigger bot messages, then open share sheet ──
   const handleShare = useCallback(async () => {
-    const tgWebApp = (window as unknown as {
-      Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } }; openTelegramLink?: (url: string) => void } }
-    }).Telegram?.WebApp
-    const currentTgId = tgWebApp?.initDataUnsafe?.user?.id ?? null
+    const currentTgId = WebApp.initDataUnsafe?.user?.id ?? null
 
+    // 1. Notify backend to trigger CRM/Bot sequence
     if (currentTgId) {
       try {
         await fetch('/api/user/share-clicked', {
@@ -181,19 +180,28 @@ export default function ResultPage() {
       }
     }
 
-    // Open bot chat
-    const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME ?? 'sprosievubot'
-    const botUrl = `https://t.me/${botUsername}`
-
-    if (tgWebApp?.openTelegramLink) {
-      tgWebApp.openTelegramLink(botUrl)
-    } else {
-      window.open(botUrl, '_blank')
+    // 2. Open Native Share Sheet or fallback to openTelegramLink
+    const shareText = 'Пройди этот тест и узнай свою скрытую опору'
+    
+    try {
+      // In newer SDK versions utils.shareURL exists
+      if ((WebApp as any).utils?.shareURL) {
+        (WebApp as any).utils.shareURL(refLink, shareText)
+      } else {
+        // Fallback to t.me/share/url
+        const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(shareText)}`
+        WebApp.openTelegramLink(shareUrl)
+      }
+    } catch (err) {
+      console.error('[share] Native share failed, using fallback:', err)
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(shareText)}`
+      window.open(shareUrl, '_blank')
     }
 
-    // Also copy link as fallback
+    // Also copy link as additional fallback
     navigator.clipboard.writeText(refLink).catch(() => {})
   }, [refLink])
+
 
   // ── Copy link ────────────────────────────────────────────────────────
   const handleCopyLink = useCallback(async () => {
@@ -219,29 +227,21 @@ export default function ResultPage() {
 
   // ── Close Mini App ───────────────────────────────────────────────────
   const closeApp = useCallback(() => {
-    const tgWebApp = (window as unknown as {
-      Telegram?: { WebApp?: { close?: () => void } }
-    }).Telegram?.WebApp
-    if (tgWebApp?.close) {
-      tgWebApp.close()
-    }
+    WebApp.close()
   }, [])
 
   // ── Open Telegram DM ─────────────────────────────────────────────────
   const openTelegramDM = useCallback((prefill: string) => {
-    const tgWebApp = (window as unknown as {
-      Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void; close?: () => void } }
-    }).Telegram?.WebApp
-
     const dmUrl = `https://t.me/${AUTHOR_USERNAME}${prefill ? `?text=${encodeURIComponent(prefill)}` : ''}`
 
-    if (tgWebApp?.openTelegramLink) {
-      tgWebApp.openTelegramLink(dmUrl)
+    try {
+      WebApp.openTelegramLink(dmUrl)
       // Auto-close after 500ms
       setTimeout(() => {
-        tgWebApp?.close?.()
+        WebApp.close()
       }, 500)
-    } else {
+    } catch (err) {
+      console.error('[openTelegramDM] Error:', err)
       window.open(dmUrl, '_blank')
     }
   }, [])
@@ -263,8 +263,7 @@ export default function ResultPage() {
     const mixedKey = result ? getMixedTraitKey(result.scores) : ''
     const mixedTraitName = MIXED_TRAIT_NAMES[mixedKey] || 'Не определено'
 
-    // Mark contact_author_clicked in DB (openAuthorContact also does this,
-    // but we need the notify-author call first)
+    // Mark contact_author_clicked in DB
     if (userId) {
       fetch('/api/user/contact-author', {
         method: 'POST',
@@ -350,15 +349,10 @@ export default function ResultPage() {
     }).catch((err) => console.error('[send-gift-message] Error:', err))
 
     // Open gift link and close
-    const tgWebApp = (window as unknown as {
-      Telegram?: { WebApp?: { openLink?: (url: string) => void; close?: () => void; openTelegramLink?: (url: string) => void } }
-    }).Telegram?.WebApp
-
-    if (tgWebApp?.openLink) {
-      tgWebApp.openLink(giftUrl)
-    } else if (tgWebApp?.openTelegramLink) {
-      tgWebApp.openTelegramLink(giftUrl)
-    } else {
+    try {
+      WebApp.openLink(giftUrl)
+    } catch (err) {
+      console.error('[claim-gift] openLink failed:', err)
       window.open(giftUrl, '_blank')
     }
 
@@ -367,9 +361,10 @@ export default function ResultPage() {
 
     // Auto-close after 2 seconds
     setTimeout(() => {
-      tgWebApp?.close?.()
+      WebApp.close()
     }, 2000)
   }, [surveyAnswers])
+
 
   // ── Loading / No result ──────────────────────────────────────────────
   if (loading) {
@@ -808,7 +803,6 @@ export default function ResultPage() {
                 style={{ background: '#2563eb' }}
                 onClick={() => {
                   handleProboyClick()
-                  setTimeout(() => closeApp(), 1000)
                 }}>
                 Жесткий быстрый
               </motion.button>
@@ -817,7 +811,6 @@ export default function ResultPage() {
                 style={{ background: '#2563eb' }}
                 onClick={() => {
                   handlePyramidClick()
-                  setTimeout(() => closeApp(), 1000)
                 }}>
                 Мягкий постепенный
               </motion.button>

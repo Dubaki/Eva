@@ -1,9 +1,9 @@
+import WebApp from '@twa-dev/sdk'
+
 /**
  * Global helper: track author contact clicks.
  * Fires a fire-and-forget request to mark `contact_author_clicked = true`,
  * then immediately opens the Telegram link to the author.
- *
- * The navigation is NEVER blocked by the DB request — it runs independently.
  */
 
 const AUTHOR_USERNAME = 'evapatrakhina'
@@ -26,31 +26,27 @@ export function openAuthorContact(prefill?: string): void {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tgId: p.tg_id }),
-        }).catch(() => { /* silent — don't block navigation */ })
+        }).catch(() => { /* silent */ })
       }
     }
   } catch {
-    /* ignore — never block navigation */
+    /* ignore */
   }
 
-  // Always open the link immediately
+  // Always open the link
   const url = prefill
     ? `https://t.me/${AUTHOR_USERNAME}?text=${encodeURIComponent(prefill)}`
     : `https://t.me/${AUTHOR_USERNAME}`
 
   try {
-    const tgWebApp = (
-      window as unknown as {
-        Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } }
-      }
-    ).Telegram?.WebApp
-
-    if (tgWebApp?.openTelegramLink) {
-      tgWebApp.openTelegramLink(url)
-    } else {
-      window.open(url, '_blank')
-    }
-  } catch {
+    WebApp.openTelegramLink(url)
+    
+    // Auto-close Mini App after a short delay so the user lands in the chat
+    setTimeout(() => {
+      WebApp.close()
+    }, 1000)
+  } catch (err) {
+    console.error('[openAuthorContact] WebApp navigation failed:', err)
     window.open(url, '_blank')
   }
 }
