@@ -4,6 +4,7 @@ import { calculateScores, type Answer } from '@/lib/scoring'
 import { triggerBotNotification } from '@/lib/bot-notification'
 import { createClient } from '@supabase/supabase-js'
 import { verifyJwt } from '@/lib/jwt'
+import { QUESTIONS } from '@/lib/questions'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,8 +33,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const answers: Answer[] = body.answers
     
-    if (!Array.isArray(answers) || answers.length !== 25) {
-      return NextResponse.json({ success: false, error: 'Ожидается 25 ответов' }, { status: 400 })
+    if (!Array.isArray(answers) || answers.length !== QUESTIONS.length) {
+      return NextResponse.json({ 
+        success: false, 
+        error: `Ожидается ${QUESTIONS.length} ответов, получено ${answers?.length || 0}` 
+      }, { status: 400 })
     }
 
     // ── 3. Scoring Logic ──

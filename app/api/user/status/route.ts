@@ -78,46 +78,18 @@ export async function GET(req: NextRequest) {
   const token = auth.slice(7)
   const payload = verifyJwt(token, jwtSecret)
 
-  if (!payload) {
+  if (!payload || !payload.sub) {
     return NextResponse.json({ success: false, error: 'Invalid or expired token' }, { status: 401 })
   }
 
-  let profileId = payload.sub
+  const profileId = payload.sub
 
-  // Detect offline/synthetic token: sub format is "offline-{tg_id}-{timestamp}"
-  let offlineTgId: number | null = null
-  if (profileId?.startsWith?.('offline-')) {
-    const tgIdStr = profileId.split('-')[1]
-    const parsedTgId = parseInt(tgIdStr, 10)
-    if (!isNaN(parsedTgId)) {
-      offlineTgId = parsedTgId
-    }
-  }
-
-  // Fetch profile — by ID for normal tokens, by tg_id for offline tokens
-  let profile: {
-    id: string
-    tg_id: number
-    is_subscribed: boolean | null
-    last_test_date: string | null
-    selected_sphere: string | null
-  } | null = null
-
-  if (offlineTgId) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, tg_id, is_subscribed, last_test_date, selected_sphere')
-      .eq('tg_id', offlineTgId)
-      .maybeSingle()
-    profile = data
-  } else {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, tg_id, is_subscribed, last_test_date, selected_sphere')
-      .eq('id', profileId)
-      .single()
-    profile = data
-  }
+  // Fetch profile
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, tg_id, is_subscribed, last_test_date, selected_sphere')
+    .eq('id', profileId)
+    .single()
 
   // Fetch referral count
   const { count: refCount } = await supabase

@@ -204,37 +204,8 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (dbError || !profileData) {
-    // DB unavailable — generate a temporary in-memory profile so the user can still enter
-    console.error('[auth] DB upsert error (graceful degradation):', JSON.stringify(dbError))
-
-    // Still try to process referral silently (will fail, that's OK)
-    // Issue a JWT with a synthetic UUID so the TMA can load
-    const syntheticId = `offline-${user.id}-${Date.now()}`
-    const now = Math.floor(Date.now() / 1000)
-    const token = signJwt(
-      {
-        sub: syntheticId,
-        role: 'authenticated',
-        aud: 'authenticated',
-        iss: 'supabase',
-        iat: now,
-        exp: now + 60 * 60 * 24 * 7,
-      },
-      jwtSecret,
-    )
-
-    return ok({
-      profile: {
-        id: syntheticId,
-        tg_id: user.id,
-        username: user.username ?? null,
-        avatar_url: user.photo_url ?? null,
-        is_subscribed: false,
-        referrer_id: null,
-        created_at: new Date().toISOString(),
-      },
-      token,
-    })
+    console.error('[auth] DB upsert error:', JSON.stringify(dbError))
+    return fail('Database unavailable. Please try again later.', 503)
   }
 
   profile = profileData

@@ -104,24 +104,33 @@ export default function TestPage() {
   const router = useRouter()
 
   // Extract tgId from Telegram WebApp
-  const tgIdRef = useRef<number | null>(null)
+  const [tgId, setTgId] = useState<number | null>(null)
+
   useEffect(() => {
     const WebApp = typeof window !== 'undefined'
       ? (window as unknown as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } } }).Telegram?.WebApp
       : null
-    tgIdRef.current = WebApp?.initDataUnsafe?.user?.id ?? null
+    const id = WebApp?.initDataUnsafe?.user?.id ?? null
+    if (id) {
+      setTgId(id)
+    } else {
+      console.warn('[test] No tgId available from Telegram SDK')
+      // Small delay to allow SDK to initialize
+      const timer = setTimeout(() => {
+        const retryId = WebApp?.initDataUnsafe?.user?.id ?? null
+        if (retryId) setTgId(retryId)
+        else setLoading(false)
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
   }, [])
 
-  const saveStep = useDebouncedStepSave(tgIdRef.current)
+  const saveStep = useDebouncedStepSave(tgId)
 
-  // Restore saved progress on mount
+  // Restore saved progress on mount (or when tgId becomes available)
   useEffect(() => {
+    if (!tgId) return
     let cancelled = false
-    const tgId = tgIdRef.current
-    if (!tgId) {
-      setLoading(false)
-      return
-    }
     ;(async () => {
       try {
         const res = await fetch(`/api/test/progress?tgId=${tgId}`)
@@ -142,7 +151,7 @@ export default function TestPage() {
       }
     })()
     return () => { cancelled = true }
-  }, [])
+  }, [tgId])
 
   // Save step when currentIndex changes (after loading is done)
   useEffect(() => {
@@ -162,10 +171,7 @@ export default function TestPage() {
       const stored = localStorage.getItem('eva_token')
       const token = stored || ''
 
-      // Extract tgId from Telegram Web App initDataUnsafe
-      const WebApp = typeof window !== 'undefined' ? (window as unknown as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } } }).Telegram?.WebApp : null
-      const currentTgId = WebApp?.initDataUnsafe?.user?.id ?? null
-      console.log('[test/submit] Extracted tgId from WebApp:', currentTgId)
+      console.log('[test/submit] Using tgId from state:', tgId)
 
       const res = await fetch('/api/test/submit', {
         method: 'POST',
@@ -173,7 +179,7 @@ export default function TestPage() {
           'Content-Type': 'application/json',
           Authorization: 'Bearer ' + token,
         },
-        body: JSON.stringify({ answers, tgId: currentTgId }),
+        body: JSON.stringify({ answers, tgId }),
       })
       const result = await res.json()
       console.log('Server response:', result)
@@ -203,7 +209,7 @@ export default function TestPage() {
       console.error('Submit error:', err)
       router.push('/result')
     }
-  }, [router])
+  }, [router, tgId])
 
   const handleAnswer = useCallback(
     (value: 'yes' | 'no') => {

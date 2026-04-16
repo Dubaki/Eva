@@ -3,6 +3,7 @@ import Script from 'next/script'
 import { Inter } from 'next/font/google'
 import { AuthProvider } from '@/components/providers/AuthProvider'
 import Gatekeeper from '@/components/Gatekeeper'
+import { QUESTIONS } from '@/lib/questions'
 import './globals.css'
 
 const inter = Inter({
@@ -14,7 +15,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'EVA — Тест на искажённые опоры',
-  description: 'Узнайте свою скрытую опору. Пройдите тест из 25 вопросов и откройте механизм, который мешает двигаться дальше.',
+  description: `Узнайте свою скрытую опору. Пройдите тест из ${QUESTIONS.length} вопросов и откройте механизм, который мешает двигаться дальше.`,
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',

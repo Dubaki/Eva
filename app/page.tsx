@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { openAuthorContact } from '@/lib/author-contact'
 import { getStoredInviterTgId } from '@/components/providers/AuthProvider'
+import { QUESTIONS } from '@/lib/questions'
 
 const ADMIN_PIN = '2026'
 const COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000 // 60 days
@@ -209,7 +210,7 @@ export default function Home() {
           {/* Meta pills */}
           <motion.div {...fadeUp(0.38)} className="flex gap-2">
             <span className="text-[12px] font-medium text-text-muted bg-bg-secondary border border-border rounded-full px-3 py-1.5 leading-none">
-              25 вопросов
+              {QUESTIONS.length} вопросов
             </span>
             <span className="text-[12px] font-medium text-text-muted bg-bg-secondary border border-border rounded-full px-3 py-1.5 leading-none">
               ~5 минут
