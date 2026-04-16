@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback, createContext, useContext } from 'rea
 import { motion } from 'framer-motion'
 import { getStoredInviterTgId } from '@/components/providers/AuthProvider'
 
-const COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000 
+const COOLDOWN_MS = 60 * 24 * 60 * 60 * 1000
+const CHANNEL_URL = process.env.NEXT_PUBLIC_TELEGRAM_CHANNEL_URL ?? 'https://t.me/sprosievu'
 
 export type GatekeeperState =
   | { checking: true }
@@ -119,6 +120,16 @@ export default function Gatekeeper({ children, onStatus }: { children: React.Rea
             </p>
             {subError && <p className="text-red-400 text-[13px] mb-4">{subError}</p>}
             <div className="flex flex-col gap-3">
+              <a href={CHANNEL_URL} target="_blank" rel="noopener noreferrer" className="w-full">
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.97 }}
+                  className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
+                  style={{ background: 'var(--accent)' }}
+                >
+                  📢 Подписаться
+                </motion.button>
+              </a>
               <motion.button
                 type="button"
                 whileTap={{ scale: 0.97 }}

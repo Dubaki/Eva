@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { sendPhoto, sendMessage, getTmaUrl } from '@/lib/telegram-bot'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,6 +50,26 @@ export async function POST(request: NextRequest) {
     if (!profile) return NextResponse.json({ success: false, error: 'Ошибка БД: Профиль не создан' }, { status: 500 })
 
     await supabaseAdmin.from('profiles').update({ is_subscribed: true }).eq('tg_id', tgId)
+
+    // Send confirmation message to user in Telegram (mirrors bot's handleSubscriptionCheck)
+    try {
+      const successCaption =
+        `🎉 <b>Подписка подтверждена!</b>\n\n` +
+        `У каждого человека есть внутренняя «опора» — набор убеждений, которые помогают жить и развиваться.\n` +
+        `Но иногда эти установки начинают искажаться, и мы теряем связь с собой.\n\n` +
+        `👇 <i>Нажми кнопку ниже, чтобы начать тест.</i>`
+      const tmaUrl = getTmaUrl()
+      const replyMarkup = {
+        inline_keyboard: [[{ text: '✨ Пройти тест', web_app: { url: tmaUrl } }]],
+      }
+      const photoUrl = `https://eva-9udm.vercel.app/start1.png?v=${Date.now()}`
+      const sent = await sendPhoto({ chatId: Number(tgId), photo: photoUrl, caption: successCaption, replyMarkup, parseMode: 'HTML' })
+      if (!sent) {
+        await sendMessage({ chatId: Number(tgId), text: successCaption, replyMarkup, parseMode: 'HTML' })
+      }
+    } catch (notifyErr) {
+      console.error('[subscription/confirm] Failed to send Telegram notification (non-fatal):', notifyErr)
+    }
 
     return NextResponse.json({ success: true })
   } catch (err: any) {
