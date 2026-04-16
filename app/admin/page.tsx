@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
+import NextImage from 'next/image'
 import { motion } from 'framer-motion'
 
 const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
@@ -50,7 +50,7 @@ async function compressImage(file: File, maxSizeKB = 500): Promise<Blob> {
   return new Promise((resolve) => {
     const reader = new FileReader()
     reader.onload = (e) => {
-      const img = new Image()
+      const img = document.createElement('img')
       img.onload = () => {
         const canvas = document.createElement('canvas')
         let { width, height } = img
@@ -675,7 +675,7 @@ export default function AdminPanel() {
               <div className="flex items-center gap-3">
                 <label className="flex-1 flex items-center justify-center py-6 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50/50 transition-all">
                   {broadcastPhotoPreview ? (
-                    <Image 
+                    <NextImage 
                       src={broadcastPhotoPreview} 
                       alt="Preview" 
                       width={200} 
