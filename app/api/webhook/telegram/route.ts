@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
   sendMessage,
-  sendPhoto,
   extractReferralCode,
   getTmaUrl,
   getChatMember,
   answerCallbackQuery,
-  type InlineKeyboard,
 } from '@/lib/telegram-bot'
 import { getSupabaseServer } from '@/lib/supabase/server'
 
@@ -15,8 +13,7 @@ export const dynamic = 'force-dynamic'
 const SECRET_TOKEN = process.env.TELEGRAM_WEBHOOK_SECRET
 const CHANNEL_ID = process.env.TELEGRAM_CHANNEL_ID
 const CHANNEL_URL = process.env.TELEGRAM_CHANNEL_URL ?? 'https://t.me/sprosievu'
-const EDGE_FN_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/process-bot-notifications`
-const EDGE_FN_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+const AUTHOR_USERNAME = 'evapatrakhina'
 
 function validateSecretToken(req: NextRequest): boolean {
   if (!SECRET_TOKEN) return true
@@ -45,44 +42,151 @@ export async function POST(request: NextRequest) {
       if (callbackQuery) {
         const data = callbackQuery.data
 
+        // ── Подписка на канал ──────────────────────────────────────────
         if (data === 'check_sub') {
           const status = await getChatMember(CHANNEL_ID!, tgId)
           const isSubscribed = ['member', 'administrator', 'creator'].includes(status || '')
 
           if (isSubscribed) {
-            await answerCallbackQuery({
-              callbackQueryId: callbackQuery.id,
-              text: 'Спасибо за подписку! 🎉'
-            })
+            await answerCallbackQuery({ callbackQueryId: callbackQuery.id, text: 'Спасибо за подписку! 🎉' })
             await sendMessage({
               chatId: tgId,
               text: 'Подписка подтверждена! Теперь ты можешь пройти тест.',
-              replyMarkup: {
-                inline_keyboard: [[{ text: 'Открыть тест', web_app: { url: getTmaUrl() } }]]
-              }
+              replyMarkup: { inline_keyboard: [[{ text: 'Открыть тест', web_app: { url: getTmaUrl() } }]] }
             })
           } else {
-            await answerCallbackQuery({
-              callbackQueryId: callbackQuery.id,
-              text: 'Ты всё ещё не подписана 😔',
-              showAlert: true
-            })
+            await answerCallbackQuery({ callbackQueryId: callbackQuery.id, text: 'Ты всё ещё не подписана 😔', showAlert: true })
           }
-        } else {
-          // Forward quiz and other bot callbacks to edge function
-          await fetch(EDGE_FN_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${EDGE_FN_KEY}` },
-            body: JSON.stringify(update),
-          }).catch(err => console.error('EDGE FN FORWARD ERROR:', err))
+          return NextResponse.json({ ok: true })
         }
+
+        // ── Quiz callbacks ─────────────────────────────────────────────
+        await answerCallbackQuery({ callbackQueryId: callbackQuery.id })
+
+        // Получаем профиль
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('tg_id', tgId)
+          .limit(1)
+
+        const profileId = profiles?.[0]?.id
+        if (!profileId) return NextResponse.json({ ok: true })
+
+        // Q1 → Q2
+        if (data.startsWith('quiz_q1_')) {
+          const sphere = data.replace('quiz_q1_', '')
+
+          const { error: insertErr } = await supabase
+            .from('qualifications')
+            .insert({ profile_id: profileId, tension_sphere: sphere, tension_level: '', previous_attempts: '' } as any)
+          if (insertErr) {
+            await supabase.from('qualifications').update({ tension_sphere: sphere } as any).eq('profile_id', profileId)
+          }
+          await supabase.from('profiles').update({ bot_quiz_step: 2 } as any).eq('tg_id', tgId)
+
+          await sendMessage({
+            chatId: tgId,
+            text: '<b>Насколько это ощущается остро?</b>',
+            parseMode: 'HTML',
+            replyMarkup: {
+              inline_keyboard: [
+                [{ text: 'Сильно мешает', callback_data: 'quiz_q2_hard' }],
+                [{ text: 'Пока терпимо', callback_data: 'quiz_q2_medium' }],
+                [{ text: 'Фоново', callback_data: 'quiz_q2_light' }],
+              ]
+            }
+          })
+        }
+
+        // Q2 → Q3
+        else if (data.startsWith('quiz_q2_')) {
+          const level = data.replace('quiz_q2_', '')
+          await supabase.from('qualifications').update({ tension_level: level } as any).eq('profile_id', profileId)
+          await supabase.from('profiles').update({ bot_quiz_step: 3 } as any).eq('tg_id', tgId)
+
+          await sendMessage({
+            chatId: tgId,
+            text: '<b>Ты уже пробовала что-то с этим делать?</b>',
+            parseMode: 'HTML',
+            replyMarkup: {
+              inline_keyboard: [
+                [{ text: 'Да, многое', callback_data: 'quiz_q3_yes' }],
+                [{ text: 'Немного', callback_data: 'quiz_q3_some' }],
+                [{ text: 'Нет', callback_data: 'quiz_q3_no' }],
+              ]
+            }
+          })
+        }
+
+        // Q3 → финальное предложение
+        else if (data.startsWith('quiz_q3_')) {
+          const attempts = data.replace('quiz_q3_', '')
+          await supabase.from('qualifications').update({ previous_attempts: attempts } as any).eq('profile_id', profileId)
+          await supabase.from('profiles').update({ bot_quiz_step: 4 } as any).eq('tg_id', tgId)
+
+          await sendMessage({
+            chatId: tgId,
+            text: 'Есть 2 способа работы с искаженной опорой:\n\n✓ Жёсткий, но быстрый — это группа «Пробой»\n\n✓ Мягкий и постепенный — это «Пирамида Потенциала» или персональная работа\n\nКакой способ тебе ближе?',
+            replyMarkup: {
+              inline_keyboard: [
+                [{ text: 'Жесткий быстрый', callback_data: 'quiz_final_hard' }],
+                [{ text: 'Мягкий постепенный', callback_data: 'quiz_final_soft' }],
+                [{ text: 'Пока не готова', callback_data: 'quiz_final_not_ready' }],
+              ]
+            }
+          })
+        }
+
+        // Финал: жёсткий или мягкий → ссылка на автора + подарок через 1 мин
+        else if (data === 'quiz_final_hard' || data === 'quiz_final_soft') {
+          const prefilledText = data === 'quiz_final_hard' ? 'Пробой!' : 'Пирамида Потенциала'
+          const authorUrl = `https://t.me/${AUTHOR_USERNAME}?text=${encodeURIComponent(prefilledText)}`
+
+          await supabase.from('profiles').update({ bot_quiz_step: 5 } as any).eq('tg_id', tgId)
+          await (supabase as any).from('bot_tasks_queue').insert({
+            profile_id: profileId,
+            tg_id: tgId,
+            event_type: 'send_gift',
+            run_at: new Date(Date.now() + 60000).toISOString(),
+            status: 'pending',
+          })
+
+          await sendMessage({
+            chatId: tgId,
+            text: 'Отлично! Нажми кнопку ниже — я жду твоего сообщения:',
+            replyMarkup: { inline_keyboard: [[{ text: 'Написать Еве', url: authorUrl }]] }
+          })
+        }
+
+        // Финал: пока не готова → подарок сразу
+        else if (data === 'quiz_final_not_ready') {
+          await supabase.from('profiles').update({ bot_quiz_step: 5 } as any).eq('tg_id', tgId)
+
+          await sendMessage({
+            chatId: tgId,
+            text: 'Благодарю тебя за честность! Честность — это то, на чем строятся все мои методы работы. Чтобы тест не остался просто тестом, я дарю тебе практику нейроманифестации. Ты можешь начать изменения уже сегодня.',
+            replyMarkup: { inline_keyboard: [[{ text: 'Забрать подарок', callback_data: 'get_gift' }]] }
+          })
+        }
+
+        // Подарок
+        else if (data === 'get_gift') {
+          await sendMessage({
+            chatId: tgId,
+            text: 'Подарок уже готовится — скоро пришлю! 🎁',
+          })
+        }
+
         return NextResponse.json({ ok: true })
       }
 
+      // ── Текстовые сообщения ────────────────────────────────────────
       const text = message?.text || ''
+
       if (text.startsWith('/start')) {
         const refCode = extractReferralCode(text)
-        
+
         await supabase
           .from('profiles')
           .upsert({
@@ -109,33 +213,29 @@ export async function POST(request: NextRequest) {
           await sendMessage({
             chatId: tgId,
             text: 'Рада видеть тебя снова! Твой тест ждет тебя.',
-            replyMarkup: {
-              inline_keyboard: [[{ text: 'Пройти тест', web_app: { url: getTmaUrl() } }]]
-            }
+            replyMarkup: { inline_keyboard: [[{ text: 'Пройти тест', web_app: { url: getTmaUrl() } }]] }
           })
         }
-      } 
-      
-      // БЛОК ПОЛУЧЕНИЯ FILE_ID ДЛЯ АДМИНОВ
+      }
+
+      // Получение file_id для администраторов
       else if ((username === 'evapatrakhina' || username === 'bizbezit') && (update.message as any)?.video) {
-        const videoFileId = (update.message as any).video.file_id;
-        
+        const videoFileId = (update.message as any).video.file_id
         await sendMessage({
           chatId: tgId,
           text: `✅ <b>ID ВИДЕО ПОЛУЧЕН</b>\n\nНик: @${username}\n\n<code>${videoFileId}</code>\n\nСкопируй этот код целиком.`,
           parseMode: 'HTML'
-        });
+        })
       }
 
       else if (text) {
         await sendMessage({
           chatId: tgId,
           text: '🌿 Чтобы начать работу, нажми кнопку ниже или введи /start',
-          replyMarkup: {
-            inline_keyboard: [[{ text: 'Открыть приложение', web_app: { url: getTmaUrl() } }]]
-          }
+          replyMarkup: { inline_keyboard: [[{ text: 'Открыть приложение', web_app: { url: getTmaUrl() } }]] }
         })
       }
+
     } catch (handlerErr) {
       console.error('WEBHOOK HANDLER ERROR:', handlerErr)
     }
