@@ -100,6 +100,7 @@ export default function TestPage() {
   const [selected, setSelected] = useState<'yes' | 'no' | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [questionOrder, setQuestionOrder] = useState<number[] | null>(null)
   const [answersMap, setAnswersMap] = useState<Record<number, number>>({})
   const router = useRouter()
 
@@ -136,12 +137,19 @@ export default function TestPage() {
         const res = await fetch(`/api/test/progress?tgId=${tgId}`)
         const json = await res.json()
         if (!cancelled && json.success && json.data) {
-          const { currentStep, answers } = json.data as { currentStep: number; answers: Record<number, number> | null }
+          const { currentStep, answers, question_order } = json.data as { 
+            currentStep: number; 
+            answers: Record<number, number> | null;
+            question_order: number[] | null;
+          }
           if (currentStep > 0 && currentStep < QUESTIONS.length) {
             setCurrentIndex(currentStep)
             if (answers) {
               setAnswersMap(answers)
             }
+          }
+          if (question_order) {
+            setQuestionOrder(question_order)
           }
         }
       } catch (e) {
@@ -159,7 +167,8 @@ export default function TestPage() {
     saveStep(currentIndex)
   }, [currentIndex, loading, saveStep])
 
-  const question = QUESTIONS[currentIndex]
+  const actualQuestionIndex = questionOrder?.[currentIndex] ?? currentIndex
+  const question = QUESTIONS[actualQuestionIndex]
   const accentColor = SCALE_COLOR[question.scale]
   const canGoBack = currentIndex > 0
   const currentAnswer = answersMap[question.id] ?? null
@@ -261,6 +270,22 @@ export default function TestPage() {
             transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
           />
           <p className="text-text-secondary text-sm">Загружаю прогресс...</p>
+        </div>
+      </main>
+    )
+  }
+
+  // Initializing order screen
+  if (!questionOrder && tgId) {
+    return (
+      <main className="flex flex-col min-h-screen bg-bg-primary overflow-hidden items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <motion.div
+            className="w-12 h-12 border-2 border-accent border-t-transparent rounded-full"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          />
+          <p className="text-text-secondary text-sm">Инициализирую порядок вопросов...</p>
         </div>
       </main>
     )

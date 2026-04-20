@@ -1,8 +1,9 @@
 /**
  * Helper to invoke the Supabase Edge Function `process-bot-notifications`.
- * Used server-side after DB mutations to trigger Telegram bot messages.
+ * Used server-side for certain events (referral milestones, webhooks).
+ * NOTE: For dominant_trait_set, prefer direct sendPhoto() from lib/telegram-bot.ts
+ * to ensure full text is sent without Edge Function interference.
  */
-
 export async function triggerBotNotification(payload: {
   event: 'dominant_trait_set' | 'referrals_reached_2'
   profile_id: string

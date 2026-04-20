@@ -5,6 +5,7 @@ import { calculateScores, type Answer } from '@/lib/scoring'
 import { triggerBotNotification } from '@/lib/bot-notification'
 import { QUESTIONS } from '@/lib/questions'
 import { FULL_RESULTS_TEXTS } from '@/lib/constants/results'
+import { sendPhoto } from '@/lib/telegram-bot'
 
 export const dynamic = 'force-dynamic'
 
@@ -108,9 +109,35 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: dbError.message }, { status: 500 })
     }
 
-    await supabaseAdmin.from('profiles').update({ current_step: null, shared_at: null }).eq('id', profileId)
+    await supabaseAdmin.from('profiles').update({ current_step: null, shared_at: null, question_order: null }).eq('id', profileId)
     
     const fullText = FULL_RESULTS_TEXTS[primary]
+
+    // ── Direct Send to Telegram (Task 163) ──
+    const TRAIT_IMAGES_MAP: Record<string, string> = {
+      S: 'hero.png',
+      U: 'pleaser.png',
+      P: 'perfectionist.png',
+      R: 'stayer.png',
+      K: 'controller.png',
+    }
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://eva-app.vercel.app'
+    const imageName = TRAIT_IMAGES_MAP[primary] || 'hero.png'
+    const photoUrl = `${appUrl}/${imageName}`
+
+    try {
+      console.log(`[API] Sending direct result to tgId=${tgId} with photo=${photoUrl}`)
+      await sendPhoto({
+        chatId: tgId,
+        photo: photoUrl,
+        caption: fullText,
+        parseMode: 'HTML'
+      })
+      console.log('[API] Direct result sent successfully')
+    } catch (err) {
+      console.error('[API] Failed to send direct result to Telegram:', err)
+    }
+
     triggerBotNotification({ 
       event: 'dominant_trait_set', 
       profile_id: profileId, 
