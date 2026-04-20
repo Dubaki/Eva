@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     await supabaseAdmin.from('profiles').update({ current_step: null, question_order: null }).eq('id', profileId)
     
-    // ── Настройка Telegram ──
+    // ── Настройка Telegram (ОДНО СООБЩЕНИЕ) ──
     const fullText = FULL_RESULTS_TEXTS[primary]
     const TRAIT_IMAGES_MAP: Record<string, string> = {
       S: 'hero.png', 
@@ -70,29 +70,34 @@ export async function POST(request: NextRequest) {
     }
 
     const imageName = TRAIT_IMAGES_MAP[primary] || 'hero.png'
-
-    // Используем прямые ссылки на Raw контент GitHub как резервный (fallback) 
-    // Это гарантирует, что Telegram увидит фото, даже если Vercel домен еще не подтвержден
+    // Используем проверенный путь к GitHub Raw
     const githubRawBase = 'https://raw.githubusercontent.com/Dubaki/Eva/main/public'
     const photoUrl = `${githubRawBase}/${imageName}`
 
     try {
-      // 1. Отправляем фото по прямой ссылке
-      await sendPhoto({ 
+      // Отправляем ОДНО сообщение: фото и текст в caption
+      const sent = await sendPhoto({ 
         chatId: tgId, 
-        photo: photoUrl 
-      });
-      
-      // 2. Сразу следом отправляем текст
-      await sendMessage({
-        chatId: tgId,
-        text: fullText,
+        photo: photoUrl,
+        caption: fullText,
         parseMode: 'HTML'
       });
+
+      // Резервный вариант: если Telegram отклонил фото (например, текст > 1024 символов)
+      if (!sent) {
+        console.warn('[API] Photo with caption failed, sending separately...');
+        await sendMessage({
+          chatId: tgId,
+          text: fullText,
+          parseMode: 'HTML'
+        });
+      }
       
-      console.log(`[API] Result sent to TG. Trait: ${primary}, Photo: ${photoUrl}`);
+      console.log(`[API] Unified result sent. Trait: ${primary}`);
     } catch (err) {
       console.error('[API] Telegram delivery critical error:', err);
+      // Финальный фолбэк — просто текст, если всё упало
+      await sendMessage({ chatId: tgId, text: fullText, parseMode: 'HTML' }).catch(() => {});
     }
 
     return NextResponse.json({ success: true, data: { dominantTrait: scores.dominantTrait, scores } })
