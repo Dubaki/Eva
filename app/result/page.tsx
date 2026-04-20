@@ -1,12 +1,15 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Copy, Check } from 'lucide-react'
 import { getTraitInfo } from '@/lib/scoring'
 import ConfirmModal from '@/components/ConfirmModal'
 import { openAuthorContact } from '@/lib/author-contact'
+
+const THINKING_DELAY = 1000 // ms
 
 type ResultData = {
   dominantTrait: string
@@ -70,6 +73,8 @@ export default function ResultPage() {
   const searchParams = useSearchParams()
   const [result, setResult] = useState<ResultData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isThinking, setIsThinking] = useState(false)
+  const responseRef = useRef<HTMLDivElement>(null)
 
   // Funnel
   const [funnelStep, setFunnelStep] = useState<FunnelStep>('result')
@@ -136,6 +141,14 @@ export default function ResultPage() {
     }
   }, [searchParams])
 
+  useEffect(() => {
+    if ((funnelStep === 'surprise-response-yes' || funnelStep === 'surprise-response-no') && responseRef.current) {
+      setTimeout(() => {
+        responseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
+    }
+  }, [funnelStep])
+
   // ── Surprise answer (with custom modal) ───────────────────────────────
   const handleSurpriseAnswer = useCallback((answer: 'yes' | 'no') => {
     setPendingAnswer(answer)
@@ -146,7 +159,13 @@ export default function ResultPage() {
     setShowConfirm(false)
     if (pendingAnswer) {
       setSurpriseAnswer(pendingAnswer)
-      setFunnelStep(pendingAnswer === 'yes' ? 'surprise-response-yes' : 'surprise-response-no')
+      setIsThinking(true)
+      
+      setTimeout(() => {
+        setIsThinking(false)
+        setFunnelStep(pendingAnswer === 'yes' ? 'surprise-response-yes' : 'surprise-response-no')
+      }, THINKING_DELAY)
+      
       setPendingAnswer(null)
     }
   }, [pendingAnswer])
@@ -205,7 +224,7 @@ export default function ResultPage() {
     try {
       await navigator.clipboard.writeText(refLink)
       setCopied(true)
-      setTimeout(() => setCopied(false), 3000)
+      setTimeout(() => setCopied(false), 1500)
     } catch {
       alert(`Скопируйте: ${refLink}`)
     }
@@ -470,29 +489,60 @@ export default function ResultPage() {
               transition={{ duration: 0.4, delay: 0.4 }}
               className="text-center"
             >
-              <p className="text-text-primary text-[16px] font-medium mb-3">
-                Удивил ли тебя результат?
-              </p>
-              <div className="flex gap-3">
-                <motion.button
-                  type="button"
-                  whileTap={{ scale: 0.95 }}
-                  className="flex-1 py-3 rounded-xl font-semibold text-[15px] text-white"
-                  style={{ background: '#2563eb' }}
-                  onClick={() => handleSurpriseAnswer('yes')}
-                >
-                  Да
-                </motion.button>
-                <motion.button
-                  type="button"
-                  whileTap={{ scale: 0.95 }}
-                  className="flex-1 py-3 rounded-xl font-semibold text-[15px] border"
-                  style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                  onClick={() => handleSurpriseAnswer('no')}
-                >
-                  Нет
-                </motion.button>
-              </div>
+              <AnimatePresence mode="wait">
+                {isThinking ? (
+                  <motion.div
+                    key="thinking"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex flex-col items-center py-4"
+                  >
+                    <div className="flex gap-1">
+                      {[0, 1, 2].map((i) => (
+                        <motion.div
+                          key={i}
+                          className="w-2 h-2 rounded-full bg-accent"
+                          animate={{ opacity: [0.3, 1, 0.3] }}
+                          transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+                        />
+                      ))}
+                    </div>
+                    <p className="text-text-muted text-xs mt-2">Осмысляю...</p>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="question"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    <p className="text-text-primary text-[16px] font-medium mb-3">
+                      Удивил ли тебя результат?
+                    </p>
+                    <div className="flex gap-3">
+                      <motion.button
+                        type="button"
+                        whileTap={{ scale: 0.95 }}
+                        className="flex-1 py-3 rounded-xl font-semibold text-[15px] text-white"
+                        style={{ background: '#2563eb' }}
+                        onClick={() => handleSurpriseAnswer('yes')}
+                      >
+                        Да
+                      </motion.button>
+                      <motion.button
+                        type="button"
+                        whileTap={{ scale: 0.95 }}
+                        className="flex-1 py-3 rounded-xl font-semibold text-[15px] border"
+                        style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                        onClick={() => handleSurpriseAnswer('no')}
+                      >
+                        Нет
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           </>
         )}
@@ -527,10 +577,13 @@ export default function ResultPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.3 }}
               className="text-center"
+              ref={responseRef}
             >
-              <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap mb-5">
-                Это нормально. Более того — это и есть часть механизма. Искажённая опора устроена так, что ты не видишь её напрямую. И именно поэтому снова и снова оказываешься в одних и тех же ситуациях.
-              </p>
+              <div className="bg-blue-50/50 dark:bg-blue-900/10 border-l-4 border-blue-600 rounded-r-xl p-4 mb-5 text-left">
+                <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap">
+                  Это нормально. Более того — это и есть часть механизма. Искажённая опора устроена так, что ты не видишь её напрямую. И именно поэтому снова и снова оказываешься в одних и тех же ситуациях.
+                </p>
+              </div>
               <p className="text-text-secondary text-[14px] leading-relaxed mb-5 whitespace-pre-wrap">
                 Базовая опора — это только часть картины. Есть ещё смешанные конфигурации, которые активируются в стрессе.{' '}
                 <b>Хочешь увидеть свою вторую искаженную опору?</b>
@@ -540,7 +593,7 @@ export default function ResultPage() {
                   className="flex-1 py-3 rounded-xl font-semibold text-[15px] text-white"
                   style={{ background: '#2563eb' }}
                   onClick={() => setFunnelStep('referral-gate')}>
-                  Узнать теневую опору
+                  Узнать вторую опору
                 </motion.button>
                 <motion.button type="button" whileTap={{ scale: 0.95 }}
                   className="flex-1 py-3 rounded-xl font-semibold text-[15px] border"
@@ -583,10 +636,13 @@ export default function ResultPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.3 }}
               className="text-center"
+              ref={responseRef}
             >
-              <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap mb-5">
-                Это говорит о том, что ты уже явно не новичок в самопознании. Ты видишь этот паттерн, но это еще не меняет ситуацию.
-              </p>
+              <div className="bg-blue-50/50 dark:bg-blue-900/10 border-l-4 border-blue-600 rounded-r-xl p-4 mb-5 text-left">
+                <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap">
+                  Это говорит о том, что ты уже явно не новичок в самопознании. Ты видишь этот паттерн, но это еще не меняет ситуацию.
+                </p>
+              </div>
               <p className="text-text-secondary text-[14px] leading-relaxed mb-5 whitespace-pre-wrap">
                 Базовая опора — это только часть картины. Есть ещё смешанные конфигурации, которые активируются в стрессе.{' '}
                 <b>Хочешь увидеть свою вторую искаженную опору?</b>
@@ -596,7 +652,7 @@ export default function ResultPage() {
                   className="flex-1 py-3 rounded-xl font-semibold text-[15px] text-white"
                   style={{ background: '#2563eb' }}
                   onClick={() => setFunnelStep('referral-gate')}>
-                  Узнать теневую опору
+                  Узнать вторую опору
                 </motion.button>
                 <motion.button type="button" whileTap={{ scale: 0.95 }}
                   className="flex-1 py-3 rounded-xl font-semibold text-[15px] border"
@@ -655,7 +711,7 @@ export default function ResultPage() {
               <b>Я обычно открываю этот слой только тем, кто идёт в работу.</b>{'\n'}
               Потому что важно не просто увидеть, а понять, как это устроено и что с этим делать.
               {'\n\n'}
-              Сейчас у тебя есть возможность открыть свою теневую опору через участие
+              Сейчас у тебя есть возможность открыть свою вторую опору через участие
             </p>
             <div className="flex flex-col gap-3">
               <motion.button type="button" whileTap={{ scale: 0.97 }}
@@ -668,7 +724,7 @@ export default function ResultPage() {
                 className="w-full py-3 rounded-xl font-semibold text-[15px] border"
                 style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                 onClick={closeApp}>
-                Пока не буду узнавать теневую опору
+                Пока не буду узнавать вторую опору
               </motion.button>
             </div>
           </motion.div>
@@ -695,16 +751,16 @@ export default function ResultPage() {
                 <motion.button
                   type="button"
                   whileTap={{ scale: 0.9 }}
-                  className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-[12px] font-medium hover:bg-blue-700 transition-colors"
+                  className="flex-shrink-0 p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
                   onClick={handleCopyLink}
                 >
-                  {copied ? 'Скопировано' : 'Копировать'}
+                  {copied ? <Check size={18} /> : <Copy size={18} />}
                 </motion.button>
               </div>
             </div>
 
             <p className="text-text-secondary text-[14px] leading-relaxed mb-5">
-              Когда 2 человека перейдут по ней и пройдут тест, я открою тебе второй слой — твою теневую опору.
+              Когда 2 человека перейдут по ней и пройдут тест, я открою тебе второй слой — твою вторую опору.
             </p>
             <div className="flex flex-col gap-3">
               <motion.button type="button" whileTap={{ scale: 0.97 }}

@@ -167,7 +167,11 @@ export default function Gatekeeper({ children, onStatus }: { children: React.Rea
     }
 
     const msg = state.reason === 'cooldown' 
-      ? { title: 'Тест ещё не доступен', message: `Следующий тест будет доступен через ${state.cooldownDays} дн.`, hint: 'Это нужно для точности результатов.' }
+      ? { 
+          title: 'Сейчас нет смысла проходить тест повторно', 
+          message: 'У тебя есть 2 месяца, чтобы демонтировать текущую опору. Через 2 месяца ты сможешь увидеть изменения.', 
+          hint: `Повторно пройти тест и узнать, какая у тебя опора можно будет через ${state.cooldownDays} ${state.cooldownDays === 1 ? 'день' : (state.cooldownDays || 0) < 5 ? 'дня' : 'дней'}` 
+        }
       : { title: 'Откройте через Telegram', message: 'Приложение работает только внутри Telegram.', hint: 'Найдите бота и запустите его.' }
 
     return (
