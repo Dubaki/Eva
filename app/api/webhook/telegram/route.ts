@@ -566,7 +566,7 @@ export async function POST(req: NextRequest) {
           }
           const userId = from?.id ?? 0
           await handleStart(chat.id, userId, refCode, from?.first_name)
-        } else if (from?.username === 'evapatrakhina' && update.message.video) {
+        } else if (from?.username === 'evapatrakhina' && (update.message as any).video) {
           // Check if author is sending a video for debug
           await forwardToEdgeFunction(update)
         } else {
