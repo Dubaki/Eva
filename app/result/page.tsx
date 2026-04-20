@@ -669,13 +669,7 @@ export default function ResultPage() {
                 className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
                 style={{ background: '#2563eb' }}
                 onClick={() => handleCooldownButton(true)}>
-                Узнать 2 опору сейчас
-              </motion.button>
-              <motion.button type="button" whileTap={{ scale: 0.97 }}
-                className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
-                style={{ background: '#2563eb' }}
-                onClick={() => handleCooldownButton(true)}>
-                Пригласить друга — получить приз
+                Узнать вторую опору
               </motion.button>
               <motion.button type="button" whileTap={{ scale: 0.97 }}
                 className="w-full py-3 rounded-xl font-semibold text-[15px] border"
