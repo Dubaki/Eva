@@ -92,18 +92,6 @@ export default function ResultPage() {
   const [userTgId, setUserTgId] = useState<number | null>(null)
 
   useEffect(() => {
-    // Navigation safety: if user comes back to the app, redirect to home
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        console.log('[result] App regained focus, redirecting to home cycle')
-        window.location.href = '/'
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [])
-
-  useEffect(() => {
     const stored = sessionStorage.getItem('eva_result')
     if (stored) {
       try { setResult(JSON.parse(stored)) } catch { /* ignore */ }
@@ -205,7 +193,7 @@ export default function ResultPage() {
         await fetch('/api/share', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tgId: currentTgId }),
+          body: JSON.stringify({ tgId: currentTgId, trait: result?.dominantTrait }),
         })
       } catch (err) {
         console.error('[share] API call failed:', err)
