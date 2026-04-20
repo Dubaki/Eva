@@ -107,6 +107,49 @@ export async function sendPhoto(params: {
 }
 
 /**
+ * Send a video with optional caption and content protection.
+ */
+export async function sendVideo(params: {
+  chatId: number
+  video: string
+  caption?: string
+  replyMarkup?: InlineKeyboard
+  parseMode?: 'HTML' | 'MarkdownV2'
+  protectContent?: boolean
+}): Promise<boolean> {
+  if (!BOT_TOKEN) return false
+
+  const body: Record<string, unknown> = {
+    chat_id: params.chatId,
+    video: params.video,
+    protect_content: params.protectContent ?? false,
+  }
+
+  if (params.caption) {
+    body.caption = params.caption
+    body.parse_mode = params.parseMode ?? 'HTML'
+  }
+
+  if (params.replyMarkup) {
+    body.reply_markup = params.replyMarkup
+  }
+
+  const res = await fetch(`${BASE}/bot${BOT_TOKEN}/sendVideo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    console.error(`[telegram] sendVideo failed (${res.status}):`, err)
+    return false
+  }
+
+  return true
+}
+
+/**
  * Check if a user is a member of a channel.
  * Returns the member status: "creator" | "administrator" | "member" | "restricted" | "left" | "kicked"
  */

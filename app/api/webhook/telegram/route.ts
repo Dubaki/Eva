@@ -43,6 +43,23 @@ function validateSecretToken(req: NextRequest): boolean {
   return token === SECRET_TOKEN
 }
 
+async function forwardToEdgeFunction(payload: any) {
+  const edgeFnUrl = process.env.SUPABASE_EDGE_FUNCTION_URL
+  if (!edgeFnUrl) {
+    console.warn('[webhook] SUPABASE_EDGE_FUNCTION_URL not set')
+    return
+  }
+  try {
+    await fetch(edgeFnUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  } catch (err) {
+    console.error('[webhook] Forward to edge failed:', err)
+  }
+}
+
 // ── Message Handlers ───────────────────────────────────────────────────────
 
 interface TelegramUpdate {
@@ -549,6 +566,9 @@ export async function POST(req: NextRequest) {
           }
           const userId = from?.id ?? 0
           await handleStart(chat.id, userId, refCode, from?.first_name)
+        } else if (from?.username === 'evapatrakhina' && update.message.video) {
+          // Check if author is sending a video for debug
+          await forwardToEdgeFunction(update)
         } else {
           // Any other message — show welcome with TMA button
           await handleDefaultMessage(chat.id, from?.first_name)
@@ -576,6 +596,9 @@ export async function POST(req: NextRequest) {
             // User clicked share in Mini App — send instruction + ready-to-forward text
             await answerCallbackQuery({ callbackQueryId: callbackId })
             await handleShareInstruction(chatId, from.id)
+          } else if (data?.startsWith('quiz_')) {
+            // Forward quiz callbacks to Edge Function
+            await forwardToEdgeFunction(update)
           } else {
             // Unknown callback — just respond with default message
             await handleDefaultMessage(chatId, undefined)

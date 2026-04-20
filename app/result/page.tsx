@@ -552,10 +552,6 @@ export default function ResultPage() {
                 Поделиться
               </motion.button>
             </div>
-
-            <p className="text-text-muted text-[13px] mt-4">
-              Больше друзей — больше бонусов.
-            </p>
           </motion.div>
         )}
 

@@ -1,40 +1,24 @@
 /**
  * Supabase Edge Function: process-bot-notifications
  *
- * Поддерживает два режима вызова:
- *
- * 1. Database Webhook (Supabase Database Functions → Webhook):
- *    Payload: стандартный Supabase webhook (INSERT/UPDATE)
- *    {
- *      "type": "INSERT" | "UPDATE",
- *      "table": "profiles",
- *      "record": { "id": "...", "tg_id": 123, "dominant_trait": "S", "shadow_trait": "U", ... },
- *      "old_record": { ... } | null
- *    }
- *
- * 2. Direct API call (из Next.js через bot-notification.ts):
- *    {
- *      "event": "dominant_trait_set" | "referrals_reached_2",
- *      "profile_id": "uuid",
- *      "tg_id": 123456789,
- *      "trait": "S",
- *      "mixed_trait": "SU"
- *    }
- *
- * Env vars:
- *   TELEGRAM_BOT_TOKEN — токен бота
- *   APP_URL — базовый URL приложения (для картинок)
+ * Поддерживает режимы:
+ * 1. Database Webhook (profiles/test_results)
+ * 2. Direct API call (action: process_queue)
+ * 3. Telegram Webhook (message, callback_query)
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')
 const APP_URL = Deno.env.get('APP_URL') || 'https://eva-app.vercel.app'
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
+const SUPABASE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+const AUTHOR_USERNAME = 'evapatrakhina'
 
-console.log('[init] BOT_TOKEN configured:', BOT_TOKEN ? 'yes' : 'no')
-console.log('[init] APP_URL:', APP_URL)
+// Константы контента
+const GIFT_VIDEO_FILE_ID = 'BAACAgIAAxkBAAIFV2Ym2X8...' // Будет обновлено через дебаг-инструмент
 
-// Картинки опор — абсолютные URL
+// Картинки опор
 const TRAIT_IMAGES: Record<string, string> = {
   S: `${APP_URL}/hero.png`,
   U: `${APP_URL}/pleaser.png`,
@@ -43,533 +27,233 @@ const TRAIT_IMAGES: Record<string, string> = {
   K: `${APP_URL}/controller.png`,
 }
 
-// Тексты доминирующих опор (полные описания)
 const DOMINANT_TRAIT_TEXTS: Record<string, string> = {
-  S: `<b>1. ГЕРОИЧЕСКАЯ</b>
-Ты та, кто держит.
-Даже когда тяжело. Даже когда уже нет сил.
-Ты не позволяешь себе развалиться.
-Не просишь помощи.
-Собираешься и идёшь дальше.
-Но внутри:
-— постоянное напряжение
-— одиночество
-— ощущение, что всё на тебе
-Ты привыкла быть сильной.
-Настолько, что уже не знаешь, как по-другому.
-Цена:
-Ты живёшь на износе.
-И даже не разрешаешь себе это признать.
-⚡️ Внутри звучит:
-«Если я перестану держать — меня не станет»`,
-
-  U: `<b>2. ПОДСТРАИВАЮЩАЯСЯ</b>
-Ты умеешь быть удобной.
-Чувствовать других. Подстраиваться.
-Ты сглаживаешь углы.
-Избегаешь конфликтов.
-Часто выбираешь не себя.
-Но внутри:
-— подавленные желания
-— злость, которую нельзя проявить
-— страх быть отвергнутой
-Ты стараешься быть хорошей.
-Но это не даёт тебе того, что ты хочешь.
-Цена:
-Ты теряешь себя, чтобы сохранить отношения.
-⚡️ Внутри звучит:
-«Если я буду собой — меня не выберут»`,
-
-  P: `<b>3. ПЕРФЕКЦИОНИРУЮЩАЯ</b>
-Ты живёшь через результат.
-Через «сделать правильно»
-Ты стараешься быть идеальной.
-Не ошибаться.
-Держать уровень.
-Но внутри:
-— страх критики
-— напряжение
-— ощущение, что ты недостаточно хороша
-Ты всё время доказываешь свою ценность.
-Даже когда уже доказала.
-Цена:
-Ты не можешь расслабиться.
-Потому что всегда есть «ещё лучше».
-⚡️ Внутри звучит:
-«Если я не идеальна — я ничто»`,
-
-  R: `<b>4. УДЕРЖИВАЮЩАЯ</b>
-Ты чувствуешь всё.
-Атмосферу, людей, напряжение.
-Ты сглаживаешь конфликты.
-Поддерживаешь.
-Держишь «поле».
-Но внутри:
-— перегруз
-— тревожность
-— ощущение, что слишком много на тебе
-Ты живёшь через других.
-И почти не остаётся места для себя.
-Цена:
-Ты выгораешь, удерживая то, что не обязана держать.
-⚡️ Внутри звучит:
-«Если я отпущу — всё развалится»`,
-
-  K: `<b>5. КОНТРОЛИРУЮЩАЯ</b>
-Ты стараешься всё предусмотреть.
-Держать под контролем.
-Ты анализируешь, планируешь, просчитываешь.
-Не любишь неопределённость.
-Но внутри:
-— тревога
-— напряжение
-— ощущение угрозы
-Ты не расслабляешься.
-Потому что «вдруг что-то пойдёт не так».
-Цена:
-Ты живёшь в постоянной готовности к опасности.
-⚡️ Внутри звучит:
-«Если я не контролирую — я в опасности»`,
-}
-
-// Смешанные опоры — тексты
-const MIXED_TRAIT_TEXTS: Record<string, string> = {
-  SU: `S + U — «Тихий тащитель»
-
-Ты тащишь. И делаешь это тихо.
-Ты справляешься. Не просишь помощи.
-И при этом стараешься быть удобной.
-
-Но внутри: усталость, одиночество, ощущение, что тебя не видят.
-Ты отдаёшь много. Но это не возвращается.
-
-Цена: Ты исчезаешь из своей же жизни.
-
-⚡️ Внутри звучит: «Я всё делаю правильно… почему меня не выбирают?»`,
-
-  SP: `S + P — «Машина результата»
-
-Ты работаешь на максимум. Сильная. Эффективная. Идеальная.
-Ты не позволяешь себе слабость. И не позволяешь ошибаться.
-
-Но внутри: выгорание, пустота, отрезанность от себя.
-Ты как система. Но не как живая.
-
-Цена: Ты теряешь себя ради результата.
-
-⚡️ Внутри звучит: «Я должна быть сверхчеловеком»`,
-
-  RS: `S + R — «Опора для всех»
-
-Ты держишь не только себя — ты держишь всех.
-Ты чувствуешь других. Регулируешь. Поддерживаешь.
-
-Но внутри: перегруз, усталость, ощущение «слишком много на мне».
-Ты несёшь больше, чем можешь.
-
-Цена: Ты живёшь чужими жизнями вместо своей.
-
-⚡️ Внутри звучит: «Без меня всё развалится»`,
-
-  KS: `S + K — «Железная система»
-
-Ты сильная и всё контролируешь.
-Ты держишь. Просчитываешь. Не даёшь себе расслабиться.
-
-Но внутри: жёсткость, тревога, напряжение.
-Ты как будто всегда «на посту».
-
-Цена: Ты не живёшь — ты управляешь выживанием.
-
-⚡️ Внутри звучит: «Я должна удержать всё любой ценой»`,
-
-  PU: `U + P — «Идеальная для всех»
-
-Ты стараешься быть идеальной, чтобы тебя любили.
-Ты подстраиваешься. Соответствуешь. Стараешься.
-
-Но внутри: стыд, страх «недостаточности», зависимость от оценки.
-Ты не можешь быть собой.
-
-Цена: Ты живёшь чужими ожиданиями.
-
-⚡️ Внутри звучит: «Если я не идеальна — меня не выберут»`,
-
-  RU: `U + R — «Спасатель»
-
-Ты живёшь через помощь другим.
-Ты включаешься. Спасаешь. Поддерживаешь.
-
-Но внутри: истощение, пустота, ощущение, что тебя нет.
-Ты отдаёшь себя, чтобы быть нужной.
-
-Цена: Ты теряешь контакт с собой.
-
-⚡️ Внутри звучит: «Я нужна, только если я полезна»`,
-
-  KU: `U + K — «Тревожный угодник»
-
-Ты стараешься угадать, как правильно.
-Ты анализируешь реакции. Подстраиваешься. Контролируешь.
-
-Но внутри: тревога, напряжение, страх ошибиться.
-Ты живёшь в режиме «не так сделать нельзя».
-
-Цена: Ты теряешь свободу и спонтанность.
-
-⚡️ Внутри звучит: «Если я ошибусь — меня отвергнут»`,
-
-  PR: `P + R — «Социальный идеал»
-
-Ты пытаешься быть идеальной для всех.
-Ты чувствуешь ожидания. И стараешься им соответствовать.
-
-Но внутри: перегруз, потеря себя, тревога.
-Ты разрываешься между «как надо».
-
-Цена: Ты не знаешь, какая ты настоящая.
-
-⚡️ Внутри звучит: «Я должна соответствовать всем»`,
-
-  KP: `P + K — «Тревожный достигатор»
-
-Ты живёшь через контроль и идеальность.
-Ты стараешься предусмотреть всё. Не ошибаться. Быть на высоте.
-
-Но внутри: напряжение, тревога, страх провала.
-Ты не можешь выдохнуть.
-
-Цена: Ты живёшь в постоянном напряжении «а вдруг что-то не так».
-
-⚡️ Внутри звучит: «Ошибка — это катастрофа»`,
-
-  KR: `R + K — «Сканер угроз»
-
-Ты постоянно на чеку.
-Ты чувствуешь всё. И пытаешься предотвратить плохое.
-
-Но внутри: перегруз, тревога, усталость.
-Ты не расслабляешься вообще.
-
-Цена: Ты живёшь в режиме постоянной опасности.
-
-⚡️ Внутри звучит: «Я должна всё предусмотреть, иначе будет плохо»`,
+  S: `<b>1. ГЕРОИЧЕСКАЯ</b>\nТы та, кто держит. Даже когда тяжело...`,
+  U: `<b>2. ПОДСТРАИВАЮЩАЯСЯ</b>\nТы умеешь быть удобной. Чувствовать других...`,
+  P: `<b>3. ПЕРФЕКЦИОНИРУЮЩАЯ</b>\nТы живёшь через результат. Через «сделать правильно»...`,
+  R: `<b>4. УДЕРЖИВАЮЩАЯ</b>\nТы чувствуешь всё. Атмосферу, людей, напряжение...`,
+  K: `<b>5. КОНТРОЛИРУЮЩАЯ</b>\nТы стараешься всё предусмотреть. Держать под контролем...`,
 }
 
 // ── Telegram API helpers ────────────────────────────────────────────
 
-async function sendPhoto(chatId: number, photo: string, caption?: string): Promise<boolean> {
-  if (!BOT_TOKEN) {
-    console.error('[sendPhoto] TELEGRAM_BOT_TOKEN not set')
-    return false
-  }
-
-  const body: Record<string, unknown> = {
-    chat_id: chatId,
-    photo,
-    parse_mode: 'HTML',
-  }
-  if (caption) body.caption = caption
-
-  console.log(`[sendPhoto] Sending to chatId=${chatId}, photo=${photo}`)
-
-  const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+async function api(method: string, body: any) {
+  const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
+  if (!res.ok) console.error(`[TG API] ${method} failed:`, await res.text())
+  return res.ok
+}
 
-  if (!res.ok) {
-    const errText = await res.text()
-    console.error(`[sendPhoto] Failed (${res.status}):`, errText)
-    return false
+async function sendPhoto(chatId: number, photo: string, caption?: string, replyMarkup?: any) {
+  return api('sendPhoto', { chat_id: chatId, photo, caption, parse_mode: 'HTML', reply_markup: replyMarkup })
+}
+
+async function sendMessage(chatId: number, text: string, replyMarkup?: any) {
+  return api('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML', reply_markup: replyMarkup })
+}
+
+async function sendVideo(chatId: number, video: string, caption?: string, protectContent = false) {
+  return api('sendVideo', { chat_id: chatId, video, caption, protect_content: protectContent, parse_mode: 'HTML' })
+}
+
+async function answerCallbackQuery(callbackQueryId: string, text?: string) {
+  return api('answerCallbackQuery', { callback_query_id: callbackQueryId, text })
+}
+
+// ── Database helpers ────────────────────────────────────────────────
+
+async function db(path: string, method = 'GET', body?: any) {
+  const options: any = {
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation'
+    }
   }
-  console.log('[sendPhoto] Success')
-  return true
+  if (method !== 'GET') {
+    options.method = method
+    options.body = JSON.stringify(body)
+  }
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, options)
+  if (!res.ok) console.error(`[DB] ${path} failed:`, await res.text())
+  return res.json()
 }
 
-async function sendMessage(chatId: number, text: string): Promise<boolean> {
-  if (!BOT_TOKEN) {
-    console.error('[sendMessage] TELEGRAM_BOT_TOKEN not set')
-    return false
+// ── Logic ───────────────────────────────────────────────────────────
+
+async function handleProcessQueue() {
+  console.log('[queue] Processing bot_tasks_queue...')
+  const now = new Date().toISOString()
+  const tasks = await db(`bot_tasks_queue?status=eq.pending&run_at=lte.${now}`)
+
+  for (const task of tasks) {
+    try {
+      if (task.event_type === 'start_mini_quiz') {
+        await sendMessage(task.tg_id, 'Давай еще немного пообщаемся... Мы же только начали.')
+        await new Promise(r => setTimeout(r, 2000))
+        
+        const text2 = `Ты сейчас увидела механизм. И, скорее всего, это не первый раз, когда ты что-то про себя понимаешь. Вопрос в другом: почему это до сих пор не меняет твою жизнь? Потому что понимание не демонтирует паттерн. Это делается только через работу.`
+        const markup = {
+          inline_keyboard: [
+            [{ text: 'Деньги', callback_data: 'quiz_q1_money' }],
+            [{ text: 'Отношения', callback_data: 'quiz_q1_relations' }],
+            [{ text: 'Здоровье', callback_data: 'quiz_q1_health' }],
+            [{ text: 'Другое', callback_data: 'quiz_q1_other' }]
+          ]
+        }
+        await sendMessage(task.tg_id, text2 + '\n\n<b>В какой сфере ты сейчас сильнее всего чувствуешь напряжение?</b>', markup)
+        
+        // Update step
+        await db(`profiles?tg_id=eq.${task.tg_id}`, 'PATCH', { bot_quiz_step: 1 })
+      } 
+      
+      else if (task.event_type === 'send_gift') {
+        await sendMessage(task.tg_id, '♡ Благодарю тебя за честность!\n\nЧестность — это то, на чем строятся все мои методы работы. Чтобы тест не остался просто тестом, я дарю тебе практику по твоей напряжённой сфере.')
+        await sendVideo(task.tg_id, GIFT_VIDEO_FILE_ID, 'Твой подарок от Евы Патрахиной. Посмотри его внимательно.', true)
+      }
+
+      // Mark as completed
+      await db(`bot_tasks_queue?id=eq.${task.id}`, 'PATCH', { status: 'completed' })
+    } catch (err) {
+      console.error(`[queue] Task ${task.id} failed:`, err)
+    }
+  }
+}
+
+async function handleTelegramWebhook(update: any) {
+  // 1. Debug: Get file_id from author
+  if (update.message?.video && update.message.from?.username === AUTHOR_USERNAME) {
+    const fileId = update.message.video.file_id
+    await sendMessage(update.message.chat.id, `<code>${fileId}</code>\n\nСкопируй этот ID и вставь в константу GIFT_VIDEO_FILE_ID в Edge Function.`)
+    return
   }
 
-  console.log(`[sendMessage] Sending to chatId=${chatId}`)
+  // 2. Callback Queries
+  if (update.callback_query) {
+    const cb = update.callback_query
+    const tgId = cb.from.id
+    const data = cb.data
+    await answerCallbackQuery(cb.id)
 
-  const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      parse_mode: 'HTML',
-    }),
-  })
+    // Get user profile
+    const profiles = await db(`profiles?tg_id=eq.${tgId}`)
+    if (!profiles.length) return
+    const profile = profiles[0]
+    const step = profile.bot_quiz_step
 
-  if (!res.ok) {
-    const errText = await res.text()
-    console.error(`[sendMessage] Failed (${res.status}):`, errText)
-    return false
+    // Step 1 -> Step 2
+    if (data.startsWith('quiz_q1_')) {
+      const sphere = data.replace('quiz_q1_', '')
+      // Upsert qualification
+      await db('qualifications', 'POST', { profile_id: profile.id, tension_sphere: sphere })
+      await db(`profiles?tg_id=eq.${tgId}`, 'PATCH', { bot_quiz_step: 2 })
+      
+      const markup = {
+        inline_keyboard: [
+          [{ text: 'Сильно мешает', callback_data: 'quiz_q2_hard' }],
+          [{ text: 'Пока терпимо', callback_data: 'quiz_q2_medium' }],
+          [{ text: 'Фоново', callback_data: 'quiz_q2_light' }]
+        ]
+      }
+      await sendMessage(tgId, '<b>Насколько это ощущается остро?</b>', markup)
+    }
+
+    // Step 2 -> Step 3
+    else if (data.startsWith('quiz_q2_')) {
+      const level = data.replace('quiz_q2_', '')
+      await db(`qualifications?profile_id=eq.${profile.id}`, 'PATCH', { tension_level: level })
+      await db(`profiles?tg_id=eq.${tgId}`, 'PATCH', { bot_quiz_step: 3 })
+      
+      const markup = {
+        inline_keyboard: [
+          [{ text: 'Да, многое', callback_data: 'quiz_q3_yes' }],
+          [{ text: 'Немного', callback_data: 'quiz_q3_some' }],
+          [{ text: 'Нет', callback_data: 'quiz_q3_no' }]
+        ]
+      }
+      await sendMessage(tgId, '<b>Ты уже пробовала что-то с этим делать?</b>', markup)
+    }
+
+    // Step 3 -> Final Offer
+    else if (data.startsWith('quiz_q3_')) {
+      const attempts = data.replace('quiz_q3_', '')
+      await db(`qualifications?profile_id=eq.${profile.id}`, 'PATCH', { previous_attempts: attempts })
+      await db(`profiles?tg_id=eq.${tgId}`, 'PATCH', { bot_quiz_step: 4 })
+      
+      const text = `Есть 2 способа работы с искаженной опорой:\n\n✓ Жёсткий, но быстрый — это группа «Пробой»\n✓ Мягкий и постепенный — это «Пирамида Потенциала» или персональная работа\n\nКакой способ тебе ближе?`
+      const markup = {
+        inline_keyboard: [
+          [{ text: 'Жесткий быстрый', callback_data: 'quiz_final_hard' }],
+          [{ text: 'Мягкий постепенный', callback_data: 'quiz_final_soft' }],
+          [{ text: 'Пока не готова', callback_data: 'quiz_final_not_ready' }]
+        ]
+      }
+      await sendMessage(tgId, text, markup)
+    }
+
+    // Final Offer Choice
+    else if (data.startsWith('quiz_final_')) {
+      const choice = data.replace('quiz_final_', '')
+      const msg = choice === 'hard' ? 'Выбрала Пробой' : choice === 'soft' ? 'Выбрала Пирамиду' : 'Пока не готова'
+      
+      // Schedule gift
+      await db('bot_tasks_queue', 'POST', {
+        profile_id: profile.id,
+        tg_id: tgId,
+        event_type: 'send_gift',
+        run_at: new Date(Date.now() + 60000).toISOString(),
+        status: 'pending'
+      })
+
+      const authorLink = `https://t.me/${AUTHOR_USERNAME}?text=${encodeURIComponent('Привет! Я прошла тест. ' + msg)}`
+      await sendMessage(tgId, `Записала! Переходи в диалог со мной, чтобы обсудить детали:\n\n👉 <a href="${authorLink}">Написать Еве</a>`)
+      await db(`profiles?tg_id=eq.${tgId}`, 'PATCH', { bot_quiz_step: 5 })
+    }
   }
-  console.log('[sendMessage] Success')
-  return true
 }
 
-// ── Webhook payload type (Supabase Database Webhook) ────────────────
-
-interface WebhookPayload {
-  type: 'INSERT' | 'UPDATE' | 'DELETE'
-  table: string
-  record: Record<string, unknown>
-  old_record?: Record<string, unknown> | null
-  schema: string
-}
-
-interface DirectPayload {
-  event: 'dominant_trait_set' | 'referrals_reached_2'
-  profile_id: string
-  tg_id: number
-  trait?: string
-  mixed_trait?: string
-  full_text?: string
-}
-
-// ── Main handler ─────────────────────────────────────────────────────
+// ── Main Handler ─────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
-  if (!BOT_TOKEN) {
-    console.error('[handler] TELEGRAM_BOT_TOKEN not configured')
-    return new Response(JSON.stringify({ error: 'TELEGRAM_BOT_TOKEN not configured' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-
-  // Accept only POST
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-
-  let raw: unknown
   try {
-    raw = await req.json()
-  } catch {
-    return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
+    const payload = await req.json()
+    console.log('[req] Payload:', JSON.stringify(payload))
 
-  console.log('[handler] Received payload:', JSON.stringify(raw, null, 2))
-
-  // ── Mode 1: Direct API call from Next.js ──────────────────────────
-  const direct = raw as DirectPayload
-  if (direct.event && direct.tg_id) {
-    console.log(`[handler] Direct mode: event=${direct.event}, tg_id=${direct.tg_id}`)
-
-    if (direct.event === 'dominant_trait_set') {
-      const traitKey = direct.trait || 'S'
-      const imageUrl = TRAIT_IMAGES[traitKey] || TRAIT_IMAGES['S']
-      // Приоритет: переданный полный текст -> внутренний словарь -> дефолт
-      const text = direct.full_text || DOMINANT_TRAIT_TEXTS[traitKey] || DOMINANT_TRAIT_TEXTS['S']
-
-      const ok = await sendPhoto(direct.tg_id, imageUrl, text)
-      return new Response(
-        JSON.stringify({ success: true, event: 'dominant_trait_set', tg_id: direct.tg_id, sent: ok }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      )
+    // 1. Process Queue (Cron/Direct call)
+    if (payload.action === 'process_queue') {
+      await handleProcessQueue()
+      return new Response(JSON.stringify({ success: true }), { status: 200 })
     }
 
-    if (direct.event === 'referrals_reached_2') {
-      const mixedKey = direct.mixed_trait || 'SU'
-      const text = MIXED_TRAIT_TEXTS[mixedKey] || MIXED_TRAIT_TEXTS['SU']
-
-      const ok = await sendMessage(direct.tg_id, text)
-      return new Response(
-        JSON.stringify({ success: true, event: 'referrals_reached_2', tg_id: direct.tg_id, sent: ok }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      )
+    // 2. Telegram Webhook
+    if (payload.update_id) {
+      await handleTelegramWebhook(payload)
+      return new Response(JSON.stringify({ success: true }), { status: 200 })
     }
 
-    return new Response(JSON.stringify({ error: `Unknown event: ${direct.event}` }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
+    // 3. Database Webhook (Existing logic for dominant_trait results)
+    if (payload.table === 'test_results' && payload.type === 'INSERT') {
+      const record = payload.record
+      const profileId = record.profile_id
+      const dominantTrait = record.dominant_trait
 
-  // ── Mode 2: Database Webhook from Supabase ────────────────────────
-  const webhook = raw as WebhookPayload
-
-  if (!webhook.type || !webhook.table || !webhook.record) {
-    console.error('[handler] Unrecognized payload format')
-    return new Response(JSON.stringify({ error: 'Unrecognized payload format' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-
-  console.log(`[handler] Webhook mode: type=${webhook.type}, table=${webhook.table}`)
-
-  // ── Handle test_results INSERT (send photo with result) ──────────
-  if (webhook.table === 'test_results' && webhook.type === 'INSERT') {
-    const record = webhook.record
-    const profileId = record.profile_id as string | null
-    const dominantTrait = record.dominant_trait as string | null
-    const secondaryTrait = record.secondary_trait as string | null
-
-    if (!profileId || !dominantTrait) {
-      console.log('[handler] test_results INSERT: missing profile_id or dominant_trait, skipping')
-      return new Response(JSON.stringify({ skipped: 'missing_fields' }), { status: 200 })
+      const profiles = await db(`profiles?id=eq.${profileId}&select=tg_id`)
+      if (profiles.length && dominantTrait) {
+        const tgId = profiles[0].tg_id
+        const traitKey = dominantTrait.toUpperCase()
+        const imageUrl = TRAIT_IMAGES[traitKey] || TRAIT_IMAGES['S']
+        const text = DOMINANT_TRAIT_TEXTS[traitKey] || `Ваша опора: ${traitKey}`
+        await sendPhoto(tgId, imageUrl, text)
+      }
     }
 
-    // Look up user's tg_id from profiles
-    console.log(`[handler] test_results INSERT: profile_id=${profileId}, dominant_trait=${dominantTrait}`)
-    console.log(`[handler] Looking up tg_id for profile_id=${profileId}`)
-
-    // We need SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY for this
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-
-    if (!supabaseUrl || !supabaseKey) {
-      console.error('[handler] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
-      return new Response(JSON.stringify({ error: 'Supabase not configured' }), { status: 500 })
-    }
-
-    const profileRes = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${profileId}&select=tg_id`, {
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-      },
-    })
-
-    if (!profileRes.ok) {
-      console.error(`[handler] Failed to fetch profile (${profileRes.status}):`, await profileRes.text())
-      return new Response(JSON.stringify({ error: 'Profile lookup failed' }), { status: 500 })
-    }
-
-    const profiles = await profileRes.json()
-    if (!profiles || profiles.length === 0) {
-      console.log(`[handler] Profile not found: ${profileId}`)
-      return new Response(JSON.stringify({ skipped: 'profile_not_found' }), { status: 200 })
-    }
-
-    const tgId = profiles[0].tg_id as number
-    console.log(`[handler] Found tg_id=${tgId}, sending photo`)
-
-    const traitKey = dominantTrait.toUpperCase()
-    const imageUrl = TRAIT_IMAGES[traitKey] || TRAIT_IMAGES['S']
-    const text = DOMINANT_TRAIT_TEXTS[traitKey] || DOMINANT_TRAIT_TEXTS['S']
-
-    console.log(`[handler] Sending photo: ${imageUrl} to tgId=${tgId}`)
-    const ok = await sendPhoto(tgId, imageUrl, text)
-
-    if (!ok) {
-      console.error(`[handler] sendPhoto FAILED for tgId=${tgId}, traitKey=${traitKey}`)
-      // Fallback: send text only
-      console.log(`[handler] Fallback: sending text only to tgId=${tgId}`)
-      const textOk = await sendMessage(tgId, `<b>${traitKey}</b>\n\n${text}`)
-      return new Response(
-        JSON.stringify({ success: true, action: 'test_result_insert', tg_id: tgId, photo_sent: false, text_sent: textOk }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      )
-    }
-
-    return new Response(
-      JSON.stringify({ success: true, action: 'test_result_insert', tg_id: tgId, photo_sent: true }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    )
+    return new Response(JSON.stringify({ ok: true }), { status: 200 })
+  } catch (err) {
+    console.error('[error]', err)
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 })
   }
-
-  // ── Handle profiles table ─────────────────────────────────────────
-  if (webhook.table !== 'profiles') {
-    console.log(`[handler] Ignoring — not profiles or test_results table`)
-    return new Response(JSON.stringify({ ignored: true }), { status: 200 })
-  }
-
-  const record = webhook.record
-  const oldRecord = webhook.old_record || {}
-  const tgId = record.tg_id as number | null
-  const dominantTrait = record.dominant_trait as string | null
-  const shadowTrait = record.shadow_trait as string | null
-  const oldDominantTrait = oldRecord.dominant_trait as string | null
-  const oldReferralsCount = (oldRecord.referrals_count as number) ?? 0
-  const newReferralsCount = (record.referrals_count as number) ?? 0
-  const oldInvitesCount = (oldRecord.invites_count as number) ?? 0
-  const newInvitesCount = (record.invites_count as number) ?? 0
-
-  if (!tgId) {
-    console.log('[handler] No tg_id in record, skipping')
-    return new Response(JSON.stringify({ skipped: 'no_tg_id' }), { status: 200 })
-  }
-
-  // ── Rule A: dominant_trait was just set (was null, now not null) ──
-  if (webhook.type === 'INSERT' && dominantTrait) {
-    console.log(`[handler] INSERT with dominant_trait=${dominantTrait}, sending photo to tgId=${tgId}`)
-
-    const traitKey = dominantTrait.toUpperCase()
-    const imageUrl = TRAIT_IMAGES[traitKey] || TRAIT_IMAGES['S']
-    const text = DOMINANT_TRAIT_TEXTS[traitKey] || DOMINANT_TRAIT_TEXTS['S']
-
-    const ok = await sendPhoto(tgId, imageUrl, text)
-    if (!ok) {
-      console.error(`[handler] sendPhoto FAILED for tgId=${tgId}, fallback to text`)
-      await sendMessage(tgId, text)
-    }
-    return new Response(
-      JSON.stringify({ success: true, action: 'dominant_trait_insert', tg_id: tgId, sent: ok }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    )
-  }
-
-  if (webhook.type === 'UPDATE' && !oldDominantTrait && dominantTrait) {
-    console.log(`[handler] UPDATE: dominant_trait set from null to ${dominantTrait}, sending photo to tgId=${tgId}`)
-
-    const traitKey = dominantTrait.toUpperCase()
-    const imageUrl = TRAIT_IMAGES[traitKey] || TRAIT_IMAGES['S']
-    const text = DOMINANT_TRAIT_TEXTS[traitKey] || DOMINANT_TRAIT_TEXTS['S']
-
-    const ok = await sendPhoto(tgId, imageUrl, text)
-    if (!ok) {
-      console.error(`[handler] sendPhoto FAILED for tgId=${tgId}, fallback to text`)
-      await sendMessage(tgId, text)
-    }
-    return new Response(
-      JSON.stringify({ success: true, action: 'dominant_trait_updated', tg_id: tgId, sent: ok }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    )
-  }
-
-  // ── Rule B: referrals_count reached 2 ─────────────────────────────
-  if (webhook.type === 'UPDATE' && oldReferralsCount < 2 && newReferralsCount >= 2 && dominantTrait && shadowTrait) {
-    console.log(`[handler] UPDATE: referrals_count ${oldReferralsCount} -> ${newReferralsCount}, sending mixed trait to tgId=${tgId}`)
-
-    const mixedKey = [dominantTrait.toUpperCase(), shadowTrait.toUpperCase()].sort().join('')
-    const text = MIXED_TRAIT_TEXTS[mixedKey] || `Твоя смешанная опора: ${mixedKey}`
-
-    const ok = await sendMessage(tgId, text)
-    return new Response(
-      JSON.stringify({ success: true, action: 'referrals_reached_2', tg_id: tgId, mixed_trait: mixedKey, sent: ok }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    )
-  }
-
-  // ── Rule C: invites_count reached 2 (subscription-based referral) ──
-  if (webhook.type === 'UPDATE' && oldInvitesCount < 2 && newInvitesCount >= 2 && dominantTrait && shadowTrait) {
-    console.log(`[handler] UPDATE: invites_count ${oldInvitesCount} -> ${newInvitesCount}, sending mixed trait to tgId=${tgId}`)
-
-    const mixedKey = [dominantTrait.toUpperCase(), shadowTrait.toUpperCase()].sort().join('')
-    const text = MIXED_TRAIT_TEXTS[mixedKey] || `Твоя смешанная опора: ${mixedKey}`
-
-    const ok = await sendMessage(tgId, text)
-    return new Response(
-      JSON.stringify({ success: true, action: 'invites_reached_2', tg_id: tgId, mixed_trait: mixedKey, sent: ok }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    )
-  }
-
-  console.log('[handler] No matching rule triggered, skipping')
-  return new Response(JSON.stringify({ skipped: 'no_matching_rule' }), { status: 200 })
 })
