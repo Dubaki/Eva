@@ -9,148 +9,85 @@ import { sendPhoto, sendMessage } from '@/lib/telegram-bot'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
-  console.log('\n--- [API/TEST/SUBMIT] ЗАПУСК СОХРАНЕНИЯ ТЕСТА ---')
   const jwtSecret = process.env.SUPABASE_JWT_SECRET
-  if (!jwtSecret) {
-    console.error('[API] ОШИБКА: Нет SUPABASE_JWT_SECRET')
-    return NextResponse.json({ success: false, error: 'Server config error' }, { status: 500 })
-  }
+  if (!jwtSecret) return NextResponse.json({ success: false, error: 'Config error' }, { status: 500 })
 
   try {
     const body = await request.json()
-    console.log('[API] 1. Получено тело запроса. tgId=', body.tgId, '| Ответов:', body.answers?.length)
-
     const answers: Answer[] = body.answers
     const bodyTgId = body.tgId
     
     if (!Array.isArray(answers) || answers.length !== QUESTIONS.length) {
-      console.error('[API] ОШИБКА: Неверное количество ответов.')
-      return NextResponse.json({ success: false, error: 'Неверное количество ответов' }, { status: 400 })
+      return NextResponse.json({ success: false, error: 'Invalid answers count' }, { status: 400 })
     }
 
     let profileId: string | null = null
     let tgId: number | null = null
 
+    // 1. JWT Auth
     const authHeader = request.headers.get('authorization')
-    console.log('[API] 2. Заголовок Auth:', authHeader ? 'Присутствует' : 'Отсутствует (пусто)')
-
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.slice(7)
       const payload = verifyJwt(token, jwtSecret)
-      if (payload?.sub) {
-        profileId = payload.sub
-        console.log('[API] 3. JWT успешно расшифрован. profileId:', profileId)
-      } else {
-         console.log('[API] 3. JWT недействителен (пустой payload)')
-      }
+      if (payload?.sub) profileId = payload.sub
     }
 
     const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
+    // 2. Resolve Profile & tgId
     if (profileId) {
-      console.log('[API] 4. Ищем tg_id по profileId...')
       const { data } = await supabaseAdmin.from('profiles').select('tg_id').eq('id', profileId).limit(1)
-      if (data && data.length > 0) {
-          tgId = data[0].tg_id
-          console.log('[API] Успех! Найден tgId:', tgId)
-      } else {
-          console.log('[API] 4. JWT валиден, но профиль не найден по profileId. Пробую bodyTgId как фолбек.')
+      if (data && data.length > 0) tgId = data[0].tg_id
+    }
+
+    if (!tgId && bodyTgId) {
+      const { data: profiles } = await supabaseAdmin.from('profiles').select('id, tg_id').eq('tg_id', bodyTgId).limit(1)
+      if (profiles && profiles.length > 0) {
+        profileId = profiles[0].id
+        tgId = profiles[0].tg_id
       }
     }
 
-    // Fallback: JWT was missing/invalid OR JWT profile lookup found no tg_id
-    if (!profileId || !tgId) {
-      if (bodyTgId) {
-        console.log('[API] 4. Ищем профиль по переданному tgId:', bodyTgId)
-        const { data: profiles, error: searchErr } = await supabaseAdmin.from('profiles').select('id, tg_id').eq('tg_id', bodyTgId).limit(1)
+    if (!profileId || !tgId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
 
-        if (searchErr) console.error('[API] Ошибка поиска БД:', searchErr)
-
-        if (profiles && profiles.length > 0) {
-          profileId = profiles[0].id
-          tgId = profiles[0].tg_id
-          console.log('[API] Успех! Профиль найден в БД. profileId:', profileId)
-        } else {
-          console.log('[API] Профиль не найден. Пытаюсь создать (INSERT) новый профиль для tgId:', bodyTgId)
-          const { data: newProfiles, error: insertError } = await supabaseAdmin.from('profiles')
-            .insert([{ tg_id: bodyTgId, is_subscribed: true }])
-            .select('id, tg_id')
-
-          if (insertError) {
-              console.error('[API] КРИТИЧЕСКАЯ ОШИБКА INSERT (БД отклонила создание):', insertError)
-          } else if (newProfiles && newProfiles.length > 0) {
-            profileId = newProfiles[0].id
-            tgId = newProfiles[0].tg_id
-            console.log('[API] Успех! Новый профиль создан. profileId:', profileId)
-          }
-        }
-      } else {
-          console.error('[API] ОШИБКА: Фронтенд не прислал ни токен, ни tgId в теле запроса!')
-      }
-    }
-
-    if (!profileId || !tgId) {
-      console.error('[API] ФИНАЛЬНЫЙ ОТКАЗ. profileId:', profileId, '| tgId:', tgId)
-      return NextResponse.json({ success: false, error: 'Missing or invalid authorization' }, { status: 401 })
-    }
-
-    console.log('[API] 5. Авторизация пройдена. Идет сохранение результатов...')
+    // 3. Scoring
     const scores = calculateScores(answers)
     const primary = scores.dominantTrait.toUpperCase()
     const secondary = scores.secondaryTrait.toUpperCase()
 
+    // 4. Save to DB
     const { error: dbError } = await supabaseAdmin.rpc('save_test_result', {
       p_tg_id: tgId, p_primary_support: primary, p_secondary_support: secondary,
     })
+    if (dbError) return NextResponse.json({ success: false, error: dbError.message }, { status: 500 })
 
-    if (dbError) {
-        console.error('[API] ОШИБКА RPC save_test_result:', dbError)
-        return NextResponse.json({ success: false, error: dbError.message }, { status: 500 })
-    }
-
-    await supabaseAdmin.from('profiles').update({ current_step: null, shared_at: null, question_order: null }).eq('id', profileId)
+    // Cleanup progress
+    await supabaseAdmin.from('profiles').update({ current_step: null, question_order: null }).eq('id', profileId)
     
+    // 5. Telegram Delivery (STRICT: Two separate messages to bypass caption limits)
     const fullText = FULL_RESULTS_TEXTS[primary]
-
-    // ── Direct Send to Telegram (Task 163) ──
     const TRAIT_IMAGES_MAP: Record<string, string> = {
-      S: 'hero.png',
-      U: 'pleaser.png',
-      P: 'perfectionist.png',
-      R: 'stayer.png',
-      K: 'controller.png',
+      S: 'hero.png', U: 'pleaser.png', P: 'perfectionist.png', R: 'stayer.png', K: 'controller.png'
     }
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://eva-app.vercel.app'
-    const imageName = TRAIT_IMAGES_MAP[primary] || 'hero.png'
-    const photoUrl = `${appUrl}/${imageName}`
+    const photoUrl = `${appUrl}/${TRAIT_IMAGES_MAP[primary] || 'hero.png'}`
 
     try {
-      // 1. Пытаемся отправить ФОТО + ТЕКСТ в одном сообщении
-      const sent = await sendPhoto({
+      // Message 1: Photo ONLY
+      await sendPhoto({ chatId: tgId, photo: photoUrl });
+      
+      // Message 2: Full Text ONLY (Guaranteed delivery regardless of length)
+      await sendMessage({
         chatId: tgId,
-        photo: photoUrl,
-        caption: fullText,
+        text: fullText,
         parseMode: 'HTML'
       });
-
-      // 2. Если фото не отправилось (например, из-за недоступности URL на localhost или лимита в 1024 символа), отправляем только ТЕКСТ
-      if (!sent) {
-        console.log('[API] Photo send failed or caption too long, falling back to text message');
-        await sendMessage({
-          chatId: tgId,
-          text: fullText,
-          parseMode: 'HTML'
-        });
-      }
-      console.log('[API] Result sent successfully to Telegram');
     } catch (err) {
-      console.error('[API] Critical failure sending results to Telegram:', err);
+      console.error('[API] Telegram delivery failed:', err);
     }
 
-    console.log('[API] --- ТЕСТ УСПЕШНО СОХРАНЕН --- \n')
-    return NextResponse.json({ success: true, data: { dominantTrait: scores.dominantTrait, secondaryTrait: scores.secondaryTrait, scores } })
+    return NextResponse.json({ success: true, data: { dominantTrait: scores.dominantTrait, scores } })
   } catch (err) {
-    console.error('[API] ФАТАЛЬНАЯ ОШИБКА СЕРВЕРА:', err)
-    return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Server Error' }, { status: 500 })
   }
 }
