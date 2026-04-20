@@ -9,7 +9,6 @@ import {
   type InlineKeyboard,
 } from '@/lib/telegram-bot'
 import { getSupabaseServer } from '@/lib/supabase/server'
-import { MIXED_TRAIT_TEXTS } from '@/lib/telegram'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,8 +38,6 @@ export async function POST(request: NextRequest) {
 
     const message = update.message
     const callbackQuery = update.callback_query
-    const chatMember = update.my_chat_member || update.chat_member
-
     const from = message?.from || callbackQuery?.from
     const tgId = from?.id
     const username = from?.username
@@ -56,8 +53,9 @@ export async function POST(request: NextRequest) {
         console.log(`[webhook] Callback query: ${data} from ${tgId}`)
 
         if (data === 'check_sub') {
-          const member = await getChatMember(CHANNEL_ID!, tgId)
-          const isSubscribed = ['member', 'administrator', 'creator'].includes(member?.status || '')
+          // ИСПРАВЛЕНИЕ ТИПА: getChatMember возвращает строку напрямую
+          const status = await getChatMember(CHANNEL_ID!, tgId)
+          const isSubscribed = ['member', 'administrator', 'creator'].includes(status || '')
 
           if (isSubscribed) {
             await answerCallbackQuery(callbackQuery.id, 'Спасибо за подписку! 🎉')
@@ -81,18 +79,17 @@ export async function POST(request: NextRequest) {
         const refCode = extractReferralCode(text)
         
         // Upsert profile
-        const { data: profile, error: pError } = await supabase
+        await supabase
           .from('profiles')
           .upsert({ 
             tg_id: tgId, 
             username: username || null,
             referred_by: refCode !== tgId ? refCode : null
           }, { onConflict: 'tg_id' })
-          .select()
-          .single()
 
-        const member = await getChatMember(CHANNEL_ID!, tgId)
-        const isSubscribed = ['member', 'administrator', 'creator'].includes(member?.status || '')
+        // ИСПРАВЛЕНИЕ ТИПА: getChatMember возвращает строку напрямую
+        const status = await getChatMember(CHANNEL_ID!, tgId)
+        const isSubscribed = ['member', 'administrator', 'creator'].includes(status || '')
 
         if (!isSubscribed) {
           await sendMessage({
@@ -116,19 +113,18 @@ export async function POST(request: NextRequest) {
         }
       } 
       
-      // — ИСПРАВЛЕННЫЙ БЛОК: Видео от Автора или Админа —
-      else if ((username === 'evapatrakhina' || username === 'bizbezit') && (update.message as any).video) {
+      // — БЛОК ПОЛУЧЕНИЯ FILE_ID ДЛЯ АДМИНОВ —
+      else if ((username === 'evapatrakhina' || username === 'bizbezit') && (update.message as any)?.video) {
         const videoFileId = (update.message as any).video.file_id;
-        console.log(`[DEBUG] Video received from ${username}. FileID: ${videoFileId}`);
         
         await sendMessage({
           chatId: tgId,
-          text: `✅ <b>ID ВИДЕО ПОЛУЧЕН</b>\n\nНик: @${username}\n\n<code>${videoFileId}</code>\n\nСкопируй этот код и вставь в Edge Function.`,
+          text: `✅ <b>ID ВИДЕО ПОЛУЧЕН</b>\n\nНик: @${username}\n\n<code>${videoFileId}</code>\n\nСкопируй этот код целиком.`,
           parseMode: 'HTML'
         });
       }
 
-      // — Default Response —
+      // — Ответ по умолчанию —
       else if (text) {
         await sendMessage({
           chatId: tgId,
