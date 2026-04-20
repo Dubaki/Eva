@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { verifyJwt } from '@/lib/jwt'
 import { calculateScores, type Answer } from '@/lib/scoring'
-import { triggerBotNotification } from '@/lib/bot-notification'
 import { QUESTIONS } from '@/lib/questions'
 import { FULL_RESULTS_TEXTS } from '@/lib/constants/results'
 import { sendPhoto, sendMessage } from '@/lib/telegram-bot'
@@ -126,21 +125,26 @@ export async function POST(request: NextRequest) {
     const photoUrl = `${appUrl}/${imageName}`
 
     try {
-      // 1. Отправляем картинку (может не сработать на localhost, это нормально)
-      await sendPhoto({
+      // 1. Пытаемся отправить ФОТО + ТЕКСТ в одном сообщении
+      const sent = await sendPhoto({
         chatId: tgId,
         photo: photoUrl,
-      }).catch(err => console.warn('[API] Photo send skipped (likely localhost):', err.message))
-
-      // 2. Гарантированно отправляем полный текст отдельным сообщением
-      await sendMessage({
-        chatId: tgId,
-        text: fullText,
+        caption: fullText,
         parseMode: 'HTML'
-      })
-      console.log('[API] Direct text result sent successfully')
+      });
+
+      // 2. Если фото не отправилось (например, из-за недоступности URL на localhost или лимита в 1024 символа), отправляем только ТЕКСТ
+      if (!sent) {
+        console.log('[API] Photo send failed or caption too long, falling back to text message');
+        await sendMessage({
+          chatId: tgId,
+          text: fullText,
+          parseMode: 'HTML'
+        });
+      }
+      console.log('[API] Result sent successfully to Telegram');
     } catch (err) {
-      console.error('[API] Failed to send direct result to Telegram:', err)
+      console.error('[API] Critical failure sending results to Telegram:', err);
     }
 
     console.log('[API] --- ТЕСТ УСПЕШНО СОХРАНЕН --- \n')
