@@ -331,6 +331,7 @@ interface DirectPayload {
   tg_id: number
   trait?: string
   mixed_trait?: string
+  full_text?: string
 }
 
 // ── Main handler ─────────────────────────────────────────────────────
@@ -372,7 +373,8 @@ serve(async (req: Request) => {
     if (direct.event === 'dominant_trait_set') {
       const traitKey = direct.trait || 'S'
       const imageUrl = TRAIT_IMAGES[traitKey] || TRAIT_IMAGES['S']
-      const text = DOMINANT_TRAIT_TEXTS[traitKey] || DOMINANT_TRAIT_TEXTS['S']
+      // Приоритет: переданный полный текст -> внутренний словарь -> дефолт
+      const text = direct.full_text || DOMINANT_TRAIT_TEXTS[traitKey] || DOMINANT_TRAIT_TEXTS['S']
 
       const ok = await sendPhoto(direct.tg_id, imageUrl, text)
       return new Response(

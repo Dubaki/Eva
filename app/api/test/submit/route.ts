@@ -4,6 +4,7 @@ import { verifyJwt } from '@/lib/jwt'
 import { calculateScores, type Answer } from '@/lib/scoring'
 import { triggerBotNotification } from '@/lib/bot-notification'
 import { QUESTIONS } from '@/lib/questions'
+import { FULL_RESULTS_TEXTS } from '@/lib/constants/results'
 
 export const dynamic = 'force-dynamic'
 
@@ -108,7 +109,15 @@ export async function POST(request: NextRequest) {
     }
 
     await supabaseAdmin.from('profiles').update({ current_step: null, shared_at: null }).eq('id', profileId)
-    triggerBotNotification({ event: 'dominant_trait_set', profile_id: profileId, tg_id: tgId, trait: primary }).catch(() => {})
+    
+    const fullText = FULL_RESULTS_TEXTS[primary]
+    triggerBotNotification({ 
+      event: 'dominant_trait_set', 
+      profile_id: profileId, 
+      tg_id: tgId, 
+      trait: primary,
+      full_text: fullText 
+    }).catch(() => {})
 
     console.log('[API] --- ТЕСТ УСПЕШНО СОХРАНЕН --- \n')
     return NextResponse.json({ success: true, data: { dominantTrait: scores.dominantTrait, secondaryTrait: scores.secondaryTrait, scores } })

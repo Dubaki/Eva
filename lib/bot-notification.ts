@@ -9,6 +9,7 @@ export async function triggerBotNotification(payload: {
   tg_id: number
   trait?: string
   mixed_trait?: string
+  full_text?: string
 }): Promise<boolean> {
   const edgeFnUrl = process.env.SUPABASE_EDGE_FUNCTION_URL
   if (!edgeFnUrl) {
