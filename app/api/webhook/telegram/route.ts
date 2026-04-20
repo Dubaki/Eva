@@ -12,12 +12,7 @@ import { getSupabaseServer } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
-/**
- * Telegram Webhook Handler
- */
-
 const SECRET_TOKEN = process.env.TELEGRAM_WEBHOOK_SECRET
-const BOT_USERNAME = process.env.NEXT_PUBLIC_BOT_USERNAME ?? 'test_opor_bot'
 const CHANNEL_ID = process.env.TELEGRAM_CHANNEL_ID
 const CHANNEL_URL = process.env.TELEGRAM_CHANNEL_URL ?? 'https://t.me/sprosievu'
 
@@ -34,8 +29,6 @@ export async function POST(request: NextRequest) {
 
   try {
     const update = await request.json()
-    console.log('[webhook] Incoming update:', JSON.stringify(update, null, 2))
-
     const message = update.message
     const callbackQuery = update.callback_query
     const from = message?.from || callbackQuery?.from
@@ -47,18 +40,19 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseServer()
 
     try {
-      // — Handle Callback Queries —
       if (callbackQuery) {
         const data = callbackQuery.data
-        console.log(`[webhook] Callback query: ${data} from ${tgId}`)
 
         if (data === 'check_sub') {
-          // ИСПРАВЛЕНИЕ ТИПА: getChatMember возвращает строку напрямую
           const status = await getChatMember(CHANNEL_ID!, tgId)
           const isSubscribed = ['member', 'administrator', 'creator'].includes(status || '')
 
           if (isSubscribed) {
-            await answerCallbackQuery(callbackQuery.id, 'Спасибо за подписку! 🎉')
+            // ИСПРАВЛЕНО: Передаем как объект { callbackQueryId, text }
+            await answerCallbackQuery({ 
+              callbackQueryId: callbackQuery.id, 
+              text: 'Спасибо за подписку! 🎉' 
+            })
             await sendMessage({
               chatId: tgId,
               text: 'Подписка подтверждена! Теперь ты можешь пройти тест.',
@@ -67,18 +61,21 @@ export async function POST(request: NextRequest) {
               }
             })
           } else {
-            await answerCallbackQuery(callbackQuery.id, 'Ты всё ещё не подписана 😔', true)
+            // ИСПРАВЛЕНО: Передаем как объект { callbackQueryId, text, showAlert }
+            await answerCallbackQuery({ 
+              callbackQueryId: callbackQuery.id, 
+              text: 'Ты всё ещё не подписана 😔', 
+              showAlert: true 
+            })
           }
         }
         return NextResponse.json({ ok: true })
       }
 
-      // — Handle Commands —
       const text = message?.text || ''
       if (text.startsWith('/start')) {
         const refCode = extractReferralCode(text)
         
-        // Upsert profile
         await supabase
           .from('profiles')
           .upsert({ 
@@ -87,7 +84,6 @@ export async function POST(request: NextRequest) {
             referred_by: refCode !== tgId ? refCode : null
           }, { onConflict: 'tg_id' })
 
-        // ИСПРАВЛЕНИЕ ТИПА: getChatMember возвращает строку напрямую
         const status = await getChatMember(CHANNEL_ID!, tgId)
         const isSubscribed = ['member', 'administrator', 'creator'].includes(status || '')
 
@@ -113,7 +109,7 @@ export async function POST(request: NextRequest) {
         }
       } 
       
-      // — БЛОК ПОЛУЧЕНИЯ FILE_ID ДЛЯ АДМИНОВ —
+      // БЛОК ПОЛУЧЕНИЯ FILE_ID ДЛЯ АДМИНОВ
       else if ((username === 'evapatrakhina' || username === 'bizbezit') && (update.message as any)?.video) {
         const videoFileId = (update.message as any).video.file_id;
         
@@ -124,7 +120,6 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // — Ответ по умолчанию —
       else if (text) {
         await sendMessage({
           chatId: tgId,
