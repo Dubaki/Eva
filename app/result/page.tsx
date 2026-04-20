@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Copy, Check } from 'lucide-react'
 import { getTraitInfo } from '@/lib/scoring'
 import ConfirmModal from '@/components/ConfirmModal'
-import { openAuthorContact } from '@/lib/author-contact'
 
 const THINKING_DELAY = 1000 // ms
 
@@ -19,30 +18,6 @@ type ResultData = {
 
 type StoredProfile = { id: string; tg_id: number; username: string | null }
 
-const AUTHOR_USERNAME = 'evapatrakhina'
-
-// Mixed trait names (client-side, for sending to author)
-const MIXED_TRAIT_NAMES: Record<string, string> = {
-  SU: 'S+U — Тихий тащитель',
-  SP: 'S+P — Машина результата',
-  RS: 'S+R — Опора для всех',
-  KS: 'S+K — Железная система',
-  PU: 'U+P — Идеальная для всех',
-  RU: 'U+R — Спасатель',
-  KU: 'U+K — Тревожный угодник',
-  PR: 'P+R — Социальный идеал',
-  KP: 'P+K — Тревожный достигатор',
-  KR: 'R+K — Сканер угроз',
-}
-
-// Helper: get mixed trait key from scores
-function getMixedTraitKey(scores: Record<string, number>): string {
-  const entries = Object.entries(scores).sort((a, b) => b[1] - a[1])
-  if (entries.length < 2) return ''
-  const [first, second] = entries
-  return [first[0], second[0]].sort().join('')
-}
-
 // Result images mapping
 const RESULT_IMG: Record<string, string> = {
   S: '/hero.png',
@@ -52,11 +27,6 @@ const RESULT_IMG: Record<string, string> = {
   K: '/controller.png',
 }
 
-// Survey questions
-const SURVEY_Q1 = ['Деньги', 'Отношения', 'Здоровье', 'Другое', 'Везде']
-const SURVEY_Q2 = ['Сильно мешает', 'Пока терпимо', 'Фоново']
-const SURVEY_Q3 = ['Да, многое', 'Немного', 'Нет']
-
 type FunnelStep =
   | 'result'
   | 'surprise-response-yes'
@@ -64,10 +34,6 @@ type FunnelStep =
   | 'cooldown-message'
   | 'referral-gate'
   | 'referral-link'
-  | 'survey'
-  | 'offer'
-  | 'gift'
-  | 'gift-claiming'
 
 export default function ResultPage() {
   const searchParams = useSearchParams()
@@ -78,13 +44,8 @@ export default function ResultPage() {
 
   // Funnel
   const [funnelStep, setFunnelStep] = useState<FunnelStep>('result')
-  const [surpriseAnswer, setSurpriseAnswer] = useState<'yes' | 'no' | null>(null)
   const [showConfirm, setShowConfirm] = useState(false)
   const [pendingAnswer, setPendingAnswer] = useState<'yes' | 'no' | null>(null)
-
-  // Survey
-  const [surveyStep, setSurveyStep] = useState(0)
-  const [surveyAnswers, setSurveyAnswers] = useState<string[]>([])
 
   // Referral
   const [refLink, setRefLink] = useState('')
@@ -146,7 +107,6 @@ export default function ResultPage() {
   const handleConfirmProceed = useCallback(() => {
     setShowConfirm(false)
     if (pendingAnswer) {
-      setSurpriseAnswer(pendingAnswer)
       setIsThinking(true)
       
       setTimeout(() => {
@@ -168,7 +128,7 @@ export default function ResultPage() {
     if (goFast) {
       setFunnelStep('referral-gate')
     } else {
-      setFunnelStep('survey')
+      setFunnelStep('referral-gate')
     }
   }, [])
 
@@ -204,7 +164,7 @@ export default function ResultPage() {
     if (WebApp?.close) {
       WebApp.close()
     }
-  }, [])
+  }, [result])
 
 
   // ── Copy link ────────────────────────────────────────────────────────
@@ -218,172 +178,12 @@ export default function ResultPage() {
     }
   }, [refLink])
 
-  // ── Survey ───────────────────────────────────────────────────────────
-  const handleSurveyAnswer = useCallback((value: string) => {
-    const next = [...surveyAnswers, value]
-    setSurveyAnswers(next)
-    if (surveyStep < 2) {
-      setSurveyStep(surveyStep + 1)
-    } else {
-      setFunnelStep('offer')
-    }
-  }, [surveyAnswers, surveyStep])
-
   // ── Close Mini App ───────────────────────────────────────────────────
   const closeApp = useCallback(() => {
     if (typeof window !== 'undefined') {
       (window as any).Telegram?.WebApp?.close?.()
     }
   }, [])
-
-  // ── Open Telegram DM ─────────────────────────────────────────────────
-  const openTelegramDM = useCallback((prefill: string) => {
-    if (typeof window === 'undefined') return
-    
-    const dmUrl = `https://t.me/${AUTHOR_USERNAME}${prefill ? `?text=${encodeURIComponent(prefill)}` : ''}`
-    const WebApp = (window as any).Telegram?.WebApp
-
-    try {
-      if (WebApp?.openTelegramLink) {
-        WebApp.openTelegramLink(dmUrl)
-        // Auto-close after 500ms
-        setTimeout(() => {
-          WebApp.close()
-        }, 500)
-      } else {
-        window.open(dmUrl, '_blank')
-      }
-    } catch (err) {
-      console.error('[openTelegramDM] Error:', err)
-      window.open(dmUrl, '_blank')
-    }
-  }, [])
-
-  // ── Proboy click: notify author then open Telegram ───────────────────
-  const handleProboyClick = useCallback(() => {
-    const profileRaw = localStorage.getItem('eva_profile')
-    let userId: number | null = null
-    let firstName: string | null = null
-    let username: string | null = null
-    if (profileRaw) {
-      try {
-        const p = JSON.parse(profileRaw) as StoredProfile
-        userId = p.tg_id ?? null
-        username = p.username ?? null
-      } catch { /* ignore */ }
-    }
-
-    const mixedKey = result ? getMixedTraitKey(result.scores) : ''
-    const mixedTraitName = MIXED_TRAIT_NAMES[mixedKey] || 'Не определено'
-
-    // Mark contact_author_clicked in DB
-    if (userId) {
-      fetch('/api/user/contact-author', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tgId: userId }),
-      }).catch((err) => console.error('[contact-author] Error:', err))
-    }
-
-    fetch('/api/notify-author', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId,
-        firstName,
-        username,
-        selectedFormat: 'Пробой',
-        mixedTraitName,
-      }),
-    }).catch((err) => console.error('[notify-author] Error:', err))
-
-    openAuthorContact('Пробой')
-  }, [result])
-
-  // ── Pyramid click: mark contact and open Telegram ────────────────────
-  const handlePyramidClick = useCallback(() => {
-    openAuthorContact('Пирамида')
-  }, [])
-
-  // ── "Пока не готова" handler ─────────────────────────────────────────
-  const handleNotReady = useCallback(() => {
-    // Show intermediate gift screen
-    setFunnelStep('gift')
-  }, [])
-
-  // ── "Забрать подарок" handler ────────────────────────────────────────
-  const handleClaimGift = useCallback(async () => {
-    // Determine sphere from survey answer (preferred) or profile
-    let selectedSphere = surveyAnswers[0] || ''
-    const token = localStorage.getItem('eva_token')
-
-    if (!selectedSphere && token) {
-      try {
-        const res = await fetch('/api/user/status', {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        const json = await res.json()
-        if (json.success && json.data?.selected_sphere) {
-          selectedSphere = json.data.selected_sphere
-        }
-      } catch (err) {
-        console.error('[claim-gift] Failed to fetch user status:', err)
-      }
-    }
-
-    // Map sphere to app_settings key
-    const sphereToKey: Record<string, string> = {
-      'Деньги': 'gift_money',
-      'Отношения': 'gift_relations',
-      'Здоровье': 'gift_health',
-      'Другое': 'gift_other',
-      'Везде': 'gift_other',
-    }
-    const key = sphereToKey[selectedSphere] || 'gift_other'
-
-    // Fetch gift link from app_settings
-    let giftUrl = 'https://t.me/' + AUTHOR_USERNAME
-    if (token) {
-      try {
-        const res = await fetch(`/api/gift-link?key=${encodeURIComponent(key)}`)
-        const json = await res.json()
-        if (json.success && json.data?.url) {
-          giftUrl = json.data.url
-        }
-      } catch (err) {
-        console.error('[claim-gift] Failed to fetch gift link:', err)
-      }
-    }
-
-    // Also send gift message via bot (legacy)
-    fetch('/api/bot/send-gift-message', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token || ''}` },
-    }).catch((err) => console.error('[send-gift-message] Error:', err))
-
-    // Open gift link and close
-    if (typeof window !== 'undefined') {
-      const WebApp = (window as any).Telegram?.WebApp
-      try {
-        if (WebApp?.openLink) {
-          WebApp.openLink(giftUrl)
-        } else {
-          window.open(giftUrl, '_blank')
-        }
-      } catch (err) {
-        console.error('[claim-gift] openLink failed:', err)
-        window.open(giftUrl, '_blank')
-      }
-
-      // Show "Переходим к подарку..." then close after delay
-      setFunnelStep('gift-claiming')
-
-      // Auto-close after 2 seconds
-      setTimeout(() => {
-        WebApp?.close?.()
-      }, 2000)
-    }
-  }, [surveyAnswers])
 
 
   // ── Loading / No result ──────────────────────────────────────────────
@@ -751,169 +551,10 @@ export default function ResultPage() {
                 onClick={handleShare}>
                 Поделиться
               </motion.button>
-              <motion.button type="button" whileTap={{ scale: 0.97 }}
-                className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
-                style={{ background: '#2563eb' }}
-                onClick={() => setFunnelStep('survey')}>
-                Дальше — больше
-              </motion.button>
             </div>
 
             <p className="text-text-muted text-[13px] mt-4">
               Больше друзей — больше бонусов.
-            </p>
-          </motion.div>
-        )}
-
-        {/* ════════════ SURVEY ════════════ */}
-        {funnelStep === 'survey' && surveyStep < 3 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap mb-6">
-              Ты сейчас увидела механизм. И, скорее всего, это не первый раз, когда ты что-то про себя понимаешь. Вопрос в другом: почему это до сих пор не меняет твою жизнь? Потому что понимание не демонтирует паттерн. Это делается только через работу.
-            </p>
-
-            <div className="bg-bg-secondary rounded-xl p-5 border border-border">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-[13px] font-medium text-text-muted">Вопрос {surveyStep + 1} из 3</span>
-                <div className="flex gap-1">
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} className={`w-6 h-1 rounded-full transition-colors ${i <= surveyStep ? 'bg-accent' : 'bg-bg-tertiary'}`} />
-                  ))}
-                </div>
-              </div>
-
-              {surveyStep === 0 && (
-                <div>
-                  <p className="text-[17px] font-medium text-text-primary mb-4">
-                    В какой сфере ты сейчас сильнее всего чувствуешь напряжение?
-                  </p>
-                  <div className="flex flex-col gap-2">
-                    {SURVEY_Q1.map((opt) => (
-                      <button key={opt} type="button"
-                        className="w-full py-3 px-4 bg-bg-primary border border-border rounded-xl text-text-primary text-[15px] active:border-accent active:text-accent transition-colors select-none"
-                        onClick={() => handleSurveyAnswer(opt)}>{opt}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {surveyStep === 1 && (
-                <div>
-                  <p className="text-[17px] font-medium text-text-primary mb-4">
-                    Насколько это ощущается остро?
-                  </p>
-                  <div className="flex flex-col gap-2">
-                    {SURVEY_Q2.map((opt) => (
-                      <button key={opt} type="button"
-                        className="w-full py-3 px-4 bg-bg-primary border border-border rounded-xl text-text-primary text-[15px] active:border-accent active:text-accent transition-colors select-none"
-                        onClick={() => handleSurveyAnswer(opt)}>{opt}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {surveyStep === 2 && (
-                <div>
-                  <p className="text-[17px] font-medium text-text-primary mb-4">
-                    Ты уже пробовала что-то с этим делать?
-                  </p>
-                  <div className="flex flex-col gap-2">
-                    {SURVEY_Q3.map((opt) => (
-                      <button key={opt} type="button"
-                        className="w-full py-3 px-4 bg-bg-primary border border-border rounded-xl text-text-primary text-[15px] active:border-accent active:text-accent transition-colors select-none"
-                        onClick={() => handleSurveyAnswer(opt)}>{opt}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-
-        {/* ════════════ OFFER ════════════ */}
-        {funnelStep === 'offer' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="text-center"
-          >
-            <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap mb-6">
-              Есть 2 способа работы с искаженной опорой:{'\n\n'}
-              ✓ Жёсткий, но быстрый — это группа «Пробой»{'\n'}
-              ✓ Мягкий и постепенный — это «Пирамида Потенциала» или персональная работа{'\n\n'}
-              Какой способ тебе ближе?
-            </p>
-            <div className="flex flex-col gap-3">
-              <motion.button type="button" whileTap={{ scale: 0.97 }}
-                className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
-                style={{ background: '#2563eb' }}
-                onClick={() => {
-                  handleProboyClick()
-                }}>
-                Жесткий быстрый
-              </motion.button>
-              <motion.button type="button" whileTap={{ scale: 0.97 }}
-                className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
-                style={{ background: '#2563eb' }}
-                onClick={() => {
-                  handlePyramidClick()
-                }}>
-                Мягкий постепенный
-              </motion.button>
-              <motion.button type="button" whileTap={{ scale: 0.97 }}
-                className="w-full py-3 rounded-xl font-semibold text-[15px] border"
-                style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                onClick={handleNotReady}>
-                Пока не готова
-              </motion.button>
-            </div>
-          </motion.div>
-        )}
-
-        {/* ════════════ GIFT SCREEN ════════════ */}
-        {funnelStep === 'gift' && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4 }}
-            className="bg-bg-secondary rounded-xl p-5 border text-center"
-            style={{ borderColor: 'color-mix(in srgb, var(--success) 40%, var(--border))' }}
-          >
-            <p className="text-success text-[17px] font-medium mb-3">
-              ♡ Благодарю тебя за честность!
-            </p>
-            <p className="text-text-secondary text-[14px] leading-relaxed whitespace-pre-wrap mb-5">
-              Честность — это то, на чем строятся все мои методы работы.{'\n\n'}
-              Чтобы тест не остался просто тестом, я дарю тебе практику по твоей напряжённой сфере. Ты можешь начать изменения уже сегодня.
-            </p>
-            <motion.button type="button" whileTap={{ scale: 0.97 }}
-              className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
-              style={{ background: '#2563eb' }}
-              onClick={handleClaimGift}>
-              Забрать подарок
-            </motion.button>
-          </motion.div>
-        )}
-
-        {/* ════════════ GIFT CLAIMING SCREEN ════════════ */}
-        {funnelStep === 'gift-claiming' && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4 }}
-            className="bg-bg-secondary rounded-xl p-6 border text-center"
-            style={{ borderColor: 'color-mix(in srgb, var(--success) 40%, var(--border))' }}
-          >
-            <p className="text-text-primary text-[17px] font-semibold mb-2">
-              Переходим к подарку...
-            </p>
-            <p className="text-text-muted text-[13px]">
-              Сейчас откроется ссылка на практику. Подожди немного.
             </p>
           </motion.div>
         )}

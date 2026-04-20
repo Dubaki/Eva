@@ -100,6 +100,21 @@ export async function POST(request: NextRequest) {
       await sendMessage({ chatId: tgId, text: fullText, parseMode: 'HTML' }).catch(() => {});
     }
 
+    // ── Добавляем задачу в очередь для бота (через 1 минуту) ──
+    try {
+      await supabaseAdmin.from('bot_tasks_queue').insert({
+        profile_id: profileId,
+        tg_id: tgId,
+        event_type: 'start_mini_quiz',
+        run_at: new Date(Date.now() + 60000).toISOString(),
+        status: 'pending'
+      });
+      console.log(`[API] Bot task 'start_mini_quiz' scheduled for ${tgId}`);
+    } catch (queueErr) {
+      console.error('[API] Failed to schedule bot task:', queueErr);
+      // Не прерываем основной поток, если очередь не сработала
+    }
+
     return NextResponse.json({ success: true, data: { dominantTrait: scores.dominantTrait, scores } })
   } catch (err) {
     console.error('[API] Submit error:', err)
