@@ -101,23 +101,33 @@ async function db(path: string, method = 'GET', body?: any) {
 // ── Logic ───────────────────────────────────────────────────────────
 
 async function handleProcessQueue() {
-  console.log('[queue] Checking bot_tasks_queue...')
   const now = new Date().toISOString()
-  
+  console.log(`[queue] Checking bot_tasks_queue. Server time: ${now}`)
+
   let tasks: any[] = []
   try {
+    // Детальный лог для проверки фильтров
+    console.log(`[queue] Querying: bot_tasks_queue?status=eq.pending&run_at=lte.${now}`)
     tasks = await db(`bot_tasks_queue?status=eq.pending&run_at=lte.${now}`)
   } catch (err) {
     console.error('[queue] Failed to fetch tasks:', err)
     return
   }
 
-  if (tasks.length === 0) {
-    console.log('[queue] No pending tasks to process.')
+  console.log(`[queue] Tasks found in DB: ${tasks?.length || 0}`)
+
+  if (!tasks || tasks.length === 0) {
+    // Логируем причину пустого списка (для отладки времени)
+    try {
+      const nextTasks = await db('bot_tasks_queue?status=eq.pending&order=run_at.asc&limit=1')
+      if (nextTasks && nextTasks.length > 0) {
+        console.log(`[queue] Next pending task is scheduled at: ${nextTasks[0].run_at}. Still waiting...`)
+      } else {
+        console.log('[queue] No pending tasks at all in DB.')
+      }
+    } catch { /* ignore debug log failure */ }
     return
   }
-
-  console.log(`[queue] Processing ${tasks.length} tasks...`)
 
   for (const task of tasks) {
     console.log(`[queue] Task ${task.id} (type: ${task.event_type}, tg: ${task.tg_id})`)
@@ -277,6 +287,8 @@ async function handleTelegramWebhook(update: any) {
 serve(async (req: Request) => {
   try {
     const payload = await req.json()
+    const action = payload.action || (payload.update_id ? 'telegram_webhook' : (payload.table ? 'db_webhook' : 'unknown'))
+    console.log(`[req] Action received: ${action}`)
     console.log('[req] Payload received:', JSON.stringify(payload))
 
     // 1. Process Queue (Cron or Manual trigger)
