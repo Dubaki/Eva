@@ -24,7 +24,6 @@ export async function POST(request: NextRequest) {
     let profileId: string | null = null
     let tgId: number | null = null
 
-    // 1. JWT Auth
     const authHeader = request.headers.get('authorization')
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.slice(7)
@@ -34,7 +33,6 @@ export async function POST(request: NextRequest) {
 
     const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
-    // 2. Resolve Profile & tgId
     if (profileId) {
       const { data } = await supabaseAdmin.from('profiles').select('tg_id').eq('id', profileId).limit(1)
       if (data && data.length > 0) tgId = data[0].tg_id
@@ -50,41 +48,48 @@ export async function POST(request: NextRequest) {
 
     if (!profileId || !tgId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
 
-    // 3. Scoring
     const scores = calculateScores(answers)
     const primary = scores.dominantTrait.toUpperCase()
     const secondary = scores.secondaryTrait.toUpperCase()
 
-    // 4. Save to DB
     const { error: dbError } = await supabaseAdmin.rpc('save_test_result', {
       p_tg_id: tgId, p_primary_support: primary, p_secondary_support: secondary,
     })
     if (dbError) return NextResponse.json({ success: false, error: dbError.message }, { status: 500 })
 
-    // Cleanup progress
     await supabaseAdmin.from('profiles').update({ current_step: null, question_order: null }).eq('id', profileId)
     
-    // 5. Telegram Delivery (STRICT: Two separate messages to bypass caption limits)
+    // ── Telegram Delivery ──
     const fullText = FULL_RESULTS_TEXTS[primary]
     const TRAIT_IMAGES_MAP: Record<string, string> = {
       S: 'hero.png', U: 'pleaser.png', P: 'perfectionist.png', R: 'stayer.png', K: 'controller.png'
     }
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://eva-app.vercel.app'
-    const photoUrl = `${appUrl}/${TRAIT_IMAGES_MAP[primary] || 'hero.png'}`
+
+    // ВАЖНО: Если мы на localhost, Telegram не увидит наши картинки.
+    // Используем заготовленные ссылки или проверяем URL.
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://eva-app.vercel.app'
+    const photoUrl = `${baseUrl}/${TRAIT_IMAGES_MAP[primary] || 'hero.png'}`
 
     try {
-      // Message 1: Photo ONLY
-      await sendPhoto({ chatId: tgId, photo: photoUrl });
-      
-      // Message 2: Full Text ONLY (Guaranteed delivery regardless of length)
-      await sendMessage({
-        chatId: tgId,
-        text: fullText,
-        parseMode: 'HTML'
+      // 1. Пытаемся отправить фото
+      const photoSent = await sendPhoto({ 
+        chatId: tgId, 
+        photo: photoUrl 
       });
+
+      if (!photoSent) {
+        console.warn('[API] Photo delivery failed, trying fallback...');
+      }
     } catch (err) {
-      console.error('[API] Telegram delivery failed:', err);
+      console.error('[API] Photo error:', err);
     }
+
+    // 2. Всегда отправляем текст вторым сообщением (это гарантирует результат)
+    await sendMessage({
+      chatId: tgId,
+      text: fullText,
+      parseMode: 'HTML'
+    });
 
     return NextResponse.json({ success: true, data: { dominantTrait: scores.dominantTrait, scores } })
   } catch (err) {
