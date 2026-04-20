@@ -85,7 +85,6 @@ export async function POST(request: NextRequest) {
         
         await supabase
           .from('profiles')
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .upsert({
             tg_id: tgId,
             username: username || null,
