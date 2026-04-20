@@ -15,6 +15,8 @@ export const dynamic = 'force-dynamic'
 const SECRET_TOKEN = process.env.TELEGRAM_WEBHOOK_SECRET
 const CHANNEL_ID = process.env.TELEGRAM_CHANNEL_ID
 const CHANNEL_URL = process.env.TELEGRAM_CHANNEL_URL ?? 'https://t.me/sprosievu'
+const EDGE_FN_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/process-bot-notifications`
+const EDGE_FN_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 function validateSecretToken(req: NextRequest): boolean {
   if (!SECRET_TOKEN) return true
@@ -48,10 +50,9 @@ export async function POST(request: NextRequest) {
           const isSubscribed = ['member', 'administrator', 'creator'].includes(status || '')
 
           if (isSubscribed) {
-            // ИСПРАВЛЕНО: Передаем как объект { callbackQueryId, text }
-            await answerCallbackQuery({ 
-              callbackQueryId: callbackQuery.id, 
-              text: 'Спасибо за подписку! 🎉' 
+            await answerCallbackQuery({
+              callbackQueryId: callbackQuery.id,
+              text: 'Спасибо за подписку! 🎉'
             })
             await sendMessage({
               chatId: tgId,
@@ -61,13 +62,19 @@ export async function POST(request: NextRequest) {
               }
             })
           } else {
-            // ИСПРАВЛЕНО: Передаем как объект { callbackQueryId, text, showAlert }
-            await answerCallbackQuery({ 
-              callbackQueryId: callbackQuery.id, 
-              text: 'Ты всё ещё не подписана 😔', 
-              showAlert: true 
+            await answerCallbackQuery({
+              callbackQueryId: callbackQuery.id,
+              text: 'Ты всё ещё не подписана 😔',
+              showAlert: true
             })
           }
+        } else {
+          // Forward quiz and other bot callbacks to edge function
+          await fetch(EDGE_FN_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${EDGE_FN_KEY}` },
+            body: JSON.stringify(update),
+          }).catch(err => console.error('EDGE FN FORWARD ERROR:', err))
         }
         return NextResponse.json({ ok: true })
       }
@@ -78,11 +85,12 @@ export async function POST(request: NextRequest) {
         
         await supabase
           .from('profiles')
-          .upsert({ 
-            tg_id: tgId, 
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .upsert({
+            tg_id: tgId,
             username: username || null,
             referred_by: refCode !== tgId ? refCode : null
-          }, { onConflict: 'tg_id' })
+          } as any, { onConflict: 'tg_id' })
 
         const status = await getChatMember(CHANNEL_ID!, tgId)
         const isSubscribed = ['member', 'administrator', 'creator'].includes(status || '')

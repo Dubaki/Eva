@@ -134,29 +134,34 @@ async function handleProcessQueue() {
     try {
       if (task.event_type === 'start_mini_quiz') {
         // Message 1
-        await sendMessage(task.tg_id, 'Давай еще немного пообщаемся... Мы же только начали.')
+        await sendMessage(task.tg_id, 'Ты уже заметила, как искаженная опора влияет на твою жизнь?\n\nДавай еще немного пообщаемся! Ответь на три простых вопроса и получи подарок')
         await new Promise(r => setTimeout(r, 2000))
-        
-        // Message 2 + Question 1
-        const text2 = `Ты сейчас увидела механизм. И, скорее всего, это не первый раз, когда ты что-то про себя понимаешь. Вопрос в другом: почему это до сих пор не меняет твою жизнь? Потому что понимание не демонтирует паттерн. Это делается только через работу.`
-        const markup = {
+
+        // Message 2
+        await sendMessage(task.tg_id, 'Ты сейчас увидела механизм. И, скорее всего, это не первый раз, когда ты что-то про себя понимаешь.\n\nВопрос в другом: почему это до сих пор не меняет твою жизнь?\n\nПотому что понимание не демонтирует паттерн. Это делается только через работу.')
+        await new Promise(r => setTimeout(r, 1500))
+
+        // Question 1
+        const markupQ1 = {
           inline_keyboard: [
             [{ text: 'Деньги', callback_data: 'quiz_q1_money' }],
             [{ text: 'Отношения', callback_data: 'quiz_q1_relations' }],
             [{ text: 'Здоровье', callback_data: 'quiz_q1_health' }],
-            [{ text: 'Другое', callback_data: 'quiz_q1_other' }]
+            [{ text: 'Другое', callback_data: 'quiz_q1_other' }],
+            [{ text: 'Везде', callback_data: 'quiz_q1_all' }],
           ]
         }
-        await sendMessage(task.tg_id, text2 + '\n\n<b>В какой сфере ты сейчас сильнее всего чувствуешь напряжение?</b>', markup)
-        
-        // Update user step in profile
+        await sendMessage(task.tg_id, '<b>В какой сфере ты сейчас сильнее всего чувствуешь напряжение?</b>', markupQ1)
+
         await db(`profiles?tg_id=eq.${task.tg_id}`, 'PATCH', { bot_quiz_step: 1 })
-      } 
-      
+      }
+
       else if (task.event_type === 'send_gift') {
-        await sendMessage(task.tg_id, '♡ Благодарю тебя за честность!\n\nЧестность — это то, на чем строятся все мои методы работы. Чтобы тест не остался просто тестом, я дарю тебе практику по твоей напряжённой сфере.')
-        // Protect content for video gift
-        await sendVideo(task.tg_id, GIFT_VIDEO_FILE_ID, 'Твой подарок от Евы Патрахиной. Посмотри его внимательно.', true)
+        const giftText = 'Благодарю тебя за честность! Честность — это то, на чем строятся все мои методы работы. Чтобы тест не остался просто тестом, я дарю тебе практику нейроманифестации. Ты можешь начать изменения уже сегодня.'
+        const giftMarkup = {
+          inline_keyboard: [[{ text: 'Забрать подарок', callback_data: 'get_gift' }]]
+        }
+        await sendMessage(task.tg_id, giftText, giftMarkup)
       }
 
       // Mark task as completed
@@ -248,8 +253,8 @@ async function handleTelegramWebhook(update: any) {
       const attempts = data.replace('quiz_q3_', '')
       await db(`qualifications?profile_id=eq.${profile.id}`, 'PATCH', { previous_attempts: attempts })
       await db(`profiles?tg_id=eq.${tgId}`, 'PATCH', { bot_quiz_step: 4 })
-      
-      const text = `Есть 2 способа работы с искаженной опорой:\n\n✓ Жёсткий, но быстрый — это группа «Пробой»\n✓ Мягкий и постепенный — это «Пирамида Потенциала» или персональная работа\n\nКакой способ тебе ближе?`
+
+      const text = 'Есть 2 способа работы с искаженной опорой:\n\n✓ Жёсткий, но быстрый — это группа "Пробой"\n\n✓ Мягкий и постепенный — это "Пирамида Потенциала" или персональная работа\n\nКакой способ тебе ближе?'
       const markup = {
         inline_keyboard: [
           [{ text: 'Жесткий быстрый', callback_data: 'quiz_final_hard' }],
@@ -261,11 +266,13 @@ async function handleTelegramWebhook(update: any) {
     }
 
     // Final Offer Choice
-    else if (data.startsWith('quiz_final_')) {
-      const choice = data.replace('quiz_final_', '')
-      const msg = choice === 'hard' ? 'Выбрала Пробой' : choice === 'soft' ? 'Выбрала Пирамиду' : 'Пока не готова'
-      
-      // Schedule gift task (60 seconds delay)
+    else if (data === 'quiz_final_hard' || data === 'quiz_final_soft') {
+      const prefilledText = data === 'quiz_final_hard' ? 'Пробой!' : 'Пирамида Потенциала'
+      const authorUrl = `https://t.me/${AUTHOR_USERNAME}?text=${encodeURIComponent(prefilledText)}`
+
+      await db(`profiles?tg_id=eq.${tgId}`, 'PATCH', { bot_quiz_step: 5 })
+
+      // Schedule gift message after 1 minute
       await db('bot_tasks_queue', 'POST', {
         profile_id: profile.id,
         tg_id: tgId,
@@ -274,10 +281,25 @@ async function handleTelegramWebhook(update: any) {
         status: 'pending'
       })
 
-      const authorLink = `https://t.me/${AUTHOR_USERNAME}?text=${encodeURIComponent('Привет! Я прошла тест. ' + msg)}`
-      await sendMessage(tgId, `Записала! Переходи в диалог со мной, чтобы обсудить детали:\n\n👉 <a href="${authorLink}">Написать Еве</a>`)
-      
+      const markup = { inline_keyboard: [[{ text: 'Написать Еве', url: authorUrl }]] }
+      await sendMessage(tgId, 'Отлично! Нажми кнопку ниже — я жду твоего сообщения:', markup)
+    }
+
+    else if (data === 'quiz_final_not_ready') {
       await db(`profiles?tg_id=eq.${tgId}`, 'PATCH', { bot_quiz_step: 5 })
+
+      const giftText = 'Благодарю тебя за честность! Честность — это то, на чем строятся все мои методы работы. Чтобы тест не остался просто тестом, я дарю тебе практику нейроманифестации. Ты можешь начать изменения уже сегодня.'
+      const giftMarkup = { inline_keyboard: [[{ text: 'Забрать подарок', callback_data: 'get_gift' }]] }
+      await sendMessage(tgId, giftText, giftMarkup)
+    }
+
+    // Gift delivery
+    else if (data === 'get_gift') {
+      if (GIFT_VIDEO_FILE_ID && !GIFT_VIDEO_FILE_ID.includes('...')) {
+        await sendVideo(tgId, GIFT_VIDEO_FILE_ID, undefined, true)
+      } else {
+        await sendMessage(tgId, 'Подарок уже готовится — скоро пришлю! 🎁')
+      }
     }
   }
 }
