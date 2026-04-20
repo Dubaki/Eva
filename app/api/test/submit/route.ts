@@ -5,7 +5,7 @@ import { calculateScores, type Answer } from '@/lib/scoring'
 import { triggerBotNotification } from '@/lib/bot-notification'
 import { QUESTIONS } from '@/lib/questions'
 import { FULL_RESULTS_TEXTS } from '@/lib/constants/results'
-import { sendPhoto } from '@/lib/telegram-bot'
+import { sendPhoto, sendMessage } from '@/lib/telegram-bot'
 
 export const dynamic = 'force-dynamic'
 
@@ -126,25 +126,22 @@ export async function POST(request: NextRequest) {
     const photoUrl = `${appUrl}/${imageName}`
 
     try {
-      console.log(`[API] Sending direct result to tgId=${tgId} with photo=${photoUrl}`)
+      // 1. Отправляем картинку (может не сработать на localhost, это нормально)
       await sendPhoto({
         chatId: tgId,
         photo: photoUrl,
-        caption: fullText,
+      }).catch(err => console.warn('[API] Photo send skipped (likely localhost):', err.message))
+
+      // 2. Гарантированно отправляем полный текст отдельным сообщением
+      await sendMessage({
+        chatId: tgId,
+        text: fullText,
         parseMode: 'HTML'
       })
-      console.log('[API] Direct result sent successfully')
+      console.log('[API] Direct text result sent successfully')
     } catch (err) {
       console.error('[API] Failed to send direct result to Telegram:', err)
     }
-
-    triggerBotNotification({ 
-      event: 'dominant_trait_set', 
-      profile_id: profileId, 
-      tg_id: tgId, 
-      trait: primary,
-      full_text: fullText 
-    }).catch(() => {})
 
     console.log('[API] --- ТЕСТ УСПЕШНО СОХРАНЕН --- \n')
     return NextResponse.json({ success: true, data: { dominantTrait: scores.dominantTrait, secondaryTrait: scores.secondaryTrait, scores } })
