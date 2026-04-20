@@ -59,40 +59,45 @@ export async function POST(request: NextRequest) {
 
     await supabaseAdmin.from('profiles').update({ current_step: null, question_order: null }).eq('id', profileId)
     
-    // ── Telegram Delivery ──
+    // ── Настройка Telegram ──
     const fullText = FULL_RESULTS_TEXTS[primary]
     const TRAIT_IMAGES_MAP: Record<string, string> = {
-      S: 'hero.png', U: 'pleaser.png', P: 'perfectionist.png', R: 'stayer.png', K: 'controller.png'
+      S: 'hero.png', 
+      U: 'pleaser.png', 
+      P: 'perfectionist.png', 
+      R: 'stayer.png', 
+      K: 'controller.png'
     }
 
-    // ВАЖНО: Если мы на localhost, Telegram не увидит наши картинки.
-    // Используем заготовленные ссылки или проверяем URL.
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://eva-app.vercel.app'
-    const photoUrl = `${baseUrl}/${TRAIT_IMAGES_MAP[primary] || 'hero.png'}`
+    const imageName = TRAIT_IMAGES_MAP[primary] || 'hero.png'
+
+    // Используем прямые ссылки на Raw контент GitHub как резервный (fallback) 
+    // Это гарантирует, что Telegram увидит фото, даже если Vercel домен еще не подтвержден
+    const githubRawBase = 'https://raw.githubusercontent.com/Dubaki/Eva/main/public'
+    const photoUrl = `${githubRawBase}/${imageName}`
 
     try {
-      // 1. Пытаемся отправить фото
-      const photoSent = await sendPhoto({ 
+      // 1. Отправляем фото по прямой ссылке
+      await sendPhoto({ 
         chatId: tgId, 
         photo: photoUrl 
       });
-
-      if (!photoSent) {
-        console.warn('[API] Photo delivery failed, trying fallback...');
-      }
+      
+      // 2. Сразу следом отправляем текст
+      await sendMessage({
+        chatId: tgId,
+        text: fullText,
+        parseMode: 'HTML'
+      });
+      
+      console.log(`[API] Result sent to TG. Trait: ${primary}, Photo: ${photoUrl}`);
     } catch (err) {
-      console.error('[API] Photo error:', err);
+      console.error('[API] Telegram delivery critical error:', err);
     }
-
-    // 2. Всегда отправляем текст вторым сообщением (это гарантирует результат)
-    await sendMessage({
-      chatId: tgId,
-      text: fullText,
-      parseMode: 'HTML'
-    });
 
     return NextResponse.json({ success: true, data: { dominantTrait: scores.dominantTrait, scores } })
   } catch (err) {
+    console.error('[API] Submit error:', err)
     return NextResponse.json({ success: false, error: 'Server Error' }, { status: 500 })
   }
 }
