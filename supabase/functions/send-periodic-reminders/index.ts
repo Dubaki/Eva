@@ -11,10 +11,17 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 const BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-const APP_URL = Deno.env.get('APP_URL') || 'https://eva-app.vercel.app'
+
+// Формируем APP_URL и логируем его для отладки
+let APP_URL = Deno.env.get('APP_URL') || 'https://eva-app.vercel.app'
+if (!APP_URL.startsWith('http')) {
+  APP_URL = `https://${APP_URL}`
+}
+
 const COOLDOWN_DAYS = 60
 
-console.log(`[init] Periodic reminders function started. Target cooldown: ${COOLDOWN_DAYS} days.`)
+console.log(`[init] Periodic reminders function started.`)
+console.log(`[DEBUG] Кнопка "Пройти тест заново" будет вести на URL: ${APP_URL}`)
 
 async function fetchUsers(): Promise<any[]> {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=id,tg_id,last_test_date,reminded_at&reminded_at=is.null&last_test_date=not.is.null`, {
