@@ -159,9 +159,11 @@ export async function POST(request: NextRequest) {
           })
           const prefilledText = data === 'quiz_final_hard' ? 'Пробой!' : 'Пирамида Потенциала'
           const authorUrl = `https://t.me/${AUTHOR_USERNAME}?text=${encodeURIComponent(prefilledText)}`
+          const buttonLabel = data === 'quiz_final_hard' ? 'Пробой!' : 'Пирамида Потенциала'
           await sendMessage({
             chatId: tgId,
-            text: `Отлично! Напиши Еве прямо сейчас:\n${authorUrl}`,
+            text: 'Отлично! Нажми кнопку ниже — я жду твоего сообщения:',
+            replyMarkup: { inline_keyboard: [[{ text: buttonLabel, url: authorUrl }]] }
           })
         }
 
