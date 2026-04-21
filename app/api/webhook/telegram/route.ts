@@ -39,6 +39,9 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseServer()
 
     try {
+      console.log(`[webhook] keys=${Object.keys(update).join(',')} tgId=${tgId} username=${username}`)
+      console.log(`[webhook] msg keys=${message ? Object.keys(message).join(',') : 'none'} text=${message?.text?.slice(0,30) ?? 'none'}`)
+
       if (callbackQuery) {
         const data = callbackQuery.data
 
