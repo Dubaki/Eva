@@ -61,6 +61,44 @@ export async function POST(request: NextRequest) {
               text: 'Подписка подтверждена! Теперь ты можешь пройти тест.',
               replyMarkup: { inline_keyboard: [[{ text: 'Открыть тест', web_app: { url: getTmaUrl() } }]] }
             })
+
+            // Засчитываем реферал после подписки (только 1 раз)
+            const { data: invitedProfileRaw } = await supabase
+              .from('profiles')
+              .select('id, referred_by, referrer_id')
+              .eq('tg_id', tgId)
+              .limit(1)
+              .single()
+            const invitedProfile = invitedProfileRaw as any
+
+            if (invitedProfile?.referred_by && !invitedProfile.referrer_id) {
+              const { data: referrers } = await supabase
+                .from('profiles')
+                .select('id, tg_id, invites_count, dominant_trait, shadow_trait')
+                .eq('tg_id', invitedProfile.referred_by)
+                .limit(1)
+
+              if (referrers && referrers.length > 0) {
+                const referrer = referrers[0] as any
+                const newCount = (referrer.invites_count ?? 0) + 1
+                await supabase.from('profiles').update({ invites_count: newCount } as any).eq('id', referrer.id)
+                await supabase.from('profiles').update({ referrer_id: referrer.id } as any).eq('id', invitedProfile.id)
+
+                if (newCount === 2 && referrer.tg_id && referrer.dominant_trait && referrer.shadow_trait) {
+                  const { MIXED_TRAIT_TEXTS } = await import('@/lib/telegram')
+                  const mixedKey = [referrer.dominant_trait.toUpperCase(), referrer.shadow_trait.toUpperCase()].sort().join('')
+                  if (MIXED_TRAIT_TEXTS[mixedKey]) {
+                    const { triggerBotNotification } = await import('@/lib/bot-notification')
+                    triggerBotNotification({
+                      event: 'referrals_reached_2',
+                      profile_id: referrer.id,
+                      tg_id: referrer.tg_id,
+                      mixed_trait: mixedKey,
+                    }).catch(() => {})
+                  }
+                }
+              }
+            }
           } else {
             await answerCallbackQuery({ callbackQueryId: callbackQuery.id, text: 'Ты всё ещё не подписана 😔', showAlert: true })
           }

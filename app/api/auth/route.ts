@@ -157,41 +157,7 @@ export async function POST(req: NextRequest) {
 
   if (!profile) return fail('Could not create profile', 500)
 
-  // 3. Обрабатываем реферал — используем referred_by (tg_id реферера) и invites_count
-  // referrer_id (UUID) используем как флаг "реферал уже обработан"
-  if (profile.referred_by && !profile.referrer_id) {
-    try {
-      const { data: referrers } = await supabase
-        .from('profiles')
-        .select('id, tg_id, invites_count, dominant_trait, shadow_trait')
-        .eq('tg_id', profile.referred_by)
-        .limit(1)
-
-      if (referrers && referrers.length > 0) {
-        const referrer = referrers[0]
-        const newCount = (referrer.invites_count ?? 0) + 1
-
-        await supabase.from('profiles').update({ invites_count: newCount }).eq('id', referrer.id)
-        // Ставим referrer_id как флаг — этот реферал уже посчитан
-        await supabase.from('profiles').update({ referrer_id: referrer.id }).eq('id', profile.id)
-
-        // Уведомление при достижении 2 рефералов
-        if (newCount === 2 && referrer.tg_id && referrer.dominant_trait && referrer.shadow_trait) {
-          const mixedKey = [referrer.dominant_trait.toUpperCase(), referrer.shadow_trait.toUpperCase()].sort().join('')
-          if (MIXED_TRAIT_TEXTS[mixedKey]) {
-            triggerBotNotification({
-              event: 'referrals_reached_2',
-              profile_id: referrer.id,
-              tg_id: referrer.tg_id,
-              mixed_trait: mixedKey,
-            }).catch((err) => console.error('[auth] Referral notification error:', err))
-          }
-        }
-      }
-    } catch (refErr) {
-      console.error('[auth] Referral processing error:', refErr)
-    }
-  }
+  // Реферал засчитывается при подписке на канал (в webhook check_sub), не здесь
 
   // 4. Issue JWT
   const now = Math.floor(Date.now() / 1000)
