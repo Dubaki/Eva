@@ -92,8 +92,8 @@ serve(async (req: Request) => {
     // 2. WEBHOOK: Новый результат теста (INSERT в test_results)
     if (payload.table === 'test_results' && payload.type === 'INSERT') {
       const record = payload.record
-      // Достаем tg_id из профиля
-      const profiles = await db(`profiles?id=eq.${record.profile_id}&select=tg_id`)
+      // ИСПРАВЛЕНО: Достаем по tg_id из таблицы profiles
+      const profiles = await db(`profiles?tg_id=eq.${record.tg_id}&select=tg_id`)
       if (profiles && profiles.length > 0) {
         const tgId = profiles[0].tg_id
         const trait = (record.primary_support || '').toUpperCase()
@@ -115,7 +115,8 @@ serve(async (req: Request) => {
       if (record.invites_count === 2 && oldRecord?.invites_count !== 2) {
         console.log(`[Webhook UPDATE] Triggering reward for profile ${record.id}. Fetching test_results...`)
         
-        const results = await db(`test_results?profile_id=eq.${record.id}&select=primary_support,secondary_support`)
+        // ИСПРАВЛЕНО: Ищем по tg_id, так как profile_id в этой таблице нет
+        const results = await db(`test_results?tg_id=eq.${record.tg_id}&select=primary_support,secondary_support`)
         console.log(`[Webhook UPDATE] DB response for test_results:`, JSON.stringify(results))
         
         const tr = results?.[0]
