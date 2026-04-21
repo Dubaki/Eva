@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
 
   const { data: existingProfiles } = await supabase
     .from('profiles')
-    .select('id, tg_id, username, avatar_url, is_subscribed, referrer_id, referred_by, invites_count, dominant_trait, shadow_trait, created_at')
+    .select('id, tg_id, username, avatar_url, is_subscribed, referrer_id, created_at')
     .eq('tg_id', user.id)
     .limit(1)
 
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
         avatar_url: user.photo_url ?? null,
         is_subscribed: false,
       }])
-      .select('id, tg_id, username, avatar_url, is_subscribed, referrer_id, referred_by, invites_count, dominant_trait, shadow_trait, created_at')
+      .select('id, tg_id, username, avatar_url, is_subscribed, referrer_id, created_at')
 
     if (insertErr) {
       console.error('[auth] DB insert error:', insertErr)

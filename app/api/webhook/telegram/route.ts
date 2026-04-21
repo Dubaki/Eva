@@ -38,7 +38,7 @@ async function processReferral(supabase: ReturnType<typeof getSupabaseServer>, t
 
     const { data: referrers } = await supabase
       .from('profiles')
-      .select('id, tg_id, invites_count, dominant_trait, shadow_trait')
+      .select('id, tg_id, invites_count')
       .eq('tg_id', profile.referred_by)
       .limit(1)
 
@@ -50,17 +50,23 @@ async function processReferral(supabase: ReturnType<typeof getSupabaseServer>, t
     await supabase.from('profiles').update({ referrer_id: referrer.id } as any).eq('id', profile.id)
     console.log(`[ref] invites_count=${newCount} for referrer tg_id=${referrer.tg_id}`)
 
-    if (newCount === 2 && referrer.tg_id && referrer.dominant_trait && referrer.shadow_trait) {
-      const { MIXED_TRAIT_TEXTS } = await import('@/lib/telegram')
-      const mixedKey = [referrer.dominant_trait.toUpperCase(), referrer.shadow_trait.toUpperCase()].sort().join('')
-      if (MIXED_TRAIT_TEXTS[mixedKey]) {
-        const { triggerBotNotification } = await import('@/lib/bot-notification')
-        triggerBotNotification({
-          event: 'referrals_reached_2',
-          profile_id: referrer.id,
-          tg_id: referrer.tg_id,
-          mixed_trait: mixedKey,
-        }).catch(() => {})
+    if (newCount === 2 && referrer.tg_id) {
+      // Берём трейты из test_results
+      const { data: tr } = await supabase.from('test_results').select('dominant_trait, secondary_trait').eq('profile_id', referrer.id).limit(1).single()
+      const dominant = (tr as any)?.dominant_trait
+      const shadow = (tr as any)?.secondary_trait
+      if (dominant && shadow) {
+        const { MIXED_TRAIT_TEXTS } = await import('@/lib/telegram')
+        const mixedKey = [dominant.toUpperCase(), shadow.toUpperCase()].sort().join('')
+        if (MIXED_TRAIT_TEXTS[mixedKey]) {
+          const { triggerBotNotification } = await import('@/lib/bot-notification')
+          triggerBotNotification({
+            event: 'referrals_reached_2',
+            profile_id: referrer.id,
+            tg_id: referrer.tg_id,
+            mixed_trait: mixedKey,
+          }).catch(() => {})
+        }
       }
     }
   } catch (err) {
