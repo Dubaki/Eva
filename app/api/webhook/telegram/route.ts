@@ -62,16 +62,21 @@ export async function POST(request: NextRequest) {
 
         // ── Quiz callbacks ─────────────────────────────────────────────
         await answerCallbackQuery({ callbackQueryId: callbackQuery.id })
+        console.log(`[quiz] callback: ${data}, tgId: ${tgId}`)
 
         // Получаем профиль
-        const { data: profiles } = await supabase
+        const { data: profiles, error: profileErr } = await supabase
           .from('profiles')
           .select('id')
           .eq('tg_id', tgId)
           .limit(1)
 
+        console.log(`[quiz] profile lookup: found=${profiles?.length}, err=${profileErr?.message}`)
         const profileId = profiles?.[0]?.id
-        if (!profileId) return NextResponse.json({ ok: true })
+        if (!profileId) {
+          console.log(`[quiz] no profile for tgId=${tgId}, returning`)
+          return NextResponse.json({ ok: true })
+        }
 
         // Q1 → Q2
         if (data.startsWith('quiz_q1_')) {
