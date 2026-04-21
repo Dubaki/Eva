@@ -13,7 +13,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
 // Формируем APP_URL и логируем его для отладки
-let APP_URL = Deno.env.get('APP_URL') || 'https://eva-app.vercel.app'
+let APP_URL = Deno.env.get('APP_URL') || 'https://eva-9udm.vercel.app'
 if (!APP_URL.startsWith('http')) {
   APP_URL = `https://${APP_URL}`
 }
