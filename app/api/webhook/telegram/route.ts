@@ -52,9 +52,9 @@ async function processReferral(supabase: ReturnType<typeof getSupabaseServer>, t
 
     if (newCount === 2 && referrer.tg_id) {
       // Берём трейты из test_results и отправляем сообщение напрямую
-      const { data: tr } = await supabase.from('test_results').select('primary_support, secondary_support').eq('profile_id', referrer.id).limit(1).single()
-      const dominant = (tr as any)?.primary_support
-      const shadow = (tr as any)?.secondary_support
+      const { data: tr } = await supabase.from('test_results').select('dominant_trait, secondary_trait').eq('profile_id', referrer.id).limit(1).single()
+      const dominant = (tr as any)?.dominant_trait
+      const shadow = (tr as any)?.secondary_trait
       console.log(`[ref] referral milestone 2! referrer tg_id=${referrer.tg_id} dominant=${dominant} shadow=${shadow}`)
       if (dominant && shadow) {
         const { MIXED_TRAIT_TEXTS } = await import('@/lib/telegram')
