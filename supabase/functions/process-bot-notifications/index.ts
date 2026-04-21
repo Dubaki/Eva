@@ -267,9 +267,26 @@ serve(async (req: Request) => {
     }
 
     if (payload.table === 'profiles' && payload.type === 'UPDATE') {
-      // Реферальный бонус теперь обрабатывается через прямой вызов события 'referrals_reached_2'
-      // в API прохождения теста для мгновенности и избежания дублей.
-      return new Response(JSON.stringify({ ok: true, note: 'Skipped: handeled via direct event' }), { status: 200 })
+      const record = payload.record
+      const oldRecord = payload.old_record
+      
+      // Срабатывает, если счетчик стал равен 2 (и раньше не был равен 2)
+      if (record.invites_count === 2 && oldRecord?.invites_count !== 2) {
+        // Ищем результаты теста для этого пользователя
+        const results = await db(`test_results?profile_id=eq.${record.id}&select=dominant_trait,secondary_trait`)
+        const tr = results?.[0]
+        
+        if (tr?.dominant_trait && tr?.secondary_trait) {
+          const mixedKey = [tr.dominant_trait.toUpperCase(), tr.secondary_trait.toUpperCase()].sort().join('')
+          const mixedText = MIXED_TRAIT_TEXTS[mixedKey]
+          
+          if (mixedText) {
+            await sendMessage(record.tg_id, `<b>🎉 Поздравляем! По твоей ссылке 2 человека прошли тест.</b>\n\nТебе открылась твоя «Вторая опора»:\n\n${mixedText}`)
+            console.log(`[ref-bonus] Sent to ${record.tg_id} via DB Webhook`)
+          }
+        }
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200 })
     }
 
     return new Response(JSON.stringify({ ok: true }), { status: 200 })

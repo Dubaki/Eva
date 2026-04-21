@@ -11,7 +11,20 @@
       "Bash(bash /tmp/classify_tasks.sh)",
       "Bash(ls /c/eva/tasks/done/*.md)",
       "Bash(sed 's/_.*$//')",
-      "Bash(grep -l \"emergency\\\\|critical\\\\|hotfix\\\\|kill\\\\|patch\\\\|repair\\\\|revert\\\\|overhaul\\\\|debug\" /c/eva/tasks/done/*.md)"
+      "Bash(grep -l \"emergency\\\\|critical\\\\|hotfix\\\\|kill\\\\|patch\\\\|repair\\\\|revert\\\\|overhaul\\\\|debug\" /c/eva/tasks/done/*.md)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git commit -m 'fix: remove invalid eslint-disable comment causing build failure *)",
+      "Bash(git commit -m 'fix: move quiz callbacks to route.ts, remove unreliable edge fn forwarding *)",
+      "Bash(git commit -m 'debug: add quiz callback logging to diagnose missing messages *)",
+      "Bash(sort -t- -k2)",
+      "Bash(git commit -m 'fix: detect video sent as document for admin file_id extraction *)",
+      "Bash(git commit -m 'fix: gift sent once only + detect all admin video types with logging *)",
+      "Bash(git commit -m 'fix: prevent share button from sending messages more than once *)",
+      "Bash(git commit *)",
+      "Bash(npx supabase *)",
+      "Bash(supabase functions *)"
     ]
   }
 }

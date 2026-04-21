@@ -141,62 +141,53 @@ export async function POST(request: NextRequest) {
           .eq('tg_id', inviterTgId)
           .single()
 
-        if (inviterProfile) {
-          const newCount = (inviterProfile.invites_count ?? 0) + 1
+          if (inviterProfile) {
+            const newCount = (inviterProfile.invites_count ?? 0) + 1
 
-          // 1. Обновляем счетчик пригласившему
-          await supabaseAdmin
-            .from('profiles')
-            .update({ invites_count: newCount })
-            .eq('id', inviterProfile.id)
+            // 1. Обновляем счетчик пригласившему (это само триггернет Edge Function через Вебхук БД)
+            await supabaseAdmin
+              .from('profiles')
+              .update({ invites_count: newCount })
+              .eq('id', inviterProfile.id)
 
-          // 2. Связываем реферала с пригласившим (чтобы не засчитать второй раз)
-          await supabaseAdmin
-            .from('profiles')
-            .update({ referrer_id: inviterProfile.id })
-            .eq('id', currentProfile.id)
+            // 2. Связываем реферала с пригласившим
+            await supabaseAdmin
+              .from('profiles')
+              .update({ referrer_id: inviterProfile.id })
+              .eq('id', currentProfile.id)
 
-          console.log(`[Referral] Success: ${tgId} referred by ${inviterTgId}. New count: ${newCount}`)
-
-          // 3. Если это ВТОРОЙ реферал — шлем подарок пригласившему
-          if (newCount === 2) {
-            if (inviterProfile.dominant_trait && inviterProfile.shadow_trait) {
-              const mixedKey = [inviterProfile.dominant_trait.toUpperCase(), inviterProfile.shadow_trait.toUpperCase()]
-                .sort()
-                .join('')
-              
-              await triggerBotNotification({
-                event: 'referrals_reached_2',
-                profile_id: inviterProfile.id,
-                tg_id: inviterProfile.tg_id,
-                mixed_trait: mixedKey,
-              })
-            }
+            console.log(`[Referral] Updated count to ${newCount} for inviter ${inviterProfile.tg_id}`)
           }
         }
-      }
 
-      // ── Self Reward Logic (if user already has 2 referrals) ────────────
-      // Проверяем, не заслужил ли ТЕКУЩИЙ пользователь награду сам
-      const { data: updatedSelf } = await supabaseAdmin
-        .from('profiles')
-        .select('invites_count')
-        .eq('tg_id', tgId)
-        .single()
-
-      if (updatedSelf && (updatedSelf.invites_count ?? 0) >= 2) {
-        const mixedKey = [primary.toUpperCase(), secondary.toUpperCase()]
-          .sort()
-          .join('')
+        // ── Self Reward Logic ─────────────────────────────────────────────
+        // Здесь мы тоже можем просто положиться на БД, либо оставить вызов,
+        // но для единообразия лучше просто убедиться, что invites_count уже >= 2.
+        // Если пользователь с 2 рефералами завершил тест — Вебхук на INSERT в test_results
+        // или UPDATE в profiles может сработать. Но так как счетчик уже 2 и не МЕНЯЕТСЯ,
+        // нам нужно оставить здесь один прямой вызов для тех, кто УЖЕ имеет 2 реферала
+        // на момент первого прохождения теста.
         
-        await triggerBotNotification({
-          event: 'referrals_reached_2',
-          profile_id: profileId,
-          tg_id: tgId,
-          mixed_trait: mixedKey,
-        })
+        const { data: updatedSelf } = await supabaseAdmin
+          .from('profiles')
+          .select('invites_count')
+          .eq('tg_id', tgId)
+          .single()
+
+        if (updatedSelf && (updatedSelf.invites_count ?? 0) >= 2) {
+          const mixedKey = [primary.toUpperCase(), secondary.toUpperCase()]
+            .sort()
+            .join('')
+          
+          await triggerBotNotification({
+            event: 'referrals_reached_2',
+            profile_id: currentProfile.id,
+            tg_id: tgId,
+            mixed_trait: mixedKey,
+          })
+        }
       }
-    } catch (refErr) {
+ catch (refErr) {
       console.error('[Referral] Critical error:', refErr)
     }
 
