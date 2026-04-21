@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
           await sendMessage({
             chatId: tgId,
             text: 'Отлично! Нажми кнопку ниже — я жду твоего сообщения:',
-            replyMarkup: { inline_keyboard: [[{ text: prefilledText, url: authorUrl }]] }
+            replyMarkup: { inline_keyboard: [[{ text: 'Написать Еве', url: authorUrl }]] }
           })
           if ((profileData as any)?.bot_quiz_step !== 5) {
             await supabase.from('profiles').update({ bot_quiz_step: 5 } as any).eq('tg_id', tgId)
