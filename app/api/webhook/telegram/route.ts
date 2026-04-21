@@ -63,13 +63,14 @@ export async function POST(request: NextRequest) {
             })
 
             // Засчитываем реферал после подписки (только 1 раз)
-            const { data: invitedProfileRaw } = await supabase
+            const { data: invitedProfileRaw, error: ipErr } = await supabase
               .from('profiles')
               .select('id, referred_by, referrer_id')
               .eq('tg_id', tgId)
               .limit(1)
               .single()
             const invitedProfile = invitedProfileRaw as any
+            console.log(`[ref] invited tgId=${tgId} referred_by=${invitedProfile?.referred_by} referrer_id=${invitedProfile?.referrer_id} err=${ipErr?.message}`)
 
             if (invitedProfile?.referred_by && !invitedProfile.referrer_id) {
               const { data: referrers } = await supabase
@@ -77,12 +78,14 @@ export async function POST(request: NextRequest) {
                 .select('id, tg_id, invites_count, dominant_trait, shadow_trait')
                 .eq('tg_id', invitedProfile.referred_by)
                 .limit(1)
+              console.log(`[ref] referrer found=${referrers?.length} tg_id=${referrers?.[0]?.tg_id}`)
 
               if (referrers && referrers.length > 0) {
                 const referrer = referrers[0] as any
                 const newCount = (referrer.invites_count ?? 0) + 1
                 await supabase.from('profiles').update({ invites_count: newCount } as any).eq('id', referrer.id)
                 await supabase.from('profiles').update({ referrer_id: referrer.id } as any).eq('id', invitedProfile.id)
+                console.log(`[ref] invites_count updated to ${newCount} for tg_id=${referrer.tg_id}`)
 
                 if (newCount === 2 && referrer.tg_id && referrer.dominant_trait && referrer.shadow_trait) {
                   const { MIXED_TRAIT_TEXTS } = await import('@/lib/telegram')
