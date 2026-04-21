@@ -326,21 +326,57 @@ serve(async (req: Request) => {
       })
     }
 
-    // 3. Database Webhook (Existing result delivery logic)
+    // 3. Database Webhook — test_results INSERT → отправка результата опоры
     if (payload.table === 'test_results' && payload.type === 'INSERT') {
       const record = payload.record
       const profileId = record.profile_id
-      const dominantTrait = record.dominant_trait
+      const primarySupport = record.primary_support
 
       const profiles = await db(`profiles?id=eq.${profileId}&select=tg_id`)
-      if (profiles && profiles.length > 0 && dominantTrait) {
+      if (profiles && profiles.length > 0 && primarySupport) {
         const tgId = profiles[0].tg_id
-        const traitKey = dominantTrait.toUpperCase()
+        const traitKey = primarySupport.toUpperCase()
         const imageUrl = TRAIT_IMAGES[traitKey] || TRAIT_IMAGES['S']
         const text = DOMINANT_TRAIT_TEXTS[traitKey] || `Ваша опора: ${traitKey}`
-        
-        console.log(`[db-webhook] Sending result to ${tgId}`)
+        console.log(`[db-webhook] Sending result to ${tgId}, trait=${traitKey}`)
         await sendPhoto(tgId, imageUrl, text)
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200 })
+    }
+
+    // 4. Database Webhook — profiles UPDATE → реферальный бонус при invites_count = 2
+    if (payload.table === 'profiles' && payload.type === 'UPDATE') {
+      const record = payload.record
+      const oldRecord = payload.old_record
+      console.log(`[ref-bonus] profiles UPDATE tg_id=${record.tg_id} invites_count=${record.invites_count} old=${oldRecord?.invites_count}`)
+
+      if (record.invites_count === 2 && oldRecord?.invites_count !== 2) {
+        const profileId = record.id
+        const tgId = record.tg_id
+        const results = await db(`test_results?profile_id=eq.${profileId}&select=primary_support,secondary_support`)
+        const tr = results?.[0]
+        console.log(`[ref-bonus] test_results: primary=${tr?.primary_support} secondary=${tr?.secondary_support}`)
+
+        if (tr?.primary_support && tr?.secondary_support) {
+          const mixedKey = [tr.primary_support.toUpperCase(), tr.secondary_support.toUpperCase()].sort().join('')
+          const MIXED_TRAIT_TEXTS: Record<string, string> = {
+            SU: 'S + U — «Тихий тащитель»\n\nТы тащишь.\nИ делаешь это тихо.\nТы справляешься.\nНе просишь помощи.\nИ при этом стараешься быть удобной.\n\nНо внутри:\n— усталость\n— одиночество\n— ощущение, что тебя не видят\n\nТы отдаёшь много.\nНо это не возвращается.\n\nЦена:\nТы исчезаешь из своей же жизни.\n\n⚡️ Внутри звучит:\n«Я всё делаю правильно… почему меня не выбирают?»',
+            SP: 'S + P — «Идеальный герой»\n\nТы делаешь всё правильно.\nДержишь. Справляешься. Не ошибаешься.\nТы сильная и идеальная одновременно.\n\nНо внутри:\n— страх потерять контроль\n— усталость от собственных стандартов\n— ощущение, что расслабиться нельзя\n\nЦена:\nТы живёшь в постоянном напряжении. Без права на слабость.\n\n⚡️ Внутри звучит:\n«Если я остановлюсь — всё рухнет»',
+            RS: 'R + S — «Держатель поля»\n\nТы чувствуешь всех.\nИ держишь всё на себе.\nТы и опора, и поддержка, и тот, кто не даёт развалиться.\n\nНо внутри:\n— перегруз\n— невидимость\n— ощущение, что ты нужна, но не любима\n\nЦена:\nТы обслуживаешь чужое пространство, забывая о своём.\n\n⚡️ Внутри звучит:\n«Я держу всех. Кто держит меня?»',
+            KS: 'K + S — «Бдительный герой»\n\nТы всегда начеку.\nИ при этом держишь всё под контролем.\nТы предусматриваешь всё — и при этом не позволяешь себе слабости.\n\nНо внутри:\n— хроническая тревога\n— напряжение\n— невозможность расслабиться\n\nЦена:\nТы живёшь в готовности к катастрофе, которая никак не наступает.\n\n⚡️ Внутри звучит:\n«Я должна контролировать — иначе всё пойдёт не так»',
+            PU: 'P + U — «Удобный перфекционист»\n\nТы стараешься быть идеальной.\nИ при этом — удобной для всех.\nТы не ошибаешься. И не создаёшь проблем.\n\nНо внутри:\n— страх быть отвергнутой\n— подавленные желания\n— ощущение, что тебя не знают настоящей\n\nЦена:\nТы исчезаешь за образом «хорошей».\n\n⚡️ Внутри звучит:\n«Если я буду собой — меня не примут»',
+            RU: 'R + U — «Чуткий угодник»\n\nТы чувствуешь людей тонко.\nИ подстраиваешься под них.\nТы сглаживаешь, поддерживаешь, держишь атмосферу.\n\nНо внутри:\n— растворение в других\n— потеря себя\n— страх конфликта\n\nЦена:\nТебя нет — есть функция.\n\n⚡️ Внутри звучит:\n«Главное, чтобы всем было хорошо»',
+            KU: 'K + U — «Тревожный угодник»\n\nТы контролируешь — и при этом подстраиваешься.\nТы следишь за всем — и боишься отказать.\nТы в постоянном балансе между тревогой и желанием быть удобной.\n\nНо внутри:\n— истощение\n— страх\n— ощущение ловушки\n\nЦена:\nТы не живёшь — ты управляешь рисками чужого недовольства.\n\n⚡️ Внутри звучит:\n«Лишь бы не было хуже»',
+            PR: 'P + R — «Чуткий перфекционист»\n\nТы делаешь всё идеально.\nИ при этом чувствуешь всех вокруг.\nТы хочешь быть лучшей — и держать пространство гармоничным.\n\nНо внутри:\n— перегруз\n— страх ошибки\n— ощущение, что ты никогда не делаешь достаточно\n\nЦена:\nТы тонешь в чужих ожиданиях и своих стандартах одновременно.\n\n⚡️ Внутри звучит:\n«Я должна успеть всё и не подвести никого»',
+            KP: 'K + P — «Тревожный перфекционист»\n\nТы контролируешь — и при этом требуешь от себя идеального результата.\nТы предусматриваешь всё — и при этом боишься ошибиться.\n\nНо внутри:\n— хроническое напряжение\n— страх провала\n— невозможность остановиться\n\nЦена:\nТы в ловушке между тревогой и перфекционизмом.\n\n⚡️ Внутри звучит:\n«Если я не предусмотрю всё — что-то пойдёт не так»',
+            KR: 'K + R — «Тревожный держатель»\n\nТы держишь поле — и при этом всё контролируешь.\nТы чувствуешь всех — и при этом следишь за каждой деталью.\n\nНо внутри:\n— перегруз\n— тревога\n— ощущение, что ты одна отвечаешь за всё\n\nЦена:\nТы несёшь ответственность за то, что не твоё.\n\n⚡️ Внутри звучит:\n«Если я отпущу контроль — всё развалится»',
+          }
+          const mixedText = MIXED_TRAIT_TEXTS[mixedKey]
+          console.log(`[ref-bonus] mixedKey=${mixedKey} found=${!!mixedText}`)
+          if (mixedText) {
+            await sendMessage(tgId, mixedText)
+          }
+        }
       }
       return new Response(JSON.stringify({ ok: true }), { status: 200 })
     }
