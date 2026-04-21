@@ -24,12 +24,6 @@ type AdminStats = {
   }>
 }
 
-type GiftLinks = {
-  gift_money: string
-  gift_relations: string
-  gift_health: string
-  gift_other: string
-}
 
 const TRAIT_LABELS: Record<string, string> = {
   S: 'Самоценность',
@@ -83,7 +77,7 @@ async function compressImage(file: File, maxSizeKB = 500): Promise<Blob> {
   })
 }
 
-type Tab = 'stats' | 'crm' | 'broadcast' | 'gifts'
+type Tab = 'stats' | 'crm' | 'broadcast'
 type SortField = 'created_at' | 'invites_count' | 'last_test_date'
 type SortDir = 'asc' | 'desc'
 
@@ -92,15 +86,7 @@ export default function AdminPanel() {
   const [loading, setLoading] = useState(true)
   const [unauthorized, setUnauthorized] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('stats')
-  const [giftLinks, setGiftLinks] = useState<GiftLinks>({
-    gift_money: '',
-    gift_relations: '',
-    gift_health: '',
-    gift_other: '',
-  })
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [sortField, setSortField] = useState<SortField>('created_at')
+const [sortField, setSortField] = useState<SortField>('created_at')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [broadcastMsg, setBroadcastMsg] = useState('')
   const [broadcastPhoto, setBroadcastPhoto] = useState<File | null>(null)
@@ -170,42 +156,9 @@ export default function AdminPanel() {
     // Fetch stats (PIN alone is sufficient for access)
     refreshStats().finally(() => setLoading(false))
 
-    // Fetch gift links
-    fetch('/api/admin/gifts', { headers, cache: 'no-store' })
-      .then((r) => r.json())
-      .then((json) => {
-        if (json.success && json.data) {
-          setGiftLinks(json.data)
-        }
-      })
-      .catch((err) => console.error('[admin] Gifts fetch error:', err))
   }, [refreshStats])
 
-  const handleSaveGifts = async () => {
-    setSaving(true)
-    setSaved(false)
-    try {
-      const res = await fetch('/api/admin/gifts', {
-        method: 'POST',
-        headers: {
-          ...adminHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(giftLinks),
-      })
-      const json = await res.json()
-      if (json.success) {
-        setSaved(true)
-        setTimeout(() => setSaved(false), 3000)
-      }
-    } catch (err) {
-      console.error('[admin] Save gifts error:', err)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleBroadcast = async () => {
+const handleBroadcast = async () => {
     if (!broadcastMsg.trim() && !broadcastPhoto) return
 
     setBroadcasting(true)
@@ -388,7 +341,6 @@ export default function AdminPanel() {
             ['stats', '📊 Статистика'],
             ['crm', '👥 CRM'],
             ['broadcast', '📢 Рассылка'],
-            ['gifts', '🎁 Подарки'],
           ] as [Tab, string][]).map(([key, label]) => (
             <button
               key={key}
@@ -758,77 +710,6 @@ export default function AdminPanel() {
           </div>
         )}
 
-        {/* ════════════ GIFTS TAB ════════════ */}
-        {activeTab === 'gifts' && (
-          <div className="flex flex-col gap-3">
-            <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 border border-gray-100 shadow-sm">
-              <p className="text-gray-400 text-xs uppercase tracking-widest mb-3 text-center font-medium">
-                Ссылки на подарки по сферам
-              </p>
-
-              <div className="flex flex-col gap-2.5">
-                <div>
-                  <label className="text-[12px] font-medium text-gray-600 mb-1 block">💰 Деньги</label>
-                  <input
-                    type="text"
-                    value={giftLinks.gift_money}
-                    onChange={(e) => setGiftLinks({ ...giftLinks, gift_money: e.target.value })}
-                    placeholder="https://t.me/..."
-                    className="w-full py-2.5 px-3 bg-gray-50 border border-gray-200 rounded-xl text-[13px] text-gray-800 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[12px] font-medium text-gray-600 mb-1 block">❤️ Отношения</label>
-                  <input
-                    type="text"
-                    value={giftLinks.gift_relations}
-                    onChange={(e) => setGiftLinks({ ...giftLinks, gift_relations: e.target.value })}
-                    placeholder="https://t.me/..."
-                    className="w-full py-2.5 px-3 bg-gray-50 border border-gray-200 rounded-xl text-[13px] text-gray-800 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[12px] font-medium text-gray-600 mb-1 block">🌿 Здоровье</label>
-                  <input
-                    type="text"
-                    value={giftLinks.gift_health}
-                    onChange={(e) => setGiftLinks({ ...giftLinks, gift_health: e.target.value })}
-                    placeholder="https://t.me/..."
-                    className="w-full py-2.5 px-3 bg-gray-50 border border-gray-200 rounded-xl text-[13px] text-gray-800 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[12px] font-medium text-gray-600 mb-1 block">📦 Другое</label>
-                  <input
-                    type="text"
-                    value={giftLinks.gift_other}
-                    onChange={(e) => setGiftLinks({ ...giftLinks, gift_other: e.target.value })}
-                    placeholder="https://t.me/..."
-                    className="w-full py-2.5 px-3 bg-gray-50 border border-gray-200 rounded-xl text-[13px] text-gray-800 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-colors"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-4">
-                <motion.button
-                  type="button"
-                  whileTap={{ scale: saving ? 1 : 0.97 }}
-                  onClick={handleSaveGifts}
-                  disabled={saving}
-                  className={`w-full py-2.5 rounded-xl font-semibold text-[14px] text-white transition-all ${
-                    saving ? 'opacity-60 cursor-not-allowed' : 'active:scale-[0.98]'
-                  }`}
-                  style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}
-                >
-                  {saving ? 'Сохранение...' : saved ? '✅ Сохранено!' : '💾 Сохранить'}
-                </motion.button>
-              </div>
-            </div>
-          </div>
-        )}
         </div>{/* end scrollable content area */}
 
         {/* Back button — outside scrollable area */}
