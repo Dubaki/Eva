@@ -1,6 +1,8 @@
 import { createHmac, timingSafeEqual } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServer } from '@/lib/supabase/server'
+import { triggerBotNotification } from '@/lib/bot-notification'
+import { MIXED_TRAIT_TEXTS } from '@/lib/telegram'
 
 // ── Response helpers ────────────────────────────────────────────────────────
 
@@ -167,10 +169,34 @@ export async function POST(req: NextRequest) {
     const refTgId = parseInt(raw, 10)
     if (!isNaN(refTgId) && refTgId !== profile.tg_id) {
       try {
-        const { data: referrer } = await supabase.from('profiles').select('id').eq('tg_id', refTgId).limit(1)
-        if (referrer && referrer.length > 0) {
-          await supabase.from('profiles').update({ referrer_id: referrer[0].id }).eq('id', profile.id)
-          await supabase.from('referrals').insert({ owner_id: referrer[0].id, invited_id: profile.id, status: 'pending' })
+        const { data: referrers } = await supabase.from('profiles').select('id, tg_id, dominant_trait, shadow_trait').eq('tg_id', refTgId).limit(1)
+        if (referrers && referrers.length > 0) {
+          const referrer = referrers[0]
+          await supabase.from('profiles').update({ referrer_id: referrer.id }).eq('id', profile.id)
+          await supabase.from('referrals').insert({ owner_id: referrer.id, invited_id: profile.id, status: 'pending' })
+
+          // Обновляем счётчик рефералов
+          const { count: newCount } = await supabase
+            .from('referrals')
+            .select('id', { count: 'exact', head: true })
+            .eq('owner_id', referrer.id)
+
+          if (newCount !== null) {
+            await supabase.from('profiles').update({ referrals_count: newCount }).eq('id', referrer.id)
+
+            // Уведомление при достижении 2 рефералов
+            if (newCount === 2 && referrer.tg_id && referrer.dominant_trait && referrer.shadow_trait) {
+              const mixedKey = [referrer.dominant_trait.toUpperCase(), referrer.shadow_trait.toUpperCase()].sort().join('')
+              if (MIXED_TRAIT_TEXTS[mixedKey]) {
+                triggerBotNotification({
+                  event: 'referrals_reached_2',
+                  profile_id: referrer.id,
+                  tg_id: referrer.tg_id,
+                  mixed_trait: mixedKey,
+                }).catch((err) => console.error('[auth] Referral notification error:', err))
+              }
+            }
+          }
         }
       } catch (refErr) {
         console.error('[auth] Referral processing error:', refErr)
