@@ -23,6 +23,51 @@ function validateSecretToken(req: NextRequest): boolean {
   return token === SECRET_TOKEN
 }
 
+async function processReferral(supabase: ReturnType<typeof getSupabaseServer>, tgId: number) {
+  try {
+    const { data: profileRaw } = await supabase
+      .from('profiles')
+      .select('id, referred_by, referrer_id')
+      .eq('tg_id', tgId)
+      .limit(1)
+      .single()
+    const profile = profileRaw as any
+    console.log(`[ref] tgId=${tgId} referred_by=${profile?.referred_by} referrer_id=${profile?.referrer_id}`)
+
+    if (!profile?.referred_by || profile.referrer_id) return // нет реферера или уже засчитан
+
+    const { data: referrers } = await supabase
+      .from('profiles')
+      .select('id, tg_id, invites_count, dominant_trait, shadow_trait')
+      .eq('tg_id', profile.referred_by)
+      .limit(1)
+
+    if (!referrers || referrers.length === 0) return
+    const referrer = referrers[0] as any
+    const newCount = (referrer.invites_count ?? 0) + 1
+
+    await supabase.from('profiles').update({ invites_count: newCount } as any).eq('id', referrer.id)
+    await supabase.from('profiles').update({ referrer_id: referrer.id } as any).eq('id', profile.id)
+    console.log(`[ref] invites_count=${newCount} for referrer tg_id=${referrer.tg_id}`)
+
+    if (newCount === 2 && referrer.tg_id && referrer.dominant_trait && referrer.shadow_trait) {
+      const { MIXED_TRAIT_TEXTS } = await import('@/lib/telegram')
+      const mixedKey = [referrer.dominant_trait.toUpperCase(), referrer.shadow_trait.toUpperCase()].sort().join('')
+      if (MIXED_TRAIT_TEXTS[mixedKey]) {
+        const { triggerBotNotification } = await import('@/lib/bot-notification')
+        triggerBotNotification({
+          event: 'referrals_reached_2',
+          profile_id: referrer.id,
+          tg_id: referrer.tg_id,
+          mixed_trait: mixedKey,
+        }).catch(() => {})
+      }
+    }
+  } catch (err) {
+    console.error('[ref] processReferral error:', err)
+  }
+}
+
 export async function POST(request: NextRequest) {
   if (!validateSecretToken(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -62,46 +107,8 @@ export async function POST(request: NextRequest) {
               replyMarkup: { inline_keyboard: [[{ text: 'Открыть тест', web_app: { url: getTmaUrl() } }]] }
             })
 
-            // Засчитываем реферал после подписки (только 1 раз)
-            const { data: invitedProfileRaw, error: ipErr } = await supabase
-              .from('profiles')
-              .select('id, referred_by, referrer_id')
-              .eq('tg_id', tgId)
-              .limit(1)
-              .single()
-            const invitedProfile = invitedProfileRaw as any
-            console.log(`[ref] invited tgId=${tgId} referred_by=${invitedProfile?.referred_by} referrer_id=${invitedProfile?.referrer_id} err=${ipErr?.message}`)
-
-            if (invitedProfile?.referred_by && !invitedProfile.referrer_id) {
-              const { data: referrers } = await supabase
-                .from('profiles')
-                .select('id, tg_id, invites_count, dominant_trait, shadow_trait')
-                .eq('tg_id', invitedProfile.referred_by)
-                .limit(1)
-              console.log(`[ref] referrer found=${referrers?.length} tg_id=${referrers?.[0]?.tg_id}`)
-
-              if (referrers && referrers.length > 0) {
-                const referrer = referrers[0] as any
-                const newCount = (referrer.invites_count ?? 0) + 1
-                await supabase.from('profiles').update({ invites_count: newCount } as any).eq('id', referrer.id)
-                await supabase.from('profiles').update({ referrer_id: referrer.id } as any).eq('id', invitedProfile.id)
-                console.log(`[ref] invites_count updated to ${newCount} for tg_id=${referrer.tg_id}`)
-
-                if (newCount === 2 && referrer.tg_id && referrer.dominant_trait && referrer.shadow_trait) {
-                  const { MIXED_TRAIT_TEXTS } = await import('@/lib/telegram')
-                  const mixedKey = [referrer.dominant_trait.toUpperCase(), referrer.shadow_trait.toUpperCase()].sort().join('')
-                  if (MIXED_TRAIT_TEXTS[mixedKey]) {
-                    const { triggerBotNotification } = await import('@/lib/bot-notification')
-                    triggerBotNotification({
-                      event: 'referrals_reached_2',
-                      profile_id: referrer.id,
-                      tg_id: referrer.tg_id,
-                      mixed_trait: mixedKey,
-                    }).catch(() => {})
-                  }
-                }
-              }
-            }
+            // Засчитываем реферал после подписки
+            await processReferral(supabase, tgId)
           } else {
             await answerCallbackQuery({ callbackQueryId: callbackQuery.id, text: 'Ты всё ещё не подписана 😔', showAlert: true })
           }
@@ -263,6 +270,8 @@ export async function POST(request: NextRequest) {
             }
           })
         } else {
+          // Уже подписана — засчитываем реферал здесь
+          await processReferral(supabase, tgId)
           await sendMessage({
             chatId: tgId,
             text: 'Рада видеть тебя снова! Твой тест ждет тебя.',
