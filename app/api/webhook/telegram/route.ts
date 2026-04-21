@@ -224,8 +224,8 @@ export async function POST(request: NextRequest) {
       }
 
       // Получение file_id для администраторов
-      else if ((username === 'evapatrakhina' || username === 'bizbezit') && (update.message as any)?.video) {
-        const videoFileId = (update.message as any).video.file_id
+      else if ((username === 'evapatrakhina' || username === 'bizbezit') && ((update.message as any)?.video || (update.message as any)?.document)) {
+        const videoFileId = (update.message as any)?.video?.file_id || (update.message as any)?.document?.file_id
         await sendMessage({
           chatId: tgId,
           text: `✅ <b>ID ВИДЕО ПОЛУЧЕН</b>\n\nНик: @${username}\n\n<code>${videoFileId}</code>\n\nСкопируй этот код целиком.`,
