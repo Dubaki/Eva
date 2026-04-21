@@ -164,23 +164,29 @@ export async function POST(request: NextRequest) {
           })
         }
 
-        // Финал: пока не готова → подарок сразу
+        // Финал: пока не готова → подарок сразу (только если ещё не получала)
         else if (data === 'quiz_final_not_ready') {
-          await supabase.from('profiles').update({ bot_quiz_step: 5 } as any).eq('tg_id', tgId)
-
-          await sendMessage({
-            chatId: tgId,
-            text: 'Благодарю тебя за честность! Честность — это то, на чем строятся все мои методы работы. Чтобы тест не остался просто тестом, я дарю тебе практику нейроманифестации. Ты можешь начать изменения уже сегодня.',
-            replyMarkup: { inline_keyboard: [[{ text: 'Забрать подарок', callback_data: 'get_gift' }]] }
-          })
+          const { data: profileData } = await supabase.from('profiles').select('bot_quiz_step').eq('tg_id', tgId).limit(1).single()
+          if ((profileData as any)?.bot_quiz_step !== 5) {
+            await supabase.from('profiles').update({ bot_quiz_step: 5 } as any).eq('tg_id', tgId)
+            await sendMessage({
+              chatId: tgId,
+              text: 'Благодарю тебя за честность! Честность — это то, на чем строятся все мои методы работы. Чтобы тест не остался просто тестом, я дарю тебе практику нейроманифестации. Ты можешь начать изменения уже сегодня.',
+              replyMarkup: { inline_keyboard: [[{ text: 'Забрать подарок', callback_data: 'get_gift' }]] }
+            })
+          }
         }
 
-        // Подарок
+        // Подарок (только один раз)
         else if (data === 'get_gift') {
-          await sendMessage({
-            chatId: tgId,
-            text: 'Подарок уже готовится — скоро пришлю! 🎁',
-          })
+          const { data: profileData } = await supabase.from('profiles').select('bot_quiz_step').eq('tg_id', tgId).limit(1).single()
+          if ((profileData as any)?.bot_quiz_step !== 6) {
+            await supabase.from('profiles').update({ bot_quiz_step: 6 } as any).eq('tg_id', tgId)
+            await sendMessage({
+              chatId: tgId,
+              text: 'Подарок уже готовится — скоро пришлю! 🎁',
+            })
+          }
         }
 
         return NextResponse.json({ ok: true })
@@ -224,13 +230,17 @@ export async function POST(request: NextRequest) {
       }
 
       // Получение file_id для администраторов
-      else if ((username === 'evapatrakhina' || username === 'bizbezit') && ((update.message as any)?.video || (update.message as any)?.document)) {
-        const videoFileId = (update.message as any)?.video?.file_id || (update.message as any)?.document?.file_id
-        await sendMessage({
-          chatId: tgId,
-          text: `✅ <b>ID ВИДЕО ПОЛУЧЕН</b>\n\nНик: @${username}\n\n<code>${videoFileId}</code>\n\nСкопируй этот код целиком.`,
-          parseMode: 'HTML'
-        })
+      else if (username === 'evapatrakhina' || username === 'bizbezit') {
+        const msg = update.message as any
+        const fileId = msg?.video?.file_id || msg?.document?.file_id || msg?.animation?.file_id || msg?.video_note?.file_id
+        console.log(`[admin] from @${username}, types: video=${!!msg?.video} doc=${!!msg?.document} anim=${!!msg?.animation} fileId=${fileId}`)
+        if (fileId) {
+          await sendMessage({
+            chatId: tgId,
+            text: `✅ <b>FILE ID</b>\n\n<code>${fileId}</code>\n\nСкопируй целиком.`,
+            parseMode: 'HTML'
+          })
+        }
       }
 
       else if (text) {
