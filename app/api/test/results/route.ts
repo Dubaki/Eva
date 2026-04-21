@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     // 4. Загружаем результаты (safely with limit)
     const { data: results, error } = await supabaseAdmin
       .from('test_results')
-      .select('dominant_trait, secondary_trait, score_s, score_u, score_p, score_r, score_k')
+      .select('primary_support, secondary_support, score_s, score_u, score_p, score_r, score_k')
       .eq('profile_id', profileId)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -77,8 +77,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        dominantTrait: data.dominant_trait,
-        secondaryTrait: data.secondary_trait,
+        primarySupport: data.primary_support,
+        secondarySupport: data.secondary_support,
         scores: {
           S: data.score_s,
           U: data.score_u,

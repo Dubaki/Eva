@@ -43,8 +43,8 @@ export async function GET(req: NextRequest) {
         lastTestDate: profile?.last_test_date ?? null,
         referralCount: 0,
         hasTestResult: false,
-        dominantTrait: null,
-        secondaryTrait: null,
+        primarySupport: null,
+        secondarySupport: null,
         hasQualification: false,
         selected_sphere: profile?.selected_sphere ?? null,
       },
@@ -100,7 +100,7 @@ export async function GET(req: NextRequest) {
   // Fetch existing test results
   const { data: testResult } = await supabase
     .from('test_results')
-    .select('dominant_trait, secondary_trait')
+    .select('primary_support, secondary_support')
     .eq('profile_id', profileId)
     .single()
 
@@ -119,8 +119,8 @@ export async function GET(req: NextRequest) {
         lastTestDate: profile?.last_test_date ?? null,
         referralCount: refCount ?? 0,
         hasTestResult: !!testResult,
-        dominantTrait: testResult?.dominant_trait ?? null,
-        secondaryTrait: testResult?.secondary_trait ?? null,
+        primarySupport: testResult?.primary_support ?? null,
+        secondarySupport: testResult?.secondary_support ?? null,
         hasQualification: !!qual,
         selected_sphere: profile?.selected_sphere ?? null,
       },

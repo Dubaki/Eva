@@ -39,8 +39,6 @@ export interface Database {
           subscribed_at: string | null
           last_test_date: string | null
           selected_sphere: string | null
-          dominant_trait: string | null
-          shadow_trait: string | null
           referrals_count: number
           reminded_at: string | null
           invites_count: number
@@ -61,8 +59,6 @@ export interface Database {
           subscribed_at?: string | null
           last_test_date?: string | null
           selected_sphere?: string | null
-          dominant_trait?: string | null
-          shadow_trait?: string | null
           referrals_count?: number
           reminded_at?: string | null
           invites_count?: number
@@ -83,8 +79,6 @@ export interface Database {
           subscribed_at?: string | null
           last_test_date?: string | null
           selected_sphere?: string | null
-          dominant_trait?: string | null
-          shadow_trait?: string | null
           referrals_count?: number
           reminded_at?: string | null
           invites_count?: number
@@ -135,8 +129,8 @@ export interface Database {
           score_p: number
           score_r: number
           score_k: number
-          dominant_trait: string
-          secondary_trait: string
+          primary_support: string
+          secondary_support: string
           answers: Json
           created_at: string
           updated_at: string
@@ -149,8 +143,8 @@ export interface Database {
           score_p?: number
           score_r?: number
           score_k?: number
-          dominant_trait: string
-          secondary_trait: string
+          primary_support: string
+          secondary_support: string
           answers?: Json
           created_at?: string
           updated_at?: string
@@ -163,8 +157,8 @@ export interface Database {
           score_p?: number
           score_r?: number
           score_k?: number
-          dominant_trait?: string
-          secondary_trait?: string
+          primary_support?: string
+          secondary_support?: string
           answers?: Json
           created_at?: string
           updated_at?: string

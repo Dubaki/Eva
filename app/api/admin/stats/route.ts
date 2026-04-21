@@ -73,15 +73,15 @@ export async function GET(req: NextRequest) {
     .from('test_results')
     .select('*', { count: 'exact', head: true })
 
-  // Stats by dominant trait
+  // Stats by primary support
   const { data: traitStats } = await supabase
     .from('test_results')
-    .select('dominant_trait')
+    .select('primary_support')
 
   const traitCounts: Record<string, number> = { S: 0, U: 0, P: 0, R: 0, K: 0 }
   if (traitStats) {
     traitStats.forEach((row) => {
-      const trait = row.dominant_trait.toUpperCase()
+      const trait = row.primary_support.toUpperCase()
       if (traitCounts[trait] !== undefined) {
         traitCounts[trait]++
       }
@@ -109,7 +109,7 @@ export async function GET(req: NextRequest) {
     (recentUsers ?? []).map(async (user) => {
       const { data: testResult } = await supabase
         .from('test_results')
-        .select('dominant_trait, secondary_trait')
+        .select('primary_support, secondary_support')
         .eq('profile_id', user.id)
         .single()
 
@@ -122,8 +122,8 @@ export async function GET(req: NextRequest) {
         tg_id: user.tg_id,
         username: user.username,
         created_at: user.created_at,
-        dominantTrait: testResult?.dominant_trait ?? null,
-        secondaryTrait: testResult?.secondary_trait ?? null,
+        primarySupport: testResult?.primary_support ?? null,
+        secondarySupport: testResult?.secondary_support ?? null,
         invites_count: user.invites_count ?? 0,
         last_test_date: lastTest,
         next_test_available: nextTestAvailable,
