@@ -51,21 +51,18 @@ async function processReferral(supabase: ReturnType<typeof getSupabaseServer>, t
     console.log(`[ref] invites_count=${newCount} for referrer tg_id=${referrer.tg_id}`)
 
     if (newCount === 2 && referrer.tg_id) {
-      // Берём трейты из test_results
+      // Берём трейты из test_results и отправляем сообщение напрямую
       const { data: tr } = await supabase.from('test_results').select('dominant_trait, secondary_trait').eq('profile_id', referrer.id).limit(1).single()
       const dominant = (tr as any)?.dominant_trait
       const shadow = (tr as any)?.secondary_trait
+      console.log(`[ref] referral milestone 2! referrer tg_id=${referrer.tg_id} dominant=${dominant} shadow=${shadow}`)
       if (dominant && shadow) {
         const { MIXED_TRAIT_TEXTS } = await import('@/lib/telegram')
         const mixedKey = [dominant.toUpperCase(), shadow.toUpperCase()].sort().join('')
-        if (MIXED_TRAIT_TEXTS[mixedKey]) {
-          const { triggerBotNotification } = await import('@/lib/bot-notification')
-          triggerBotNotification({
-            event: 'referrals_reached_2',
-            profile_id: referrer.id,
-            tg_id: referrer.tg_id,
-            mixed_trait: mixedKey,
-          }).catch(() => {})
+        const mixedText = MIXED_TRAIT_TEXTS[mixedKey]
+        console.log(`[ref] mixedKey=${mixedKey} textFound=${!!mixedText}`)
+        if (mixedText) {
+          await sendMessage({ chatId: referrer.tg_id, text: mixedText, parseMode: 'HTML' })
         }
       }
     }
