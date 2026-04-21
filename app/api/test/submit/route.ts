@@ -131,34 +131,35 @@ export async function POST(request: NextRequest) {
         .eq('tg_id', tgId)
         .single()
 
-      if (currentProfile && currentProfile.referred_by && !currentProfile.referrer_id) {
+      if (currentProfile.referred_by && !currentProfile.referrer_id) {
         const inviterTgId = currentProfile.referred_by
-        
-        // Ищем профиль ПРИГЛАСИВШЕГО
+
+        // Ищем профиль пригласившего
         const { data: inviterProfile } = await supabaseAdmin
           .from('profiles')
-          .select('id, tg_id, invites_count, dominant_trait, shadow_trait')
+          .select('id, tg_id, invites_count')
           .eq('tg_id', inviterTgId)
           .single()
 
-          if (inviterProfile) {
-            const newCount = (inviterProfile.invites_count ?? 0) + 1
+        if (inviterProfile) {
+          const newCount = (inviterProfile.invites_count ?? 0) + 1
 
-            // 1. Обновляем счетчик пригласившему (это само триггернет Edge Function через Вебхук БД)
-            await supabaseAdmin
-              .from('profiles')
-              .update({ invites_count: newCount })
-              .eq('id', inviterProfile.id)
+          // 1. Обновляем счетчик пригласившему (это само триггернет Edge Function через Вебхук БД)
+          await supabaseAdmin
+            .from('profiles')
+            .update({ invites_count: newCount })
+            .eq('id', inviterProfile.id)
 
-            // 2. Связываем реферала с пригласившим
-            await supabaseAdmin
-              .from('profiles')
-              .update({ referrer_id: inviterProfile.id })
-              .eq('id', currentProfile.id)
+          // 2. Связываем реферала с пригласившим
+          await supabaseAdmin
+            .from('profiles')
+            .update({ referrer_id: inviterProfile.id })
+            .eq('id', currentProfile.id)
 
-            console.log(`[Referral] Updated count to ${newCount} for inviter ${inviterProfile.tg_id}`)
-          }
+          console.log(`[Referral] Updated count to ${newCount} for inviter ${inviterProfile.tg_id}`)
         }
+      }
+
 
         // ── Self Reward Logic ─────────────────────────────────────────────
         // Здесь мы тоже можем просто положиться на БД, либо оставить вызов,
