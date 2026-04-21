@@ -67,6 +67,45 @@ export async function POST(request: NextRequest) {
     })
     if (dbError) return NextResponse.json({ success: false, error: dbError.message }, { status: 500 })
 
+    // ── Referral Reward Logic (ВЫПОЛНЯЕТСЯ СРАЗУ ПОСЛЕ СОХРАНЕНИЯ) ────────
+    try {
+      // Берем максимально свежие данные профиля
+      const { data: p } = await supabaseAdmin
+        .from('profiles')
+        .select('id, referred_by, referrer_id')
+        .eq('tg_id', tgId)
+        .single();
+
+      if (p && p.referred_by && !p.referrer_id) {
+        // Ищем того, кто пригласил
+        const { data: inviter } = await supabaseAdmin
+          .from('profiles')
+          .select('id, tg_id, invites_count')
+          .eq('tg_id', p.referred_by)
+          .maybeSingle();
+
+        if (inviter) {
+          const newCount = (inviter.invites_count ?? 0) + 1;
+          
+          // 1. Начисляем +1 пригласившему
+          await supabaseAdmin
+            .from('profiles')
+            .update({ invites_count: newCount })
+            .eq('id', inviter.id);
+
+          // 2. Ставим "печать" рефералу, что он засчитан
+          await supabaseAdmin
+            .from('profiles')
+            .update({ referrer_id: inviter.id })
+            .eq('id', p.id);
+
+          console.log(`[Referral] Success: ${tgId} referred by ${p.referred_by}. New inviter count: ${newCount}`);
+        }
+      }
+    } catch (refErr) {
+      console.error('[Referral] Error during processing:', refErr);
+    }
+
     await supabaseAdmin.from('profiles').update({ current_step: null, question_order: null }).eq('id', profileId)
     
     // ── Настройка Telegram (ОДНО СООБЩЕНИЕ) ──
@@ -125,48 +164,9 @@ export async function POST(request: NextRequest) {
       // Не прерываем основной поток, если очередь не сработала
     }
 
-    // ── Referral Reward Logic (for the referrer) ──────────────────────
+    // ── Self Reward Logic (if current user has 2+ invites) ─────────────
+    // Проверяем, не пора ли самому пользователю получить подарок
     try {
-      console.log(`[Referral] Checking for ${tgId}. referredBy=${referredBy}, referrerId=${referrerId}`);
-      
-      // Если есть тот, кто пригласил (referredBy — это TG ID), 
-      // и мы еще не засчитали его (referrerId — это UUID)
-      if (referredBy && !referrerId) {
-        // Ищем профиль пригласившего по его TG ID
-        const { data: inviter } = await supabaseAdmin
-          .from('profiles')
-          .select('id, tg_id, invites_count')
-          .eq('tg_id', referredBy)
-          .maybeSingle();
-
-        if (inviter) {
-          const newCount = (inviter.invites_count ?? 0) + 1;
-          console.log(`[Referral] Found inviter ${inviter.tg_id}. Incrementing to ${newCount}`);
-
-          // 1. Обновляем счетчик пригласившему
-          const { error: updErr1 } = await supabaseAdmin
-            .from('profiles')
-            .update({ invites_count: newCount })
-            .eq('id', inviter.id);
-
-          if (updErr1) console.error('[Referral] Error updating inviter count:', updErr1);
-
-          // 2. Отмечаем текущего пользователя как "обработанного" (записываем UUID пригласившего)
-          const { error: updErr2 } = await supabaseAdmin
-            .from('profiles')
-            .update({ referrer_id: inviter.id })
-            .eq('id', profileId);
-
-          if (updErr2) console.error('[Referral] Error updating current profile referrer_id:', updErr2);
-
-          console.log(`[Referral] Success! Inviter ${inviter.tg_id} now has ${newCount} invites.`);
-        } else {
-          console.log(`[Referral] Inviter with TG ID ${referredBy} not found in database.`);
-        }
-      }
-
-      // ── Self Reward Logic (if current user has 2+ invites) ─────────────
-      // Проверяем, не пора ли самому пользователю получить подарок
       const { data: selfProfile } = await supabaseAdmin
         .from('profiles')
         .select('invites_count')
@@ -188,8 +188,8 @@ export async function POST(request: NextRequest) {
           mixed_trait: mixedKey,
         });
       }
-    } catch (refErr) {
-      console.error('[Referral] Critical error in referral logic:', refErr);
+    } catch (selfErr) {
+      console.error('[Referral] Self-reward error:', selfErr);
     }
 
     return NextResponse.json({ success: true, data: { dominantTrait: scores.dominantTrait, scores } })
