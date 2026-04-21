@@ -16,7 +16,7 @@ const SUPABASE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 const AUTHOR_USERNAME = 'evapatrakhina'
 
 // Константы контента
-const GIFT_VIDEO_FILE_ID = 'BAACAgIAAxkBAAIFV2Ym2X8...' // Будет обновлено через дебаг-инструмент
+const GIFT_VIDEO_FILE_ID = 'BAACAgIAAxkBAAIDNGnm9VTZm2GzCHI0zF8AAc_Ebaa17QACXpkAAseAOEse8WaqrIdLSDsE'
 
 // Картинки опор
 const TRAIT_IMAGES: Record<string, string> = {
@@ -158,10 +158,9 @@ async function handleProcessQueue() {
 
       else if (task.event_type === 'send_gift') {
         const giftText = 'Благодарю тебя за честность! Честность — это то, на чем строятся все мои методы работы. Чтобы тест не остался просто тестом, я дарю тебе практику нейроманифестации. Ты можешь начать изменения уже сегодня.'
-        const giftMarkup = {
-          inline_keyboard: [[{ text: 'Забрать подарок', callback_data: 'get_gift' }]]
-        }
-        await sendMessage(task.tg_id, giftText, giftMarkup)
+        await sendMessage(task.tg_id, giftText)
+        await new Promise(r => setTimeout(r, 1000))
+        await sendVideo(task.tg_id, GIFT_VIDEO_FILE_ID, undefined, true)
       }
 
       // Mark task as completed
@@ -295,11 +294,7 @@ async function handleTelegramWebhook(update: any) {
 
     // Gift delivery
     else if (data === 'get_gift') {
-      if (GIFT_VIDEO_FILE_ID && !GIFT_VIDEO_FILE_ID.includes('...')) {
-        await sendVideo(tgId, GIFT_VIDEO_FILE_ID, undefined, true)
-      } else {
-        await sendMessage(tgId, 'Подарок уже готовится — скоро пришлю! 🎁')
-      }
+      await sendVideo(tgId, GIFT_VIDEO_FILE_ID, undefined, true)
     }
   }
 }

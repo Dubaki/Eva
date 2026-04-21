@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
   sendMessage,
+  sendVideo,
   extractReferralCode,
   getTmaUrl,
   getChatMember,
@@ -185,9 +186,10 @@ export async function POST(request: NextRequest) {
           const { data: profileData } = await supabase.from('profiles').select('bot_quiz_step').eq('tg_id', tgId).limit(1).single()
           if ((profileData as any)?.bot_quiz_step !== 6) {
             await supabase.from('profiles').update({ bot_quiz_step: 6 } as any).eq('tg_id', tgId)
-            await sendMessage({
+            await sendVideo({
               chatId: tgId,
-              text: 'Подарок уже готовится — скоро пришлю! 🎁',
+              video: 'BAACAgIAAxkBAAIDNGnm9VTZm2GzCHI0zF8AAc_Ebaa17QACXpkAAseAOEse8WaqrIdLSDsE',
+              protectContent: true,
             })
           }
         }
