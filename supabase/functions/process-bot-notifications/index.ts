@@ -109,17 +109,28 @@ serve(async (req: Request) => {
       const record = payload.record
       const oldRecord = payload.old_record
       
+      console.log(`[Webhook UPDATE] Profile ${record.id} invites_count changed: ${oldRecord?.invites_count} -> ${record.invites_count}`)
+      
       // Если счетчик приглашений стал равен 2
       if (record.invites_count === 2 && oldRecord?.invites_count !== 2) {
+        console.log(`[Webhook UPDATE] Triggering reward for profile ${record.id}. Fetching test_results...`)
+        
         const results = await db(`test_results?profile_id=eq.${record.id}&select=primary_support,secondary_support`)
+        console.log(`[Webhook UPDATE] DB response for test_results:`, JSON.stringify(results))
+        
         const tr = results?.[0]
         
         if (tr?.primary_support && tr?.secondary_support) {
           const mixedKey = [tr.primary_support.toUpperCase(), tr.secondary_support.toUpperCase()].sort().join('')
           const mixedText = MIXED_TRAIT_TEXTS[mixedKey]
           if (mixedText) {
+            console.log(`[Webhook UPDATE] Sending mixed trait ${mixedKey} to tg_id ${record.tg_id}`)
             await sendMessage(record.tg_id, `<b>🎉 Поздравляем! По твоей ссылке 2 человека прошли тест.</b>\n\nТебе открылась твоя «Вторая опора»:\n\n${mixedText}`)
+          } else {
+            console.error(`[Webhook UPDATE] Mixed text not found for key: ${mixedKey}`)
           }
+        } else {
+          console.error(`[Webhook UPDATE] Missing primary_support or secondary_support. tr =`, JSON.stringify(tr))
         }
       }
       return new Response(JSON.stringify({ ok: true }), { status: 200 })
