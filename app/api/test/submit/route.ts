@@ -25,7 +25,8 @@ export async function POST(request: NextRequest) {
 
     let profileId: string | null = null
     let tgId: number | null = null
-    let referrerId: string | null = null
+    let referrerId: string | null = null // This is the UUID of inviter if ALREADY processed
+    let referredBy: number | null = null // This is the TG ID of inviter if NOT YET processed
 
     const authHeader = request.headers.get('authorization')
     if (authHeader?.startsWith('Bearer ')) {
@@ -37,19 +38,21 @@ export async function POST(request: NextRequest) {
     const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
     if (profileId) {
-      const { data } = await supabaseAdmin.from('profiles').select('tg_id, referrer_id').eq('id', profileId).limit(1)
+      const { data } = await supabaseAdmin.from('profiles').select('tg_id, referrer_id, referred_by').eq('id', profileId).limit(1)
       if (data && data.length > 0) {
         tgId = data[0].tg_id
         referrerId = data[0].referrer_id
+        referredBy = data[0].referred_by
       }
     }
 
     if (!tgId && bodyTgId) {
-      const { data: profiles } = await supabaseAdmin.from('profiles').select('id, tg_id, referrer_id').eq('tg_id', bodyTgId).limit(1)
+      const { data: profiles } = await supabaseAdmin.from('profiles').select('id, tg_id, referrer_id, referred_by').eq('tg_id', bodyTgId).limit(1)
       if (profiles && profiles.length > 0) {
         profileId = profiles[0].id
         tgId = profiles[0].tg_id
         referrerId = profiles[0].referrer_id
+        referredBy = profiles[0].referred_by
       }
     }
 
@@ -124,72 +127,69 @@ export async function POST(request: NextRequest) {
 
     // ── Referral Reward Logic (for the referrer) ──────────────────────
     try {
-      // Ищем профиль ТЕКУЩЕГО пользователя по tgId (который мы только что сохранили)
-      const { data: currentProfile } = await supabaseAdmin
-        .from('profiles')
-        .select('id, referred_by, referrer_id')
-        .eq('tg_id', tgId)
-        .single()
-
-      if (currentProfile.referred_by && !currentProfile.referrer_id) {
-        const inviterTgId = currentProfile.referred_by
-
-        // Ищем профиль пригласившего
-        const { data: inviterProfile } = await supabaseAdmin
+      console.log(`[Referral] Checking for ${tgId}. referredBy=${referredBy}, referrerId=${referrerId}`);
+      
+      // Если есть тот, кто пригласил (referredBy — это TG ID), 
+      // и мы еще не засчитали его (referrerId — это UUID)
+      if (referredBy && !referrerId) {
+        // Ищем профиль пригласившего по его TG ID
+        const { data: inviter } = await supabaseAdmin
           .from('profiles')
           .select('id, tg_id, invites_count')
-          .eq('tg_id', inviterTgId)
-          .single()
+          .eq('tg_id', referredBy)
+          .maybeSingle();
 
-        if (inviterProfile) {
-          const newCount = (inviterProfile.invites_count ?? 0) + 1
+        if (inviter) {
+          const newCount = (inviter.invites_count ?? 0) + 1;
+          console.log(`[Referral] Found inviter ${inviter.tg_id}. Incrementing to ${newCount}`);
 
-          // 1. Обновляем счетчик пригласившему (это само триггернет Edge Function через Вебхук БД)
-          await supabaseAdmin
+          // 1. Обновляем счетчик пригласившему
+          const { error: updErr1 } = await supabaseAdmin
             .from('profiles')
             .update({ invites_count: newCount })
-            .eq('id', inviterProfile.id)
+            .eq('id', inviter.id);
 
-          // 2. Связываем реферала с пригласившим
-          await supabaseAdmin
+          if (updErr1) console.error('[Referral] Error updating inviter count:', updErr1);
+
+          // 2. Отмечаем текущего пользователя как "обработанного" (записываем UUID пригласившего)
+          const { error: updErr2 } = await supabaseAdmin
             .from('profiles')
-            .update({ referrer_id: inviterProfile.id })
-            .eq('id', currentProfile.id)
+            .update({ referrer_id: inviter.id })
+            .eq('id', profileId);
 
-          console.log(`[Referral] Updated count to ${newCount} for inviter ${inviterProfile.tg_id}`)
+          if (updErr2) console.error('[Referral] Error updating current profile referrer_id:', updErr2);
+
+          console.log(`[Referral] Success! Inviter ${inviter.tg_id} now has ${newCount} invites.`);
+        } else {
+          console.log(`[Referral] Inviter with TG ID ${referredBy} not found in database.`);
         }
       }
 
+      // ── Self Reward Logic (if current user has 2+ invites) ─────────────
+      // Проверяем, не пора ли самому пользователю получить подарок
+      const { data: selfProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('invites_count')
+        .eq('id', profileId)
+        .maybeSingle();
 
-        // ── Self Reward Logic ─────────────────────────────────────────────
-        // Здесь мы тоже можем просто положиться на БД, либо оставить вызов,
-        // но для единообразия лучше просто убедиться, что invites_count уже >= 2.
-        // Если пользователь с 2 рефералами завершил тест — Вебхук на INSERT в test_results
-        // или UPDATE в profiles может сработать. Но так как счетчик уже 2 и не МЕНЯЕТСЯ,
-        // нам нужно оставить здесь один прямой вызов для тех, кто УЖЕ имеет 2 реферала
-        // на момент первого прохождения теста.
+      if (selfProfile && (selfProfile.invites_count ?? 0) >= 2) {
+        console.log(`[Referral] User ${tgId} has ${selfProfile.invites_count} invites. Sending bonus.`);
         
-        const { data: updatedSelf } = await supabaseAdmin
-          .from('profiles')
-          .select('invites_count')
-          .eq('tg_id', tgId)
-          .single()
-
-        if (updatedSelf && (updatedSelf.invites_count ?? 0) >= 2) {
-          const mixedKey = [primary.toUpperCase(), secondary.toUpperCase()]
-            .sort()
-            .join('')
-          
-          await triggerBotNotification({
-            event: 'referrals_reached_2',
-            profile_id: currentProfile.id,
-            tg_id: tgId,
-            mixed_trait: mixedKey,
-          })
-        }
+        // Ключ для подарка — сортировка по алфавиту primary + secondary
+        const mixedKey = [primary.toUpperCase(), secondary.toUpperCase()]
+          .sort()
+          .join('');
+        
+        await triggerBotNotification({
+          event: 'referrals_reached_2',
+          profile_id: profileId!,
+          tg_id: tgId!,
+          mixed_trait: mixedKey,
+        });
       }
- catch (refErr) {
-      console.error('[Referral] Critical error:', refErr)
+    } catch (refErr) {
+      console.error('[Referral] Critical error in referral logic:', refErr);
     }
 
     return NextResponse.json({ success: true, data: { dominantTrait: scores.dominantTrait, scores } })
