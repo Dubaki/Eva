@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Получение file_id для администраторов
-      else if (username === 'evapatrakhina' || username === 'bizbezit') {
+      else if (username?.toLowerCase() === 'evapatrakhina' || username?.toLowerCase() === 'bizbezit') {
         const msg = update.message as any
         const fileId = msg?.video?.file_id || msg?.document?.file_id || msg?.animation?.file_id || msg?.video_note?.file_id
         console.log(`[admin] from @${username}, types: video=${!!msg?.video} doc=${!!msg?.document} anim=${!!msg?.animation} fileId=${fileId}`)
