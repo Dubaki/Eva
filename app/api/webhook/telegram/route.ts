@@ -147,27 +147,29 @@ export async function POST(request: NextRequest) {
           })
         }
 
-        // Финал: жёсткий или мягкий → ссылка на автора текстом + подарок через 1 мин
+        // Финал: жёсткий или мягкий → кнопка открывает чат с автором + подарок через 1 мин (только 1 раз)
         else if (data === 'quiz_final_hard' || data === 'quiz_final_soft') {
-          await supabase.from('profiles').update({ bot_quiz_step: 5 } as any).eq('tg_id', tgId)
-          await (supabase as any).from('bot_tasks_queue').insert({
-            profile_id: profileId,
-            tg_id: tgId,
-            event_type: 'send_gift',
-            run_at: new Date(Date.now() + 60000).toISOString(),
-            status: 'pending',
-          })
+          const { data: profileData } = await supabase.from('profiles').select('bot_quiz_step').eq('tg_id', tgId).limit(1).single()
           const prefilledText = data === 'quiz_final_hard' ? 'Пробой!' : 'Пирамида Потенциала'
           const authorUrl = `https://t.me/${AUTHOR_USERNAME}?text=${encodeURIComponent(prefilledText)}`
-          const buttonLabel = data === 'quiz_final_hard' ? 'Пробой!' : 'Пирамида Потенциала'
           await sendMessage({
             chatId: tgId,
             text: 'Отлично! Нажми кнопку ниже — я жду твоего сообщения:',
-            replyMarkup: { inline_keyboard: [[{ text: buttonLabel, url: authorUrl }]] }
+            replyMarkup: { inline_keyboard: [[{ text: prefilledText, url: authorUrl }]] }
           })
+          if ((profileData as any)?.bot_quiz_step !== 5) {
+            await supabase.from('profiles').update({ bot_quiz_step: 5 } as any).eq('tg_id', tgId)
+            await (supabase as any).from('bot_tasks_queue').insert({
+              profile_id: profileId,
+              tg_id: tgId,
+              event_type: 'send_gift',
+              run_at: new Date(Date.now() + 60000).toISOString(),
+              status: 'pending',
+            })
+          }
         }
 
-        // Финал: пока не готова → подарок через 1 мин
+        // Финал: пока не готова → подарок через 1 мин (только 1 раз)
         else if (data === 'quiz_final_not_ready') {
           const { data: profileData } = await supabase.from('profiles').select('bot_quiz_step').eq('tg_id', tgId).limit(1).single()
           if ((profileData as any)?.bot_quiz_step !== 5) {
