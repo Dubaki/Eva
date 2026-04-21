@@ -128,31 +128,13 @@ export async function POST(request: NextRequest) {
           })
         }
 
-        // Q3 → финальное предложение
+        // Q3 → финальное предложение (url-кнопки сразу открывают чат с автором)
         else if (data.startsWith('quiz_q3_')) {
           const attempts = data.replace('quiz_q3_', '')
           await supabase.from('qualifications').update({ previous_attempts: attempts } as any).eq('profile_id', profileId)
           await supabase.from('profiles').update({ bot_quiz_step: 4 } as any).eq('tg_id', tgId)
 
-          await sendMessage({
-            chatId: tgId,
-            text: 'Есть 2 способа работы с искаженной опорой:\n\n✓ Жёсткий, но быстрый — это группа «Пробой»\n\n✓ Мягкий и постепенный — это «Пирамида Потенциала» или персональная работа\n\nКакой способ тебе ближе?',
-            replyMarkup: {
-              inline_keyboard: [
-                [{ text: 'Жесткий быстрый', callback_data: 'quiz_final_hard' }],
-                [{ text: 'Мягкий постепенный', callback_data: 'quiz_final_soft' }],
-                [{ text: 'Пока не готова', callback_data: 'quiz_final_not_ready' }],
-              ]
-            }
-          })
-        }
-
-        // Финал: жёсткий или мягкий → ссылка на автора + подарок через 1 мин
-        else if (data === 'quiz_final_hard' || data === 'quiz_final_soft') {
-          const prefilledText = data === 'quiz_final_hard' ? 'Пробой!' : 'Пирамида Потенциала'
-          const authorUrl = `https://t.me/${AUTHOR_USERNAME}?text=${encodeURIComponent(prefilledText)}`
-
-          await supabase.from('profiles').update({ bot_quiz_step: 5 } as any).eq('tg_id', tgId)
+          // Планируем подарок через 1 мин (для hard/soft-пути)
           await (supabase as any).from('bot_tasks_queue').insert({
             profile_id: profileId,
             tg_id: tgId,
@@ -161,10 +143,19 @@ export async function POST(request: NextRequest) {
             status: 'pending',
           })
 
+          const hardUrl = `https://t.me/${AUTHOR_USERNAME}?text=${encodeURIComponent('Пробой!')}`
+          const softUrl = `https://t.me/${AUTHOR_USERNAME}?text=${encodeURIComponent('Пирамида Потенциала')}`
+
           await sendMessage({
             chatId: tgId,
-            text: 'Отлично! Нажми кнопку ниже — я жду твоего сообщения:',
-            replyMarkup: { inline_keyboard: [[{ text: 'Написать Еве', url: authorUrl }]] }
+            text: 'Есть 2 способа работы с искаженной опорой:\n\n✓ Жёсткий, но быстрый — это группа «Пробой»\n\n✓ Мягкий и постепенный — это «Пирамида Потенциала» или персональная работа\n\nКакой способ тебе ближе?',
+            replyMarkup: {
+              inline_keyboard: [
+                [{ text: 'Жесткий быстрый', url: hardUrl }],
+                [{ text: 'Мягкий постепенный', url: softUrl }],
+                [{ text: 'Пока не готова', callback_data: 'quiz_final_not_ready' }],
+              ]
+            }
           })
         }
 
