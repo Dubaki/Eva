@@ -149,6 +149,19 @@ export async function sendVideo(params: {
   return true
 }
 
+export async function editMessageReplyMarkup(params: {
+  chatId: number
+  messageId: number
+}): Promise<boolean> {
+  if (!BOT_TOKEN) return false
+  const res = await fetch(`${BASE}/bot${BOT_TOKEN}/editMessageReplyMarkup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: params.chatId, message_id: params.messageId, reply_markup: { inline_keyboard: [] } }),
+  })
+  return res.ok
+}
+
 /**
  * Check if a user is a member of a channel.
  * Returns the member status: "creator" | "administrator" | "member" | "restricted" | "left" | "kicked"

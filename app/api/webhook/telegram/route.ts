@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   sendMessage,
   sendVideo,
+  editMessageReplyMarkup,
   extractReferralCode,
   getTmaUrl,
   getChatMember,
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
 
       if (callbackQuery) {
         const data = callbackQuery.data
+        const msgId = callbackQuery.message?.message_id
 
         // ── Подписка на канал ──────────────────────────────────────────
         if (data === 'check_sub') {
@@ -53,6 +55,7 @@ export async function POST(request: NextRequest) {
 
           if (isSubscribed) {
             await answerCallbackQuery({ callbackQueryId: callbackQuery.id, text: 'Спасибо за подписку! 🎉' })
+            await editMessageReplyMarkup({ chatId: tgId, messageId: msgId })
             await sendMessage({
               chatId: tgId,
               text: 'Подписка подтверждена! Теперь ты можешь пройти тест.',
@@ -81,6 +84,9 @@ export async function POST(request: NextRequest) {
           console.log(`[quiz] no profile for tgId=${tgId}, returning`)
           return NextResponse.json({ ok: true })
         }
+
+        // Снимаем кнопки с сообщения сразу — любая кнопка работает только 1 раз
+        await editMessageReplyMarkup({ chatId: tgId, messageId: msgId })
 
         // Q1 → Q2
         if (data.startsWith('quiz_q1_')) {
