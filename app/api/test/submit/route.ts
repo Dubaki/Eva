@@ -106,7 +106,11 @@ export async function POST(request: NextRequest) {
       console.error('[Referral] Error during processing:', refErr);
     }
 
-    await supabaseAdmin.from('profiles').update({ current_step: null, question_order: null }).eq('id', profileId)
+    await supabaseAdmin.from('profiles').update({ 
+      current_step: null, 
+      question_order: null,
+      reminded_at: null 
+    }).eq('id', profileId)
     
     // ── Настройка Telegram (ОДНО СООБЩЕНИЕ) ──
     const fullText = FULL_RESULTS_TEXTS[primary]
@@ -155,7 +159,7 @@ export async function POST(request: NextRequest) {
         profile_id: profileId,
         tg_id: tgId,
         event_type: 'start_mini_quiz',
-        run_at: new Date(Date.now() + 60000).toISOString(),
+        run_at: new Date(Date.now() + 86400000).toISOString(),
         status: 'pending'
       });
       console.log(`[API] Bot task 'start_mini_quiz' scheduled for ${tgId}`);
