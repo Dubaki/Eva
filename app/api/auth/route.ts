@@ -4,6 +4,7 @@ import { getSupabaseServer } from '@/lib/supabase/server'
 import { triggerBotNotification } from '@/lib/bot-notification'
 import { MIXED_TRAIT_TEXTS } from '@/lib/telegram'
 
+
 // ── Response helpers ────────────────────────────────────────────────────────
 
 type Ok<T> = { success: true; data: T }
@@ -125,82 +126,70 @@ export async function POST(req: NextRequest) {
   const { user } = parsed
   const supabase = getSupabaseServer()
 
-  // 2. БРОНЯ: Ищем или создаем профиль без глючного upsert
+  // 2. Ищем или создаём профиль
   let profile: any = null
 
-  // Пытаемся найти существующий
   const { data: existingProfiles } = await supabase
     .from('profiles')
-    .select('id, tg_id, username, avatar_url, is_subscribed, referrer_id, created_at')
+    .select('id, tg_id, username, avatar_url, is_subscribed, referrer_id, referred_by, invites_count, dominant_trait, shadow_trait, created_at')
     .eq('tg_id', user.id)
     .limit(1)
 
   if (existingProfiles && existingProfiles.length > 0) {
     profile = existingProfiles[0]
   } else {
-    // ЖЕСТКАЯ РЕГИСТРАЦИЯ: Создаем новый профиль (как это делает бот)
     const { data: newProfiles, error: insertErr } = await supabase
       .from('profiles')
       .insert([{
         tg_id: user.id,
         username: user.username ?? null,
         avatar_url: user.photo_url ?? null,
-        is_subscribed: false // Статус подписки обновится позже через Gatekeeper
+        is_subscribed: false,
       }])
-      .select('id, tg_id, username, avatar_url, is_subscribed, referrer_id, created_at')
+      .select('id, tg_id, username, avatar_url, is_subscribed, referrer_id, referred_by, invites_count, dominant_trait, shadow_trait, created_at')
 
     if (insertErr) {
       console.error('[auth] DB insert error:', insertErr)
       return fail('Database unavailable. Please try again later.', 503)
     }
-    
-    if (newProfiles && newProfiles.length > 0) {
-      profile = newProfiles[0]
-    }
+    if (newProfiles && newProfiles.length > 0) profile = newProfiles[0]
   }
 
-  if (!profile) {
-    return fail('Could not create profile', 500)
-  }
+  if (!profile) return fail('Could not create profile', 500)
 
-  // 3. Process referral
-  if (startParam?.startsWith('ref') && !profile.referrer_id) {
-    const raw = startParam.startsWith('ref_') ? startParam.slice(4) : startParam.slice(3)
-    const refTgId = parseInt(raw, 10)
-    if (!isNaN(refTgId) && refTgId !== profile.tg_id) {
-      try {
-        const { data: referrers } = await supabase.from('profiles').select('id, tg_id, dominant_trait, shadow_trait').eq('tg_id', refTgId).limit(1)
-        if (referrers && referrers.length > 0) {
-          const referrer = referrers[0]
-          await supabase.from('profiles').update({ referrer_id: referrer.id }).eq('id', profile.id)
-          await supabase.from('referrals').insert({ owner_id: referrer.id, invited_id: profile.id, status: 'pending' })
+  // 3. Обрабатываем реферал — используем referred_by (tg_id реферера) и invites_count
+  // referrer_id (UUID) используем как флаг "реферал уже обработан"
+  if (profile.referred_by && !profile.referrer_id) {
+    try {
+      const { data: referrers } = await supabase
+        .from('profiles')
+        .select('id, tg_id, invites_count, dominant_trait, shadow_trait')
+        .eq('tg_id', profile.referred_by)
+        .limit(1)
 
-          // Обновляем счётчик рефералов
-          const { count: newCount } = await supabase
-            .from('referrals')
-            .select('id', { count: 'exact', head: true })
-            .eq('owner_id', referrer.id)
+      if (referrers && referrers.length > 0) {
+        const referrer = referrers[0]
+        const newCount = (referrer.invites_count ?? 0) + 1
 
-          if (newCount !== null) {
-            await supabase.from('profiles').update({ referrals_count: newCount }).eq('id', referrer.id)
+        await supabase.from('profiles').update({ invites_count: newCount }).eq('id', referrer.id)
+        // Ставим referrer_id как флаг — этот реферал уже посчитан
+        await supabase.from('profiles').update({ referrer_id: referrer.id }).eq('id', profile.id)
 
-            // Уведомление при достижении 2 рефералов
-            if (newCount === 2 && referrer.tg_id && referrer.dominant_trait && referrer.shadow_trait) {
-              const mixedKey = [referrer.dominant_trait.toUpperCase(), referrer.shadow_trait.toUpperCase()].sort().join('')
-              if (MIXED_TRAIT_TEXTS[mixedKey]) {
-                triggerBotNotification({
-                  event: 'referrals_reached_2',
-                  profile_id: referrer.id,
-                  tg_id: referrer.tg_id,
-                  mixed_trait: mixedKey,
-                }).catch((err) => console.error('[auth] Referral notification error:', err))
-              }
-            }
+        // Уведомление при достижении 2 рефералов
+        if (newCount === 2 && referrer.tg_id && referrer.dominant_trait && referrer.shadow_trait) {
+          const mixedKey = [referrer.dominant_trait.toUpperCase(), referrer.shadow_trait.toUpperCase()].sort().join('')
+          if (MIXED_TRAIT_TEXTS[mixedKey]) {
+            triggerBotNotification({
+              event: 'referrals_reached_2',
+              profile_id: referrer.id,
+              tg_id: referrer.tg_id,
+              mixed_trait: mixedKey,
+            }).catch((err) => console.error('[auth] Referral notification error:', err))
           }
         }
-      } catch (refErr) {
-        console.error('[auth] Referral processing error:', refErr)
       }
+    } catch (refErr) {
+      console.error('[auth] Referral processing error:', refErr)
     }
   }
 
