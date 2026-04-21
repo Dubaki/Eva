@@ -142,8 +142,12 @@ export default function ResultPage() {
   }, [userTgId])
 
   // ── Share via Telegram: call API to trigger bot messages, then close ──
+  const [shareUsed, setShareUsed] = useState(false)
+
   const handleShare = useCallback(async () => {
     if (typeof window === 'undefined') return
+    if (shareUsed) return
+    setShareUsed(true)
 
     const WebApp = (window as any).Telegram?.WebApp
     const currentTgId = WebApp?.initDataUnsafe?.user?.id ?? null
@@ -160,11 +164,10 @@ export default function ResultPage() {
       }
     }
 
-    // Always close the app after share attempt
     if (WebApp?.close) {
       WebApp.close()
     }
-  }, [result])
+  }, [result, shareUsed])
 
 
   // ── Copy link ────────────────────────────────────────────────────────
