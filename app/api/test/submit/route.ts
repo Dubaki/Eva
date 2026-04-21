@@ -5,6 +5,8 @@ import { calculateScores, type Answer } from '@/lib/scoring'
 import { QUESTIONS } from '@/lib/questions'
 import { FULL_RESULTS_TEXTS } from '@/lib/constants/results'
 import { sendPhoto, sendMessage } from '@/lib/telegram-bot'
+import { triggerBotNotification } from '@/lib/bot-notification'
+import { MIXED_TRAIT_TEXTS } from '@/lib/telegram'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,6 +25,7 @@ export async function POST(request: NextRequest) {
 
     let profileId: string | null = null
     let tgId: number | null = null
+    let referrerId: string | null = null
 
     const authHeader = request.headers.get('authorization')
     if (authHeader?.startsWith('Bearer ')) {
@@ -34,15 +37,19 @@ export async function POST(request: NextRequest) {
     const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
     if (profileId) {
-      const { data } = await supabaseAdmin.from('profiles').select('tg_id').eq('id', profileId).limit(1)
-      if (data && data.length > 0) tgId = data[0].tg_id
+      const { data } = await supabaseAdmin.from('profiles').select('tg_id, referrer_id').eq('id', profileId).limit(1)
+      if (data && data.length > 0) {
+        tgId = data[0].tg_id
+        referrerId = data[0].referrer_id
+      }
     }
 
     if (!tgId && bodyTgId) {
-      const { data: profiles } = await supabaseAdmin.from('profiles').select('id, tg_id').eq('tg_id', bodyTgId).limit(1)
+      const { data: profiles } = await supabaseAdmin.from('profiles').select('id, tg_id, referrer_id').eq('tg_id', bodyTgId).limit(1)
       if (profiles && profiles.length > 0) {
         profileId = profiles[0].id
         tgId = profiles[0].tg_id
+        referrerId = profiles[0].referrer_id
       }
     }
 
@@ -113,6 +120,82 @@ export async function POST(request: NextRequest) {
     } catch (queueErr) {
       console.error('[API] Failed to schedule bot task:', queueErr);
       // Не прерываем основной поток, если очередь не сработала
+    }
+
+    // ── Referral Reward Logic (for the referrer) ──────────────────────
+    try {
+      // 1. Получаем профиль текущего пользователя
+      const { data: currentProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('id, referred_by, referrer_id, invites_count, tg_id')
+        .eq('id', profileId)
+        .single()
+
+      if (currentProfile) {
+        // Если пользователь был кем-то приглашен (есть referred_by),
+        // но еще не был засчитан (referrer_id == null)
+        if (currentProfile.referred_by && !currentProfile.referrer_id) {
+          // Ищем профиль пригласившего
+          const { data: inviterProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('id, tg_id, invites_count, dominant_trait, shadow_trait')
+            .eq('tg_id', currentProfile.referred_by)
+            .limit(1)
+            .single()
+
+          if (inviterProfile) {
+            const newCount = (inviterProfile.invites_count ?? 0) + 1
+
+            // 1. Увеличиваем счетчик пригласившему
+            await supabaseAdmin
+              .from('profiles')
+              .update({ invites_count: newCount })
+              .eq('id', inviterProfile.id)
+
+            // 2. Отмечаем текущего пользователя как засчитанного
+            await supabaseAdmin
+              .from('profiles')
+              .update({ referrer_id: inviterProfile.id })
+              .eq('id', currentProfile.id)
+
+            console.log(`[API] Test finished: invites_count=${newCount} for inviter tg_id=${inviterProfile.tg_id}`)
+
+            // 3. Если счетчик достиг 2, отправляем пригласившему подарок!
+            if (newCount === 2 && inviterProfile.dominant_trait && inviterProfile.shadow_trait) {
+              const mixedKey = [inviterProfile.dominant_trait.toUpperCase(), inviterProfile.shadow_trait.toUpperCase()]
+                .sort()
+                .join('')
+              
+              await triggerBotNotification({
+                event: 'referrals_reached_2',
+                profile_id: inviterProfile.id,
+                tg_id: inviterProfile.tg_id,
+                mixed_trait: mixedKey,
+              })
+              console.log(`[API] Milestone reached! Referral reward sent to ${inviterProfile.tg_id}`);
+            }
+          }
+        }
+
+        // ── Self Reward Logic (if user already has 2 referrals) ────────────
+        // Если у пользователя уже есть 2 успешных реферала, и он только что
+        // сам завершил тест — сразу даем ему Вторую Опору.
+        if ((currentProfile.invites_count ?? 0) >= 2) {
+          const mixedKey = [primary.toUpperCase(), secondary.toUpperCase()]
+            .sort()
+            .join('')
+          
+          await triggerBotNotification({
+            event: 'referrals_reached_2',
+            profile_id: currentProfile.id,
+            tg_id: currentProfile.tg_id,
+            mixed_trait: mixedKey,
+          })
+          console.log(`[API] Self milestone reached! Referral reward sent to ${currentProfile.tg_id}`);
+        }
+      }
+    } catch (refErr) {
+      console.error('[API] Referral logic error:', refErr);
     }
 
     return NextResponse.json({ success: true, data: { dominantTrait: scores.dominantTrait, scores } })

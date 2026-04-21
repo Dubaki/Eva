@@ -3,7 +3,7 @@
  *
  * Поддерживает режимы:
  * 1. Database Webhook (profiles/test_results)
- * 2. Direct API call (action: process_queue)
+ * 2. Direct API call (action: process_queue / event: referrals_reached_2)
  * 3. Telegram Webhook (message, callback_query)
  */
 
@@ -33,6 +33,19 @@ const DOMINANT_TRAIT_TEXTS: Record<string, string> = {
   P: `<b>3. ПЕРФЕКЦИОНИРУЮЩАЯ</b>\nТы живёшь через результат. Через «сделать правильно» Ты стараешься быть идеальной. Не ошибаться. Держать уровень.\n\nНо внутри:\n— страх критики\n— напряжение\n— ощущение, что ты недостаточно хороша\n\nТы всё время доказываешь свою ценность. Даже когда уже доказала.\n\nЦена:\nТы не можешь расслабиться. Потому что всегда есть «ещё лучше».\n\n⚡️ Внутри звучит:\n«Если я не идеальна — я ничто»`,
   R: `<b>4. УДЕРЖИВАЮЩАЯ</b>\nТы чувствуешь всё. Атмосферу, людей, напряжение. Ты сглаживаешь конфликты. Поддерживаешь. Держишь «поле».\n\nНо внутри:\n— перегруз\n— тревожность\n— ощущение, что слишком много на тебе\n\nТы живёшь через других. И почти не остаётся места для себя.\n\nЦена:\nТы выгораешь, удерживая то, что не обязана держать.\n\n⚡️ Внутри звучит:\n«Если я отпущу — всё развалится»`,
   K: `<b>5. КОНТРОЛИРУЮЩАЯ</b>\nТы стараешься всё предусмотреть. Держать под контролем. Ты анализируешь, планируешь, просчитываешь. Не любишь неопределённость.\n\nНо внутри:\n— тревога\n— напряжение\n— ощущение угрозы\n\nТы не расслабляешься. Потому что «вдруг что-то пойдёт не так».\n\nЦена:\nТы живёшь в постоянной готовности к опасности.\n\n⚡️ Внутри звучит:\n«Если я не контролирую — я в опасности»`,
+}
+
+const MIXED_TRAIT_TEXTS: Record<string, string> = {
+  SU: `S + U — «Тихий тащитель»\n\nТы тащишь.\nИ делаешь это тихо.\nТы справляешься.\nНе просишь помощи.\nИ при этом стараешься быть удобной.\n\nНо внутри:\n— усталость\n— одиночество\n— ощущение, что тебя не видят\n\nТы отдаёшь много.\nНо это не возвращается.\n\nЦена:\nТы исчезаешь из своей же жизни.\n\n⚡️ Внутри звучит:\n«Я всё делаю правильно… почему меня не выбирают?»`,
+  SP: `S + P — «Машина результата»\n\nТы работаешь на максимум.\nСильная. Эффективная. Идеальная.\nТы не позволяешь себе слабость.\nИ не позволяешь ошибаться.\n\nНо внутри:\n— выгорание\n— пустота\n— отрезанность от себя\n\nТы как система.\nНо не как живая.\n\nЦена:\nТы теряешь себя ради результата.\n\n⚡️ Внутри звучит:\n«Я должна быть сверхчеловеком»`,
+  RS: `S + R — «Опора для всех»\n\nТы держишь не только себя — ты држишь всех.\nТы чувствуешь других.\nРегулируешь. Поддерживаешь.\n\nНо внутри:\n— перегруз\n— усталость\n— ощущение «слишком много на мне»\n\nТы несёшь больше, чем можешь.\n\nЦена:\nТы живёшь чужими жизнями вместо своей.\n\n⚡️ Внутри звучит:\n«Без меня всё развалится»`,
+  KS: `S + K — «Железная система»\n\nТы сильная и всё контролируешь.\nТы держишь. Просчитываешь.\nНе даёшь себе расслабиться.\n\nНо внутри:\n— жёсткость\n— тревога\n— напряжение\n\nТы как будто всегда «на посту».\n\nЦена:\nТы не живёшь — ты управляешь выживанием.\n\n⚡️ Внутри звучит:\n«Я должна удержать всё любой ценой»`,
+  PU: `U + P — «Идеальная для всех»\n\nТы стараешься быть идеальной, чтобы тебя любили.\nТы подстраиваешься.\nСоответствуешь. Стараешься.\n\nНо внутри:\n— стыд\n— страх «недостаточности»\n— зависимость от оценки\n\nТы не можешь быть собой.\n\nЦена:\nТы живёшь чужими ожиданиями.\n\n⚡️ Внутри звучит:\n«Если я не идеальна — меня не выберут»`,
+  RU: `U + R — «Спасатель»\n\nТы живёшь через помощь другим.\nТы включаешься.\nСпасаешь. Поддерживаешь.\n\nНо внутри:\n— истощение\n— пустота\n— ощущение, что тебя нет\n\nТы отдаёшь себя, чтобы быть нужной.\n\nЦена:\nТы теряешь контакт с собой.\n\n⚡️ Внутри звучит:\n«Я нужна, только если я полезна»`,
+  KU: `U + K — «Тревожный угодник»\n\nТы стараешься угадать, как правильно.\nТы анализируешь реакции.\nПодстраиваешься. Контролируешь.\n\nНо внутри:\n— тревога\n— напряжение\n— страх ошибиться\n\nТы живёшь в режиме «не так сделать нельзя».\n\nЦена:\nТы теряешь свободу и спонтанность.\n\n⚡️ Внутри звучит:\n«Если я ошибусь — меня отвергнут»`,
+  PR: `P + R — «Социальный идеал»\n\nТы пытаешься быть идеальной для всех.\nТы чувствуешь ожидания.\nИ стараешься им соответствовать.\n\nНо внутри:\n— перегруз\n— потеря себя\n— тревога\n\nТы разрываешься между «как надо».\n\nЦена:\nТы не знаешь, какая ты настоящая.\n\n⚡️ Внутри звучит:\n«Я должна соответствовать всем»`,
+  KP: `P + K — «Тревожный достигатор»\n\nТы живёшь через контроль и идеальность.\nТы стараешься предусмотреть всё.\nНе ошибаться. Быть на высоте.\n\nНо внутри:\n— напряжение\n— тревога\n— страх провала\n\nТы не можешь выдохнуть.\n\nЦена:\nТы живёшь в постоянном напряжении «а вдруг что-то не так».\n\n⚡️ Внутри звучит:\n«Ошибка — это катастрофа»`,
+  KR: `R + K — «Сканер угроз»\n\nТы постоянно на чеку.\nТы чувствуешь всё.\nИ пытаешься предотвратить плохое.\n\nНо внутри:\n— перегруз\n— тревога\n— усталость\n\nТы не расслабляешься вообще.\n\nЦена:\nТы живёшь в режиме постоянной опасности.\n\n⚡️ Внутри звучит:\n«Я должна всё предусмотреть, иначе будет плохо»`,
 }
 
 // ── Telegram API helpers ────────────────────────────────────────────
@@ -106,42 +119,22 @@ async function handleProcessQueue() {
 
   let tasks: any[] = []
   try {
-    // Детальный лог для проверки фильтров
-    console.log(`[queue] Querying: bot_tasks_queue?status=eq.pending&run_at=lte.${now}`)
     tasks = await db(`bot_tasks_queue?status=eq.pending&run_at=lte.${now}`)
   } catch (err) {
     console.error('[queue] Failed to fetch tasks:', err)
     return
   }
 
-  console.log(`[queue] Tasks found in DB: ${tasks?.length || 0}`)
-
-  if (!tasks || tasks.length === 0) {
-    // Логируем причину пустого списка (для отладки времени)
-    try {
-      const nextTasks = await db('bot_tasks_queue?status=eq.pending&order=run_at.asc&limit=1')
-      if (nextTasks && nextTasks.length > 0) {
-        console.log(`[queue] Next pending task is scheduled at: ${nextTasks[0].run_at}. Still waiting...`)
-      } else {
-        console.log('[queue] No pending tasks at all in DB.')
-      }
-    } catch { /* ignore debug log failure */ }
-    return
-  }
+  if (!tasks || tasks.length === 0) return
 
   for (const task of tasks) {
-    console.log(`[queue] Task ${task.id} (type: ${task.event_type}, tg: ${task.tg_id})`)
     try {
       if (task.event_type === 'start_mini_quiz') {
-        // Message 1
         await sendMessage(task.tg_id, 'Ты уже заметила, как искаженная опора влияет на твою жизнь?\n\nДавай еще немного пообщаемся! Ответь на три простых вопроса и получи подарок')
         await new Promise(r => setTimeout(r, 2000))
-
-        // Message 2
         await sendMessage(task.tg_id, 'Ты сейчас увидела механизм. И, скорее всего, это не первый раз, когда ты что-то про себя понимаешь.\n\nВопрос в другом: почему это до сих пор не меняет твою жизнь?\n\nПотому что понимание не демонтирует паттерн. Это делается только через работу.')
         await new Promise(r => setTimeout(r, 1500))
 
-        // Question 1
         const markupQ1 = {
           inline_keyboard: [
             [{ text: 'Деньги', callback_data: 'quiz_q1_money' }],
@@ -152,148 +145,83 @@ async function handleProcessQueue() {
           ]
         }
         await sendMessage(task.tg_id, '<b>В какой сфере ты сейчас сильнее всего чувствуешь напряжение?</b>', markupQ1)
-
         await db(`profiles?tg_id=eq.${task.tg_id}`, 'PATCH', { bot_quiz_step: 1 })
-      }
-
-      else if (task.event_type === 'send_gift') {
+      } else if (task.event_type === 'send_gift') {
         const giftText = 'Благодарю тебя за честность! Честность — это то, на чем строятся все мои методы работы. Чтобы тест не остался просто тестом, я дарю тебе практику нейроманифестации. Ты можешь начать изменения уже сегодня.'
         await sendMessage(task.tg_id, giftText)
         await new Promise(r => setTimeout(r, 1000))
         await sendVideo(task.tg_id, GIFT_VIDEO_FILE_ID, undefined, true)
       }
-
-      // Mark task as completed
       await db(`bot_tasks_queue?id=eq.${task.id}`, 'PATCH', { status: 'completed' })
-      console.log(`[queue] Task ${task.id} completed.`)
     } catch (err) {
-      console.error(`[queue] Task ${task.id} failed processing:`, err)
+      console.error(`[queue] Task ${task.id} failed:`, err)
     }
   }
 }
 
 async function handleTelegramWebhook(update: any) {
-  // 1. Debug: Get file_id from author
   if (update.message?.video && update.message.from?.username === AUTHOR_USERNAME) {
     const fileId = update.message.video.file_id
-    await sendMessage(update.message.chat.id, `<code>${fileId}</code>\n\nСкопируй этот ID и вставь в константу GIFT_VIDEO_FILE_ID в Edge Function.`)
+    await sendMessage(update.message.chat.id, `<code>${fileId}</code>`)
     return
   }
 
-  // 2. Callback Queries
   if (update.callback_query) {
     const cb = update.callback_query
     const tgId = cb.from.id
     const data = cb.data
     await answerCallbackQuery(cb.id)
 
-    console.log(`[webhook] Callback: ${data} from ${tgId}`)
-
-    // Get user profile to determine current step
     let profile: any = null
     try {
       const profiles = await db(`profiles?tg_id=eq.${tgId}`)
-      if (profiles && profiles.length > 0) {
-        profile = profiles[0]
-      }
-    } catch (err) {
-      console.error('[webhook] Failed to fetch profile:', err)
-      return
-    }
+      if (profiles && profiles.length > 0) profile = profiles[0]
+    } catch { return }
 
-    if (!profile) {
-      console.error(`[webhook] Profile not found for tg_id ${tgId}`)
-      return
-    }
+    if (!profile) return
 
-    // Step 1 -> Step 2
     if (data.startsWith('quiz_q1_')) {
       const sphere = data.replace('quiz_q1_', '')
-      // Post qualification (upsert via RPC or direct POST)
-      // Using direct POST to qualifications. If it fails due to PK, we might need a different approach
-      // but usually profile_id is not PK, 'id' is.
-      try {
-        await db('qualifications', 'POST', { profile_id: profile.id, tension_sphere: sphere })
-      } catch {
-        // If POST fails (e.g. record exists), try PATCH
+      try { await db('qualifications', 'POST', { profile_id: profile.id, tension_sphere: sphere }) } catch {
         await db(`qualifications?profile_id=eq.${profile.id}`, 'PATCH', { tension_sphere: sphere })
       }
-      
       await db(`profiles?tg_id=eq.${tgId}`, 'PATCH', { bot_quiz_step: 2 })
-      
       const markup = {
-        inline_keyboard: [
-          [{ text: 'Сильно мешает', callback_data: 'quiz_q2_hard' }],
-          [{ text: 'Пока терпимо', callback_data: 'quiz_q2_medium' }],
-          [{ text: 'Фоново', callback_data: 'quiz_q2_light' }]
-        ]
+        inline_keyboard: [[{ text: 'Сильно мешает', callback_data: 'quiz_q2_hard' }], [{ text: 'Пока терпимо', callback_data: 'quiz_q2_medium' }], [{ text: 'Фоново', callback_data: 'quiz_q2_light' }]]
       }
       await sendMessage(tgId, '<b>Насколько это ощущается остро?</b>', markup)
-    }
-
-    // Step 2 -> Step 3
-    else if (data.startsWith('quiz_q2_')) {
+    } else if (data.startsWith('quiz_q2_')) {
       const level = data.replace('quiz_q2_', '')
       await db(`qualifications?profile_id=eq.${profile.id}`, 'PATCH', { tension_level: level })
       await db(`profiles?tg_id=eq.${tgId}`, 'PATCH', { bot_quiz_step: 3 })
-      
       const markup = {
-        inline_keyboard: [
-          [{ text: 'Да, многое', callback_data: 'quiz_q3_yes' }],
-          [{ text: 'Немного', callback_data: 'quiz_q3_some' }],
-          [{ text: 'Нет', callback_data: 'quiz_q3_no' }]
-        ]
+        inline_keyboard: [[{ text: 'Да, многое', callback_data: 'quiz_q3_yes' }], [{ text: 'Немного', callback_data: 'quiz_q3_some' }], [{ text: 'Нет', callback_data: 'quiz_q3_no' }]]
       }
       await sendMessage(tgId, '<b>Ты уже пробовала что-то с этим делать?</b>', markup)
-    }
-
-    // Step 3 -> Final Offer
-    else if (data.startsWith('quiz_q3_')) {
+    } else if (data.startsWith('quiz_q3_')) {
       const attempts = data.replace('quiz_q3_', '')
       await db(`qualifications?profile_id=eq.${profile.id}`, 'PATCH', { previous_attempts: attempts })
       await db(`profiles?tg_id=eq.${tgId}`, 'PATCH', { bot_quiz_step: 4 })
-
       const text = 'Есть 2 способа работы с искаженной опорой:\n\n✓ Жёсткий, но быстрый — это группа "Пробой"\n\n✓ Мягкий и постепенный — это "Пирамида Потенциала" или персональная работа\n\nКакой способ тебе ближе?'
       const markup = {
-        inline_keyboard: [
-          [{ text: 'Жесткий быстрый', callback_data: 'quiz_final_hard' }],
-          [{ text: 'Мягкий постепенный', callback_data: 'quiz_final_soft' }],
-          [{ text: 'Пока не готова', callback_data: 'quiz_final_not_ready' }]
-        ]
+        inline_keyboard: [[{ text: 'Жесткий быстрый', callback_data: 'quiz_final_hard' }], [{ text: 'Мягкий постепенный', callback_data: 'quiz_final_soft' }], [{ text: 'Пока не готова', callback_data: 'quiz_final_not_ready' }]]
       }
       await sendMessage(tgId, text, markup)
-    }
-
-    // Final Offer Choice
-    else if (data === 'quiz_final_hard' || data === 'quiz_final_soft') {
+    } else if (data === 'quiz_final_hard' || data === 'quiz_final_soft') {
       const prefilledText = data === 'quiz_final_hard' ? 'Пробой!' : 'Пирамида Потенциала'
       const authorUrl = `https://t.me/${AUTHOR_USERNAME}?text=${encodeURIComponent(prefilledText)}`
-
       await db(`profiles?tg_id=eq.${tgId}`, 'PATCH', { bot_quiz_step: 5 })
-
-      // Schedule gift message after 1 minute
       await db('bot_tasks_queue', 'POST', {
-        profile_id: profile.id,
-        tg_id: tgId,
-        event_type: 'send_gift',
-        run_at: new Date(Date.now() + 60000).toISOString(),
-        status: 'pending'
+        profile_id: profile.id, tg_id: tgId, event_type: 'send_gift', run_at: new Date(Date.now() + 60000).toISOString(), status: 'pending'
       })
-
       const markup = { inline_keyboard: [[{ text: 'Написать Еве', url: authorUrl }]] }
       await sendMessage(tgId, 'Отлично! Нажми кнопку ниже — я жду твоего сообщения:', markup)
-    }
-
-    else if (data === 'quiz_final_not_ready') {
+    } else if (data === 'quiz_final_not_ready') {
       await db(`profiles?tg_id=eq.${tgId}`, 'PATCH', { bot_quiz_step: 5 })
-
       const giftText = 'Благодарю тебя за честность! Честность — это то, на чем строятся все мои методы работы. Чтобы тест не остался просто тестом, я дарю тебе практику нейроманифестации. Ты можешь начать изменения уже сегодня.'
       const giftMarkup = { inline_keyboard: [[{ text: 'Забрать подарок', callback_data: 'get_gift' }]] }
       await sendMessage(tgId, giftText, giftMarkup)
-    }
-
-    // Gift delivery
-    else if (data === 'get_gift') {
+    } else if (data === 'get_gift') {
       await sendVideo(tgId, GIFT_VIDEO_FILE_ID, undefined, true)
     }
   }
@@ -304,92 +232,49 @@ async function handleTelegramWebhook(update: any) {
 serve(async (req: Request) => {
   try {
     const payload = await req.json()
-    const action = payload.action || (payload.update_id ? 'telegram_webhook' : (payload.table ? 'db_webhook' : 'unknown'))
-    console.log(`[req] Action received: ${action}`)
-    console.log('[req] Payload received:', JSON.stringify(payload))
+    
+    // 1. Direct Milestone Event
+    if (payload.event === 'referrals_reached_2') {
+      const text = MIXED_TRAIT_TEXTS[payload.mixed_trait]
+      if (text) {
+        await sendMessage(payload.tg_id, `<b>🎉 Поздравляем! По твоей ссылке 2 человека прошли тест.</b>\n\nТебе открылась твоя «Вторая опора»:\n\n${text}`)
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200 })
+    }
 
-    // 1. Process Queue (Cron or Manual trigger)
+    // 2. Process Queue (Cron or Manual trigger)
     if (payload.action === 'process_queue') {
       await handleProcessQueue()
-      return new Response(JSON.stringify({ success: true }), { 
-        status: 200, 
-        headers: { 'Content-Type': 'application/json' } 
-      })
+      return new Response(JSON.stringify({ success: true }), { status: 200 })
     }
 
-    // 2. Telegram Webhook (via Next.js forwarding)
+    // 3. Telegram Webhook (via Next.js forwarding)
     if (payload.update_id || payload.callback_query || payload.message) {
       await handleTelegramWebhook(payload)
-      return new Response(JSON.stringify({ success: true }), { 
-        status: 200, 
-        headers: { 'Content-Type': 'application/json' } 
-      })
+      return new Response(JSON.stringify({ success: true }), { status: 200 })
     }
 
-    // 3. Database Webhook — test_results INSERT → отправка результата опоры
+    // 4. Database Webhook — test_results INSERT → отправка результата опоры
     if (payload.table === 'test_results' && payload.type === 'INSERT') {
       const record = payload.record
-      const profileId = record.profile_id
-      const primarySupport = record.primary_support
-
-      const profiles = await db(`profiles?id=eq.${profileId}&select=tg_id`)
-      if (profiles && profiles.length > 0 && primarySupport) {
+      const profiles = await db(`profiles?id=eq.${record.profile_id}&select=tg_id`)
+      if (profiles && profiles.length > 0 && record.dominant_trait) {
         const tgId = profiles[0].tg_id
-        const traitKey = primarySupport.toUpperCase()
-        const imageUrl = TRAIT_IMAGES[traitKey] || TRAIT_IMAGES['S']
-        const text = DOMINANT_TRAIT_TEXTS[traitKey] || `Ваша опора: ${traitKey}`
-        console.log(`[db-webhook] Sending result to ${tgId}, trait=${traitKey}`)
-        await sendPhoto(tgId, imageUrl, text)
+        const traitKey = record.dominant_trait.toUpperCase()
+        await sendPhoto(tgId, TRAIT_IMAGES[traitKey] || TRAIT_IMAGES['S'], DOMINANT_TRAIT_TEXTS[traitKey] || `Ваша опора: ${traitKey}`)
       }
       return new Response(JSON.stringify({ ok: true }), { status: 200 })
     }
 
-    // 4. Database Webhook — profiles UPDATE → реферальный бонус при invites_count = 2
     if (payload.table === 'profiles' && payload.type === 'UPDATE') {
-      const record = payload.record
-      const oldRecord = payload.old_record
-      console.log(`[ref-bonus] profiles UPDATE tg_id=${record.tg_id} invites_count=${record.invites_count} old=${oldRecord?.invites_count}`)
-
-      if (record.invites_count === 2 && oldRecord?.invites_count !== 2) {
-        const profileId = record.id
-        const tgId = record.tg_id
-        const results = await db(`test_results?profile_id=eq.${profileId}&select=primary_support,secondary_support`)
-        const tr = results?.[0]
-        console.log(`[ref-bonus] test_results: primary=${tr?.primary_support} secondary=${tr?.secondary_support}`)
-
-        if (tr?.primary_support && tr?.secondary_support) {
-          const mixedKey = [tr.primary_support.toUpperCase(), tr.secondary_support.toUpperCase()].sort().join('')
-          const MIXED_TRAIT_TEXTS: Record<string, string> = {
-            SU: 'S + U — «Тихий тащитель»\n\nТы тащишь.\nИ делаешь это тихо.\nТы справляешься.\nНе просишь помощи.\nИ при этом стараешься быть удобной.\n\nНо внутри:\n— усталость\n— одиночество\n— ощущение, что тебя не видят\n\nТы отдаёшь много.\nНо это не возвращается.\n\nЦена:\nТы исчезаешь из своей же жизни.\n\n⚡️ Внутри звучит:\n«Я всё делаю правильно… почему меня не выбирают?»',
-            SP: 'S + P — «Идеальный герой»\n\nТы делаешь всё правильно.\nДержишь. Справляешься. Не ошибаешься.\nТы сильная и идеальная одновременно.\n\nНо внутри:\n— страх потерять контроль\n— усталость от собственных стандартов\n— ощущение, что расслабиться нельзя\n\nЦена:\nТы живёшь в постоянном напряжении. Без права на слабость.\n\n⚡️ Внутри звучит:\n«Если я остановлюсь — всё рухнет»',
-            RS: 'R + S — «Держатель поля»\n\nТы чувствуешь всех.\nИ держишь всё на себе.\nТы и опора, и поддержка, и тот, кто не даёт развалиться.\n\nНо внутри:\n— перегруз\n— невидимость\n— ощущение, что ты нужна, но не любима\n\nЦена:\nТы обслуживаешь чужое пространство, забывая о своём.\n\n⚡️ Внутри звучит:\n«Я держу всех. Кто держит меня?»',
-            KS: 'K + S — «Бдительный герой»\n\nТы всегда начеку.\nИ при этом держишь всё под контролем.\nТы предусматриваешь всё — и при этом не позволяешь себе слабости.\n\nНо внутри:\n— хроническая тревога\n— напряжение\n— невозможность расслабиться\n\nЦена:\nТы живёшь в готовности к катастрофе, которая никак не наступает.\n\n⚡️ Внутри звучит:\n«Я должна контролировать — иначе всё пойдёт не так»',
-            PU: 'P + U — «Удобный перфекционист»\n\nТы стараешься быть идеальной.\nИ при этом — удобной для всех.\nТы не ошибаешься. И не создаёшь проблем.\n\nНо внутри:\n— страх быть отвергнутой\n— подавленные желания\n— ощущение, что тебя не знают настоящей\n\nЦена:\nТы исчезаешь за образом «хорошей».\n\n⚡️ Внутри звучит:\n«Если я буду собой — меня не примут»',
-            RU: 'R + U — «Чуткий угодник»\n\nТы чувствуешь людей тонко.\nИ подстраиваешься под них.\nТы сглаживаешь, поддерживаешь, держишь атмосферу.\n\nНо внутри:\n— растворение в других\n— потеря себя\n— страх конфликта\n\nЦена:\nТебя нет — есть функция.\n\n⚡️ Внутри звучит:\n«Главное, чтобы всем было хорошо»',
-            KU: 'K + U — «Тревожный угодник»\n\nТы контролируешь — и при этом подстраиваешься.\nТы следишь за всем — и боишься отказать.\nТы в постоянном балансе между тревогой и желанием быть удобной.\n\nНо внутри:\n— истощение\n— страх\n— ощущение ловушки\n\nЦена:\nТы не живёшь — ты управляешь рисками чужого недовольства.\n\n⚡️ Внутри звучит:\n«Лишь бы не было хуже»',
-            PR: 'P + R — «Чуткий перфекционист»\n\nТы делаешь всё идеально.\nИ при этом чувствуешь всех вокруг.\nТы хочешь быть лучшей — и держать пространство гармоничным.\n\nНо внутри:\n— перегруз\n— страх ошибки\n— ощущение, что ты никогда не делаешь достаточно\n\nЦена:\nТы тонешь в чужих ожиданиях и своих стандартах одновременно.\n\n⚡️ Внутри звучит:\n«Я должна успеть всё и не подвести никого»',
-            KP: 'K + P — «Тревожный перфекционист»\n\nТы контролируешь — и при этом требуешь от себя идеального результата.\nТы предусматриваешь всё — и при этом боишься ошибиться.\n\nНо внутри:\n— хроническое напряжение\n— страх провала\n— невозможность остановиться\n\nЦена:\nТы в ловушке между тревогой и перфекционизмом.\n\n⚡️ Внутри звучит:\n«Если я не предусмотрю всё — что-то пойдёт не так»',
-            KR: 'K + R — «Тревожный держатель»\n\nТы держишь поле — и при этом всё контролируешь.\nТы чувствуешь всех — и при этом следишь за каждой деталью.\n\nНо внутри:\n— перегруз\n— тревога\n— ощущение, что ты одна отвечаешь за всё\n\nЦена:\nТы несёшь ответственность за то, что не твоё.\n\n⚡️ Внутри звучит:\n«Если я отпущу контроль — всё развалится»',
-          }
-          const mixedText = MIXED_TRAIT_TEXTS[mixedKey]
-          console.log(`[ref-bonus] mixedKey=${mixedKey} found=${!!mixedText}`)
-          if (mixedText) {
-            await sendMessage(tgId, mixedText)
-          }
-        }
-      }
-      return new Response(JSON.stringify({ ok: true }), { status: 200 })
+      // Реферальный бонус теперь обрабатывается через прямой вызов события 'referrals_reached_2'
+      // в API прохождения теста для мгновенности и избежания дублей.
+      return new Response(JSON.stringify({ ok: true, note: 'Skipped: handeled via direct event' }), { status: 200 })
     }
 
-    return new Response(JSON.stringify({ ok: true, ignored: true }), { 
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    return new Response(JSON.stringify({ ok: true }), { status: 200 })
   } catch (err) {
     console.error('[error] Handler crashed:', err)
-    return new Response(JSON.stringify({ error: err.message }), { 
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 })
   }
 })
