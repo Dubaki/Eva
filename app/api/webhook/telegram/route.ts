@@ -128,13 +128,28 @@ export async function POST(request: NextRequest) {
           })
         }
 
-        // Q3 → финальное предложение (url-кнопки сразу открывают чат с автором)
+        // Q3 → финальное предложение (все 3 кнопки — callback)
         else if (data.startsWith('quiz_q3_')) {
           const attempts = data.replace('quiz_q3_', '')
           await supabase.from('qualifications').update({ previous_attempts: attempts } as any).eq('profile_id', profileId)
           await supabase.from('profiles').update({ bot_quiz_step: 4 } as any).eq('tg_id', tgId)
 
-          // Планируем подарок через 1 мин (для hard/soft-пути)
+          await sendMessage({
+            chatId: tgId,
+            text: 'Есть 2 способа работы с искаженной опорой:\n\n✓ Жёсткий, но быстрый — это группа «Пробой»\n\n✓ Мягкий и постепенный — это «Пирамида Потенциала» или персональная работа\n\nКакой способ тебе ближе?',
+            replyMarkup: {
+              inline_keyboard: [
+                [{ text: 'Жесткий быстрый', callback_data: 'quiz_final_hard' }],
+                [{ text: 'Мягкий постепенный', callback_data: 'quiz_final_soft' }],
+                [{ text: 'Пока не готова', callback_data: 'quiz_final_not_ready' }],
+              ]
+            }
+          })
+        }
+
+        // Финал: жёсткий или мягкий → ссылка на автора текстом + подарок через 1 мин
+        else if (data === 'quiz_final_hard' || data === 'quiz_final_soft') {
+          await supabase.from('profiles').update({ bot_quiz_step: 5 } as any).eq('tg_id', tgId)
           await (supabase as any).from('bot_tasks_queue').insert({
             profile_id: profileId,
             tg_id: tgId,
@@ -142,45 +157,25 @@ export async function POST(request: NextRequest) {
             run_at: new Date(Date.now() + 60000).toISOString(),
             status: 'pending',
           })
-
-          const hardUrl = `https://t.me/${AUTHOR_USERNAME}?text=${encodeURIComponent('Пробой!')}`
-          const softUrl = `https://t.me/${AUTHOR_USERNAME}?text=${encodeURIComponent('Пирамида Потенциала')}`
-
+          const prefilledText = data === 'quiz_final_hard' ? 'Пробой!' : 'Пирамида Потенциала'
+          const authorUrl = `https://t.me/${AUTHOR_USERNAME}?text=${encodeURIComponent(prefilledText)}`
           await sendMessage({
             chatId: tgId,
-            text: 'Есть 2 способа работы с искаженной опорой:\n\n✓ Жёсткий, но быстрый — это группа «Пробой»\n\n✓ Мягкий и постепенный — это «Пирамида Потенциала» или персональная работа\n\nКакой способ тебе ближе?',
-            replyMarkup: {
-              inline_keyboard: [
-                [{ text: 'Жесткий быстрый', url: hardUrl }],
-                [{ text: 'Мягкий постепенный', url: softUrl }],
-                [{ text: 'Пока не готова', callback_data: 'quiz_final_not_ready' }],
-              ]
-            }
+            text: `Отлично! Напиши Еве прямо сейчас:\n${authorUrl}`,
           })
         }
 
-        // Финал: пока не готова → подарок сразу (только если ещё не получала)
+        // Финал: пока не готова → подарок через 1 мин
         else if (data === 'quiz_final_not_ready') {
           const { data: profileData } = await supabase.from('profiles').select('bot_quiz_step').eq('tg_id', tgId).limit(1).single()
           if ((profileData as any)?.bot_quiz_step !== 5) {
             await supabase.from('profiles').update({ bot_quiz_step: 5 } as any).eq('tg_id', tgId)
-            await sendMessage({
-              chatId: tgId,
-              text: 'Благодарю тебя за честность! Честность — это то, на чем строятся все мои методы работы. Чтобы тест не остался просто тестом, я дарю тебе практику нейроманифестации. Ты можешь начать изменения уже сегодня.',
-              replyMarkup: { inline_keyboard: [[{ text: 'Забрать подарок', callback_data: 'get_gift' }]] }
-            })
-          }
-        }
-
-        // Подарок (только один раз)
-        else if (data === 'get_gift') {
-          const { data: profileData } = await supabase.from('profiles').select('bot_quiz_step').eq('tg_id', tgId).limit(1).single()
-          if ((profileData as any)?.bot_quiz_step !== 6) {
-            await supabase.from('profiles').update({ bot_quiz_step: 6 } as any).eq('tg_id', tgId)
-            await sendVideo({
-              chatId: tgId,
-              video: 'BAACAgIAAxkBAAIDNGnm9VTZm2GzCHI0zF8AAc_Ebaa17QACXpkAAseAOEse8WaqrIdLSDsE',
-              protectContent: true,
+            await (supabase as any).from('bot_tasks_queue').insert({
+              profile_id: profileId,
+              tg_id: tgId,
+              event_type: 'send_gift',
+              run_at: new Date(Date.now() + 60000).toISOString(),
+              status: 'pending',
             })
           }
         }

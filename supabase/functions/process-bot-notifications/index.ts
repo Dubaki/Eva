@@ -157,17 +157,10 @@ async function handleProcessQueue() {
       }
 
       else if (task.event_type === 'send_gift') {
-        // Не слать, если пользователь уже получил подарок через кнопку "Забрать подарок" (step=6)
-        const profiles = await db(`profiles?tg_id=eq.${task.tg_id}&select=bot_quiz_step`)
-        const step = profiles?.[0]?.bot_quiz_step
-        if (step !== 6) {
-          const giftText = 'Благодарю тебя за честность! Честность — это то, на чем строятся все мои методы работы. Чтобы тест не остался просто тестом, я дарю тебе практику нейроманифестации. Ты можешь начать изменения уже сегодня.'
-          await sendMessage(task.tg_id, giftText)
-          await new Promise(r => setTimeout(r, 1000))
-          await sendVideo(task.tg_id, GIFT_VIDEO_FILE_ID, undefined, true)
-        } else {
-          console.log(`[queue] Task ${task.id}: gift already delivered (step=6), skipping.`)
-        }
+        const giftText = 'Благодарю тебя за честность! Честность — это то, на чем строятся все мои методы работы. Чтобы тест не остался просто тестом, я дарю тебе практику нейроманифестации. Ты можешь начать изменения уже сегодня.'
+        await sendMessage(task.tg_id, giftText)
+        await new Promise(r => setTimeout(r, 1000))
+        await sendVideo(task.tg_id, GIFT_VIDEO_FILE_ID, undefined, true)
       }
 
       // Mark task as completed
