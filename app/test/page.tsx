@@ -102,6 +102,7 @@ export default function TestPage() {
   const [loading, setLoading] = useState(true)
   const [questionOrder, setQuestionOrder] = useState<number[] | null>(null)
   const [answersMap, setAnswersMap] = useState<Record<number, number>>({})
+  const [cooldownEnd, setCooldownEnd] = useState<string | null>(null)
   const router = useRouter()
 
   // Extract tgId from Telegram WebApp
@@ -137,6 +138,12 @@ export default function TestPage() {
         const res = await fetch(`/api/test/progress?tgId=${tgId}`)
         const json = await res.json()
         if (!cancelled && json.success && json.data) {
+          if (json.data.isCooldown) {
+            setCooldownEnd(json.data.availableAt)
+            setLoading(false)
+            return
+          }
+
           const { currentStep, answers, question_order } = json.data as { 
             currentStep: number; 
             answers: Record<number, number> | null;
@@ -270,6 +277,47 @@ export default function TestPage() {
             transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
           />
           <p className="text-text-secondary text-sm">Загружаю прогресс...</p>
+        </div>
+      </main>
+    )
+  }
+
+  // Cooldown screen
+  if (cooldownEnd) {
+    const date = new Date(cooldownEnd).toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    })
+
+    return (
+      <main className="flex flex-col min-h-screen bg-bg-primary items-center justify-center px-6">
+        <div className="flex flex-col items-center gap-6 max-w-sm w-full text-center">
+          <div className="w-16 h-16 bg-bg-tertiary rounded-2xl flex items-center justify-center text-3xl">
+            ⏳
+          </div>
+          <div className="flex flex-col gap-3">
+            <h1 className="text-xl font-bold text-text-primary">
+              Тест пока недоступен
+            </h1>
+            <p className="text-text-secondary leading-relaxed">
+              Повторное прохождение теста будет доступно через 60 дней после предыдущего.
+            </p>
+            <div className="bg-bg-tertiary/50 p-4 rounded-xl mt-2 border border-border">
+              <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">
+                Следующая попытка
+              </p>
+              <p className="text-lg font-bold text-accent">
+                {date}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => router.push('/')}
+            className="w-full py-4 bg-bg-secondary border border-border rounded-xl font-semibold text-text-primary mt-4"
+          >
+            На главную
+          </button>
         </div>
       </main>
     )

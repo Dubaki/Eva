@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     // БРОНЯ: limit(1) вместо single() спасает от ошибки 500 при дубликатах
     const { data: profiles, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('current_step, id, question_order')
+      .select('current_step, id, question_order, last_test_date')
       .eq('tg_id', tgId)
       .limit(1)
 
@@ -40,6 +40,25 @@ export async function GET(request: NextRequest) {
 
     if (!profile) {
       return NextResponse.json({ success: true, data: null })
+    }
+
+    // ── Проверка Cooldown (60 дней) ──
+    if (profile.last_test_date) {
+      const lastTest = new Date(profile.last_test_date)
+      const cooldownDays = 60
+      const availableAt = new Date(lastTest.getTime() + cooldownDays * 24 * 60 * 60 * 1000)
+      
+      if (availableAt > new Date()) {
+        console.log(`[test/progress] Cooldown active for tgId=${tgId}. Available at: ${availableAt.toISOString()}`)
+        return NextResponse.json({
+          success: true,
+          data: {
+            isCooldown: true,
+            availableAt: availableAt.toISOString(),
+            lastTestDate: profile.last_test_date
+          }
+        })
+      }
     }
 
     // Если порядок вопросов ещё не задан — генерируем его сейчас (ОДИН РАЗ на весь тест)

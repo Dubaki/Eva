@@ -117,7 +117,8 @@ export async function POST(request: NextRequest) {
     await supabaseAdmin.from('profiles').update({ 
       current_step: null, 
       question_order: null,
-      reminded_at: null 
+      reminded_at: null,
+      last_test_date: new Date().toISOString()
     }).eq('id', profileId)
     
     // ── Настройка Telegram (ОДНО СООБЩЕНИЕ) ──
