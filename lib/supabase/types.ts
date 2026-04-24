@@ -39,12 +39,13 @@ export interface Database {
           subscribed_at: string | null
           last_test_date: string | null
           selected_sphere: string | null
-          referrals_count: number
           reminded_at: string | null
           invites_count: number
           current_step: number | null
           shared_at: string | null
           contact_author_clicked: boolean
+          bot_quiz_step: number | null
+          last_bot_interaction: string | null
           created_at: string
           updated_at: string
         }
@@ -59,12 +60,13 @@ export interface Database {
           subscribed_at?: string | null
           last_test_date?: string | null
           selected_sphere?: string | null
-          referrals_count?: number
           reminded_at?: string | null
           invites_count?: number
           current_step?: number | null
           shared_at?: string | null
           contact_author_clicked?: boolean
+          bot_quiz_step?: number | null
+          last_bot_interaction?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -79,12 +81,13 @@ export interface Database {
           subscribed_at?: string | null
           last_test_date?: string | null
           selected_sphere?: string | null
-          referrals_count?: number
           reminded_at?: string | null
           invites_count?: number
           current_step?: number | null
           shared_at?: string | null
           contact_author_clicked?: boolean
+          bot_quiz_step?: number | null
+          last_bot_interaction?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -94,27 +97,27 @@ export interface Database {
         Row: {
           id: string
           profile_id: string
-          tension_sphere: string
-          tension_level: string
-          previous_attempts: string
+          current_tension_sphere: string
+          tension_severity: string
+          previous_experience: string
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
           profile_id: string
-          tension_sphere: string
-          tension_level: string
-          previous_attempts: string
+          current_tension_sphere: string
+          tension_severity: string
+          previous_experience: string
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
           profile_id?: string
-          tension_sphere?: string
-          tension_level?: string
-          previous_attempts?: string
+          current_tension_sphere?: string
+          tension_severity?: string
+          previous_experience?: string
           created_at?: string
           updated_at?: string
         }

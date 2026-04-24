@@ -146,9 +146,9 @@ export async function POST(request: NextRequest) {
 
           const { error: insertErr } = await supabase
             .from('qualifications')
-            .insert({ profile_id: profileId, tension_sphere: sphere, tension_level: '', previous_attempts: '' } as any)
+            .insert({ profile_id: profileId, current_tension_sphere: sphere, tension_severity: '', previous_experience: '' } as any)
           if (insertErr) {
-            await supabase.from('qualifications').update({ tension_sphere: sphere } as any).eq('profile_id', profileId)
+            await supabase.from('qualifications').update({ current_tension_sphere: sphere } as any).eq('profile_id', profileId)
           }
           await supabase.from('profiles').update({ bot_quiz_step: 2 } as any).eq('tg_id', tgId)
 
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
         // Q2 → Q3
         else if (data.startsWith('quiz_q2_')) {
           const level = data.replace('quiz_q2_', '')
-          await supabase.from('qualifications').update({ tension_level: level } as any).eq('profile_id', profileId)
+          await supabase.from('qualifications').update({ tension_severity: level } as any).eq('profile_id', profileId)
           await supabase.from('profiles').update({ bot_quiz_step: 3 } as any).eq('tg_id', tgId)
 
           await sendMessage({
@@ -189,7 +189,7 @@ export async function POST(request: NextRequest) {
         // Q3 → финальное предложение (все 3 кнопки — callback)
         else if (data.startsWith('quiz_q3_')) {
           const attempts = data.replace('quiz_q3_', '')
-          await supabase.from('qualifications').update({ previous_attempts: attempts } as any).eq('profile_id', profileId)
+          await supabase.from('qualifications').update({ previous_experience: attempts } as any).eq('profile_id', profileId)
           await supabase.from('profiles').update({ bot_quiz_step: 4 } as any).eq('tg_id', tgId)
 
           await sendMessage({
