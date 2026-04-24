@@ -72,7 +72,6 @@ export async function POST(request: NextRequest) {
       score_p: scores.scoreP,
       score_r: scores.scoreR,
       score_k: scores.scoreK,
-      updated_at: new Date().toISOString()
     }, { onConflict: 'tg_id' })
     if (dbError) return NextResponse.json({ success: false, error: dbError.message }, { status: 500 })
 
