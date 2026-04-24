@@ -52,7 +52,7 @@ async function processReferral(supabase: ReturnType<typeof getSupabaseServer>, t
 
     if (newCount === 2 && referrer.tg_id) {
       // Берём трейты из test_results и отправляем сообщение напрямую
-      const { data: tr } = await supabase.from('test_results').select('primary_support, secondary_support').eq('profile_id', referrer.id).limit(1).single()
+      const { data: tr } = await supabase.from('test_results').select('primary_support, secondary_support').eq('tg_id', referrer.tg_id).limit(1).single()
       const dominant = (tr as any)?.primary_support
       const shadow = (tr as any)?.secondary_support
       console.log(`[ref] referral milestone 2! referrer tg_id=${referrer.tg_id} dominant=${dominant} shadow=${shadow}`)

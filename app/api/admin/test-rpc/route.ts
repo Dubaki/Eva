@@ -90,8 +90,8 @@ export async function POST(request: NextRequest) {
     // Step 3: Verify data was saved
     const { data: result } = await supabase
       .from('test_results')
-      .select('profile_id, dominant_trait, secondary_trait')
-      .eq('profile_id', (profile?.id ?? ''))
+      .select('tg_id, primary_support, secondary_support')
+      .eq('tg_id', tgId)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()

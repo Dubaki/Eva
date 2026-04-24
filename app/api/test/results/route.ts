@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
     const supabaseAdmin = getSupabaseAdmin()
 
     // 3. БРОНЯ: Если токена нет, ищем профиль по tgId (с limit(1) от дубликатов)
+    let tgIdToUse = bodyTgId
     if (!profileId && bodyTgId) {
       const { data: profiles } = await supabaseAdmin
         .from('profiles')
@@ -47,10 +48,19 @@ export async function GET(request: NextRequest) {
       if (profiles && profiles.length > 0) {
         profileId = profiles[0].id
       }
+    } else if (profileId && !tgIdToUse) {
+      const { data: profiles } = await supabaseAdmin
+        .from('profiles')
+        .select('tg_id')
+        .eq('id', profileId)
+        .limit(1)
+      if (profiles && profiles.length > 0) {
+        tgIdToUse = profiles[0].tg_id
+      }
     }
 
     // Если всё равно ничего нет — отбиваем
-    if (!profileId) {
+    if (!profileId || !tgIdToUse) {
       return NextResponse.json(
         { success: false, error: 'Missing or invalid authorization' },
         { status: 401 }
@@ -61,7 +71,7 @@ export async function GET(request: NextRequest) {
     const { data: results, error } = await supabaseAdmin
       .from('test_results')
       .select('primary_support, secondary_support, score_s, score_u, score_p, score_r, score_k')
-      .eq('profile_id', profileId)
+      .eq('tg_id', tgIdToUse)
       .order('created_at', { ascending: false })
       .limit(1)
 

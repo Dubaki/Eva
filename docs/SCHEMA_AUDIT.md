@@ -20,8 +20,6 @@
 | `subscribed_at` | TIMESTAMPTZ | NULL | Дата фактической подписки (Phase 11) |
 | `last_test_date` | TIMESTAMPTZ | NULL | Дата последнего прохождения теста |
 | `selected_sphere` | VARCHAR | NULL | Сфера напряжения (для подарка) |
-| `dominant_trait` | VARCHAR(1) | CHECK (S,U,P,R,K) | Доминирующая опора |
-| `shadow_trait` | VARCHAR(1) | CHECK (S,U,P,R,K) | Теневая (вторичная) опора |
 | `referrals_count` | INTEGER | DEFAULT 0 | Кэш количества рефералов |
 | `invites_count` | INTEGER | DEFAULT 0 | Счётчик подтвержденных подписок |
 | `current_step` | INTEGER | DEFAULT NULL | Текущий вопрос теста (persistence) |
@@ -43,20 +41,17 @@
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY, DEFAULT gen_random_uuid() | ID результата |
-| `profile_id` | UUID | UNIQUE, REFERENCES profiles(id) | Связь с профилем (1:1) |
+| `tg_id` | BIGINT | UNIQUE, NOT NULL | Telegram User ID (1:1) |
 | `score_s` | SMALLINT | DEFAULT 0, CHECK (>=0) | Баллы: Самоценность |
 | `score_u` | SMALLINT | DEFAULT 0, CHECK (>=0) | Баллы: Угодничество |
 | `score_p` | SMALLINT | DEFAULT 0, CHECK (>=0) | Баллы: Перфекционизм |
 | `score_r` | SMALLINT | DEFAULT 0, CHECK (>=0) | Баллы: Результативность |
 | `score_k` | SMALLINT | DEFAULT 0, CHECK (>=0) | Баллы: Контроль |
-| `dominant_trait` | VARCHAR(1) | NOT NULL, CHECK (S,U,P,R,K) | Главная опора |
-| `secondary_trait` | VARCHAR(1) | NOT NULL, CHECK (S,U,P,R,K) | Теневая опора |
+| `primary_support` | VARCHAR(1) | NOT NULL, CHECK (S,U,P,R,K) | Главная опора |
+| `secondary_support` | VARCHAR(1) | NOT NULL, CHECK (S,U,P,R,K) | Теневая опора |
 | `answers` | JSONB | DEFAULT '[]' | Массив сырых ответов [1,0,1...] |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | Дата завершения теста |
 | `updated_at` | TIMESTAMPTZ | DEFAULT NOW() | |
-
-**Constraints:**
-- `chk_traits_different`: `dominant_trait != secondary_trait`
 
 ---
 
@@ -68,8 +63,8 @@
 - `INSERT`: Разрешено через API (service_role) при регистрации.
 
 ### `test_results`
-- `SELECT`: `auth.uid() = profile_id`
-- `INSERT`: `auth.uid() = profile_id` (Валидируется через JWT)
+- `SELECT`: `(SELECT tg_id FROM profiles WHERE id = auth.uid()) = tg_id`
+- `INSERT`: `(SELECT tg_id FROM profiles WHERE id = auth.uid()) = tg_id` (Валидируется через JWT)
 
 ---
 

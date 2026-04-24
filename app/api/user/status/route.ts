@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
   const { data: testResult } = await supabase
     .from('test_results')
     .select('primary_support, secondary_support')
-    .eq('profile_id', profileId)
+    .eq('tg_id', profile?.tg_id)
     .single()
 
   // Check if qualification was completed

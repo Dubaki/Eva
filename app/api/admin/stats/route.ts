@@ -110,7 +110,7 @@ export async function GET(req: NextRequest) {
       const { data: testResult } = await supabase
         .from('test_results')
         .select('primary_support, secondary_support')
-        .eq('profile_id', user.id)
+        .eq('tg_id', user.tg_id)
         .single()
 
       const lastTest = user.last_test_date ?? null

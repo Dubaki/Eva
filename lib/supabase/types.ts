@@ -123,7 +123,7 @@ export interface Database {
       test_results: {
         Row: {
           id: string
-          profile_id: string
+          tg_id: number
           score_s: number
           score_u: number
           score_p: number
@@ -137,7 +137,7 @@ export interface Database {
         }
         Insert: {
           id?: string
-          profile_id: string
+          tg_id: number
           score_s?: number
           score_u?: number
           score_p?: number
@@ -151,7 +151,7 @@ export interface Database {
         }
         Update: {
           id?: string
-          profile_id?: string
+          tg_id?: number
           score_s?: number
           score_u?: number
           score_p?: number

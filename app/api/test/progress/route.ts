@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
     const { data: testResults } = await supabaseAdmin
       .from('test_results')
       .select('answers')
-      .eq('profile_id', profile.id)
+      .eq('tg_id', tgId)
       .order('created_at', { ascending: false })
       .limit(1)
 

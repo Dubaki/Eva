@@ -62,9 +62,18 @@ export async function POST(request: NextRequest) {
     const primary = scores.dominantTrait.toUpperCase()
     const secondary = scores.secondaryTrait.toUpperCase()
 
-    const { error: dbError } = await supabaseAdmin.rpc('save_test_result', {
-      p_tg_id: tgId, p_primary_support: primary, p_secondary_support: secondary,
-    })
+    const { error: dbError } = await supabaseAdmin.from('test_results').upsert({
+      tg_id: tgId,
+      primary_support: primary,
+      secondary_support: secondary,
+      answers: answers,
+      score_s: scores.scoreS,
+      score_u: scores.scoreU,
+      score_p: scores.scoreP,
+      score_r: scores.scoreR,
+      score_k: scores.scoreK,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'tg_id' })
     if (dbError) return NextResponse.json({ success: false, error: dbError.message }, { status: 500 })
 
     // ── Referral Reward Logic (ВЫПОЛНЯЕТСЯ СРАЗУ ПОСЛЕ СОХРАНЕНИЯ) ────────
