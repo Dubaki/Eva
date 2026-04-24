@@ -91,6 +91,10 @@ export async function GET(req: NextRequest) {
     .eq('id', profileId)
     .single()
 
+  if (!profile) {
+    return NextResponse.json({ success: false, error: 'Profile not found' }, { status: 404 })
+  }
+
   // Fetch referral count
   const { count: refCount } = await supabase
     .from('referrals')
@@ -101,7 +105,7 @@ export async function GET(req: NextRequest) {
   const { data: testResult } = await supabase
     .from('test_results')
     .select('primary_support, secondary_support')
-    .eq('tg_id', profile?.tg_id)
+    .eq('tg_id', profile.tg_id)
     .single()
 
   // Check if qualification was completed
