@@ -41,9 +41,9 @@ export async function POST(request: NextRequest) {
       const { error: dbError } = await supabase.from('qualifications').upsert(
         {
           profile_id: profileId,
-          tension_sphere,
-          tension_level,
-          previous_attempts,
+          current_tension_sphere: tension_sphere,
+          tension_severity: tension_level,
+          previous_experience: previous_attempts,
         },
         { onConflict: 'profile_id' }
       )
