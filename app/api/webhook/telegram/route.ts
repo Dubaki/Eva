@@ -287,6 +287,14 @@ export async function POST(request: NextRequest) {
       else if (text.startsWith('/start')) {
         const refCode = extractReferralCode(text)
 
+        // Check if profile already exists to distinguish new vs returning users
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('id, is_subscribed')
+          .eq('tg_id', tgId)
+          .maybeSingle()
+        const isNewUser = !existingProfile
+
         await supabase
           .from('profiles')
           .upsert({
@@ -301,7 +309,9 @@ export async function POST(request: NextRequest) {
         if (!isSubscribed) {
           await sendMessage({
             chatId: tgId,
-            text: `🌿 Привет! Чтобы узнать свою опору, подпишись на мой канал. Там я делюсь тем, как оставаться в ресурсе.`,
+            text: isNewUser
+              ? `🌿 Привет! Чтобы узнать свою опору, подпишись на мой канал. Там я делюсь тем, как оставаться в ресурсе.`
+              : `🌿 С возвращением! Подпишись на канал, чтобы открыть доступ к тесту.`,
             replyMarkup: {
               inline_keyboard: [
                 [{ text: '1. Подписаться на канал', url: CHANNEL_URL }],
@@ -311,11 +321,19 @@ export async function POST(request: NextRequest) {
           })
         } else {
           await supabase.from('profiles').update({ is_subscribed: true } as any).eq('tg_id', tgId)
-          await sendMessage({
-            chatId: tgId,
-            text: 'Рада видеть тебя снова! Твой тест ждет тебя.',
-            replyMarkup: { inline_keyboard: [[{ text: 'Пройти тест', web_app: { url: getTmaUrl() } }]] }
-          })
+          if (isNewUser) {
+            await sendMessage({
+              chatId: tgId,
+              text: '🌿 Привет! Ты уже подписана на канал — отлично. Нажми кнопку, чтобы узнать свою опору:',
+              replyMarkup: { inline_keyboard: [[{ text: '▶️ Пройти тест', web_app: { url: getTmaUrl() } }]] }
+            })
+          } else {
+            await sendMessage({
+              chatId: tgId,
+              text: 'Рада видеть тебя снова! Твой тест ждет тебя.',
+              replyMarkup: { inline_keyboard: [[{ text: 'Пройти тест', web_app: { url: getTmaUrl() } }]] }
+            })
+          }
         }
       }
 

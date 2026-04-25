@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select('is_subscribed, last_test_date, selected_sphere')
+      .select('is_subscribed, last_test_date')
       .eq('tg_id', numericTgId)
       .maybeSingle()
 
@@ -40,7 +40,6 @@ export async function GET(req: NextRequest) {
         primarySupport: null,
         secondarySupport: null,
         hasQualification: false,
-        selected_sphere: profile?.selected_sphere ?? null,
       },
     }, {
       headers: {
@@ -75,7 +74,7 @@ export async function GET(req: NextRequest) {
   // Fetch profile
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, tg_id, is_subscribed, last_test_date, selected_sphere')
+    .select('id, tg_id, is_subscribed, last_test_date')
     .eq('id', profileId)
     .maybeSingle()
 
@@ -114,7 +113,6 @@ export async function GET(req: NextRequest) {
         primarySupport: testResult?.primary_support ?? null,
         secondarySupport: testResult?.secondary_support ?? null,
         hasQualification: !!qual,
-        selected_sphere: profile?.selected_sphere ?? null,
       },
     },
     {
