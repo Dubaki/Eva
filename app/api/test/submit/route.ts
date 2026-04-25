@@ -66,13 +66,13 @@ export async function POST(request: NextRequest) {
     console.log(`[API] Test submitted atomicaly for ${tgId}. Result:`, rpcData)
 
     // Добавляем фоновую задачу (не ждем завершения)
-    supabaseAdmin.from('bot_tasks_queue').insert({
+    void Promise.resolve(supabaseAdmin.from('bot_tasks_queue').insert({
       profile_id: profileId,
       tg_id: tgId,
       event_type: 'start_mini_quiz',
       run_at: new Date(Date.now() + 86400000).toISOString(),
       status: 'pending'
-    }).then(() => {}).catch(() => {})
+    }))
 
     return NextResponse.json({ 
       success: true, 
