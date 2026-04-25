@@ -35,14 +35,15 @@ export async function POST(request: NextRequest) {
     const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
     // 2. Ищем профиль или создаем его легально
-    let { data: profiles } = await supabaseAdmin.from('profiles').select('id, tg_id').eq('tg_id', tgId).limit(1)
+    let { data: profiles } = await supabaseAdmin.from('profiles').select('id, tg_id, is_subscribed').eq('tg_id', tgId).limit(1)
     let profile = profiles && profiles.length > 0 ? profiles[0] : null
+    const wasAlreadySubscribed = (profile as any)?.is_subscribed === true
 
     if (!profile) {
       const { data: newProfiles, error: insertErr } = await supabaseAdmin.from('profiles')
         .insert([{ tg_id: tgId, is_subscribed: true }])
-        .select('id, tg_id')
-      
+        .select('id, tg_id, is_subscribed')
+
       if (insertErr) return NextResponse.json({ success: false, error: `Ошибка БД: ${insertErr.message}` }, { status: 500 })
       if (newProfiles && newProfiles.length > 0) profile = newProfiles[0]
     }
@@ -51,24 +52,26 @@ export async function POST(request: NextRequest) {
 
     await supabaseAdmin.from('profiles').update({ is_subscribed: true }).eq('tg_id', tgId)
 
-    // Send confirmation message to user in Telegram (mirrors bot's handleSubscriptionCheck)
-    try {
-      const successCaption =
-        `🎉 <b>Подписка подтверждена!</b>\n\n` +
-        `У каждого человека есть внутренняя «опора» — набор убеждений, которые помогают жить и развиваться.\n` +
-        `Но иногда эти установки начинают искажаться, и мы теряем связь с собой.\n\n` +
-        `👇 <i>Нажми кнопку ниже, чтобы начать тест.</i>`
-      const tmaUrl = getTmaUrl()
-      const replyMarkup = {
-        inline_keyboard: [[{ text: '✨ Пройти тест', web_app: { url: tmaUrl } }]],
+    // Send Telegram confirmation only on first subscription (not on re-entry)
+    if (!wasAlreadySubscribed) {
+      try {
+        const successCaption =
+          `🎉 <b>Подписка подтверждена!</b>\n\n` +
+          `У каждого человека есть внутренняя «опора» — набор убеждений, которые помогают жить и развиваться.\n` +
+          `Но иногда эти установки начинают искажаться, и мы теряем связь с собой.\n\n` +
+          `👇 <i>Нажми кнопку ниже, чтобы начать тест.</i>`
+        const tmaUrl = getTmaUrl()
+        const replyMarkup = {
+          inline_keyboard: [[{ text: '✨ Пройти тест', web_app: { url: tmaUrl } }]],
+        }
+        const photoUrl = `https://eva-9udm.vercel.app/start1.png?v=${Date.now()}`
+        const sent = await sendPhoto({ chatId: Number(tgId), photo: photoUrl, caption: successCaption, replyMarkup, parseMode: 'HTML' })
+        if (!sent) {
+          await sendMessage({ chatId: Number(tgId), text: successCaption, replyMarkup, parseMode: 'HTML' })
+        }
+      } catch (notifyErr) {
+        console.error('[subscription/confirm] Failed to send Telegram notification (non-fatal):', notifyErr)
       }
-      const photoUrl = `https://eva-9udm.vercel.app/start1.png?v=${Date.now()}`
-      const sent = await sendPhoto({ chatId: Number(tgId), photo: photoUrl, caption: successCaption, replyMarkup, parseMode: 'HTML' })
-      if (!sent) {
-        await sendMessage({ chatId: Number(tgId), text: successCaption, replyMarkup, parseMode: 'HTML' })
-      }
-    } catch (notifyErr) {
-      console.error('[subscription/confirm] Failed to send Telegram notification (non-fatal):', notifyErr)
     }
 
     return NextResponse.json({ success: true })

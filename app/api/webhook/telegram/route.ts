@@ -112,6 +112,7 @@ export async function POST(request: NextRequest) {
           const isSubscribed = ['member', 'administrator', 'creator'].includes(status || '')
 
           if (isSubscribed) {
+            await supabase.from('profiles').update({ is_subscribed: true } as any).eq('tg_id', tgId)
             await answerCallbackQuery({ callbackQueryId: callbackQuery.id, text: 'Спасибо за подписку! 🎉' })
             await editMessageReplyMarkup({ chatId: tgId, messageId: msgId })
             await sendMessage({
@@ -119,10 +120,6 @@ export async function POST(request: NextRequest) {
               text: 'Подписка подтверждена! Теперь ты можешь пройти тест.',
               replyMarkup: { inline_keyboard: [[{ text: 'Открыть тест', web_app: { url: getTmaUrl() } }]] }
             })
-
-            // Засчитываем реферал после подписки
-            // Убрано начисление реферала при подписке (перенесено в submit/route.ts)
-            // await processReferral(supabase, tgId)
           } else {
             await answerCallbackQuery({ callbackQueryId: callbackQuery.id, text: 'Ты всё ещё не подписана 😔', showAlert: true })
           }
@@ -278,6 +275,7 @@ export async function POST(request: NextRequest) {
             }
           })
         } else {
+          await supabase.from('profiles').update({ is_subscribed: true } as any).eq('tg_id', tgId)
           await sendMessage({
             chatId: tgId,
             text: '🌿 Нажми кнопку, чтобы открыть тест:',
@@ -312,8 +310,7 @@ export async function POST(request: NextRequest) {
             }
           })
         } else {
-          // Уже подписана — начисление реферала перенесено в конец теста
-          // await processReferral(supabase, tgId)
+          await supabase.from('profiles').update({ is_subscribed: true } as any).eq('tg_id', tgId)
           await sendMessage({
             chatId: tgId,
             text: 'Рада видеть тебя снова! Твой тест ждет тебя.',
