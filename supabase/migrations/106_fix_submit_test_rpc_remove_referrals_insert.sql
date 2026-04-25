@@ -35,8 +35,7 @@ BEGIN
         score_u,
         score_p,
         score_r,
-        score_k,
-        updated_at
+        score_k
     )
     VALUES (
         p_tg_id,
@@ -48,8 +47,7 @@ BEGIN
         p_score_u,
         p_score_p,
         p_score_r,
-        p_score_k,
-        NOW()
+        p_score_k
     )
     ON CONFLICT (tg_id) DO UPDATE SET
         primary_support = EXCLUDED.primary_support,
@@ -59,8 +57,7 @@ BEGIN
         score_u = EXCLUDED.score_u,
         score_p = EXCLUDED.score_p,
         score_r = EXCLUDED.score_r,
-        score_k = EXCLUDED.score_k,
-        updated_at = NOW();
+        score_k = EXCLUDED.score_k;
 
     -- 2. Обновляем профиль пользователя
     UPDATE profiles
