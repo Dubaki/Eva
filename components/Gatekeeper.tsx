@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, createContext, useContext } from 'react'
+import { useEffect, useRef, useState, useCallback, createContext, useContext } from 'react'
 import { motion } from 'framer-motion'
 import { getStoredInviterTgId } from '@/components/providers/AuthProvider'
 
@@ -20,6 +20,9 @@ export default function Gatekeeper({ children, onStatus }: { children: React.Rea
   const [confirmingSub, setConfirmingSub] = useState(false)
   const [subError, setSubError] = useState<string | null>(null)
 
+  const onStatusRef = useRef(onStatus)
+  useEffect(() => { onStatusRef.current = onStatus })
+
   const check = useCallback(async () => {
     const WebApp = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null
     const currentTgId = WebApp?.initDataUnsafe?.user?.id ?? null
@@ -27,7 +30,7 @@ export default function Gatekeeper({ children, onStatus }: { children: React.Rea
     if (!currentTgId) {
       const newState: GatekeeperState = { checking: false, blocked: true, reason: 'no_webapp' }
       setState(newState)
-      onStatus?.(newState)
+      onStatusRef.current?.(newState)
       return
     }
 
@@ -38,7 +41,7 @@ export default function Gatekeeper({ children, onStatus }: { children: React.Rea
       if (!json.success || !json.data?.isSubscribed) {
         const newState: GatekeeperState = { checking: false, blocked: true, reason: 'not_subscribed' }
         setState(newState)
-        onStatus?.(newState)
+        onStatusRef.current?.(newState)
         return
       }
 
@@ -52,13 +55,13 @@ export default function Gatekeeper({ children, onStatus }: { children: React.Rea
 
       const newState: GatekeeperState = { checking: false, blocked: false, cooldownDays: daysLeft, lastTestDate: json.data.lastTestDate }
       setState(newState)
-      onStatus?.(newState)
+      onStatusRef.current?.(newState)
     } catch (err) {
       const newState: GatekeeperState = { checking: false, blocked: true, reason: 'not_subscribed' }
       setState(newState)
-      onStatus?.(newState)
+      onStatusRef.current?.(newState)
     }
-  }, [onStatus])
+  }, [])
 
   useEffect(() => { check() }, [check])
 
