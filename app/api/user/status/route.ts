@@ -19,24 +19,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid tg_id' }, { status: 400 })
     }
 
-    console.log(`!!! CRITICAL !!! /api/user/status called with tg_id=${numericTgId} (type: ${typeof numericTgId}, raw: "${tgIdParam}")`)
-
-    // FULL raw query dump to diagnose RLS/type/silent error
-    const { data: rawData, error: rawError } = await supabase
+    const { data: profile, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('is_subscribed, last_test_date, selected_sphere')
       .eq('tg_id', numericTgId)
+      .maybeSingle()
 
-    console.log(`!!! CRITICAL !!! RAW DB RESPONSE:`, {
-      raw_data: JSON.stringify(rawData),
-      db_error: rawError ? JSON.stringify(rawError) : 'null',
-      array_length: rawData?.length ?? 0,
-      first_row_is_subscribed: rawData?.[0]?.is_subscribed,
-    })
+    if (error) {
+      console.error('[api/user/status] DB error:', error)
+      return NextResponse.json({ success: false, error: 'Database error' }, { status: 500 })
+    }
 
-    const profile = rawData?.[0] ?? null
-
-    const responseData = {
+    return NextResponse.json({
       success: true,
       data: {
         isSubscribed: profile?.is_subscribed ?? false,
@@ -48,13 +42,7 @@ export async function GET(req: NextRequest) {
         hasQualification: false,
         selected_sphere: profile?.selected_sphere ?? null,
       },
-      // EXPOSE raw data to frontend for debugging
-      raw_data: rawData,
-      db_error: rawError,
-    }
-
-    console.log(`!!! CRITICAL !!! Response sent:`, JSON.stringify(responseData))
-    return NextResponse.json(responseData, {
+    }, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
         'Pragma': 'no-cache',
@@ -89,7 +77,7 @@ export async function GET(req: NextRequest) {
     .from('profiles')
     .select('id, tg_id, is_subscribed, last_test_date, selected_sphere')
     .eq('id', profileId)
-    .single()
+    .maybeSingle()
 
   if (!profile) {
     return NextResponse.json({ success: false, error: 'Profile not found' }, { status: 404 })
@@ -106,14 +94,14 @@ export async function GET(req: NextRequest) {
     .from('test_results')
     .select('primary_support, secondary_support')
     .eq('tg_id', profile.tg_id)
-    .single()
+    .maybeSingle()
 
   // Check if qualification was completed
   const { data: qual } = await supabase
     .from('qualifications')
     .select('id')
     .eq('profile_id', profileId)
-    .single()
+    .maybeSingle()
 
   return NextResponse.json(
     {

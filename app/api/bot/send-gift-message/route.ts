@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     .from('profiles')
     .select('tg_id')
     .eq('id', payload.sub)
-    .single()
+    .maybeSingle()
 
   if (!profile?.tg_id) {
     return NextResponse.json({ success: false, error: 'No Telegram chat ID' }, { status: 404 })

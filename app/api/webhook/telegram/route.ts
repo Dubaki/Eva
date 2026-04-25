@@ -27,32 +27,42 @@ async function processReferral(supabase: ReturnType<typeof getSupabaseServer>, t
   try {
     const { data: profileRaw } = await supabase
       .from('profiles')
-      .select('id, referred_by, referrer_id')
+      .select('id, referred_by, referrer_id, referral_confirmed')
       .eq('tg_id', tgId)
       .limit(1)
-      .single()
+      .maybeSingle()
     const profile = profileRaw as any
-    console.log(`[ref] tgId=${tgId} referred_by=${profile?.referred_by} referrer_id=${profile?.referrer_id}`)
+    console.log(`[ref] tgId=${tgId} referred_by=${profile?.referred_by} referrer_id=${profile?.referrer_id} confirmed=${profile?.referral_confirmed}`)
 
-    if (!profile?.referred_by || profile.referrer_id) return // нет реферера или уже засчитан
+    if (!profile?.referred_by || profile.referral_confirmed) return // нет реферера или уже засчитан
+
+    const inviterTgId = Number(profile.referred_by)
+    if (isNaN(inviterTgId)) return
 
     const { data: referrers } = await supabase
       .from('profiles')
       .select('id, tg_id, invites_count')
-      .eq('tg_id', profile.referred_by)
+      .eq('tg_id', inviterTgId)
       .limit(1)
 
     if (!referrers || referrers.length === 0) return
     const referrer = referrers[0] as any
     const newCount = (referrer.invites_count ?? 0) + 1
 
+    // Начисляем бонус
     await supabase.from('profiles').update({ invites_count: newCount } as any).eq('id', referrer.id)
-    await supabase.from('profiles').update({ referrer_id: referrer.id } as any).eq('id', profile.id)
+    
+    // Помечаем как подтвержденный
+    await supabase.from('profiles').update({ 
+      referral_confirmed: true,
+      referral_confirmed_at: new Date().toISOString()
+    } as any).eq('id', profile.id)
+    
     console.log(`[ref] invites_count=${newCount} for referrer tg_id=${referrer.tg_id}`)
 
     if (newCount === 2 && referrer.tg_id) {
       // Берём трейты из test_results и отправляем сообщение напрямую
-      const { data: tr } = await supabase.from('test_results').select('primary_support, secondary_support').eq('tg_id', referrer.tg_id).limit(1).single()
+      const { data: tr } = await supabase.from('test_results').select('primary_support, secondary_support').eq('tg_id', referrer.tg_id).maybeSingle()
       const dominant = (tr as any)?.primary_support
       const shadow = (tr as any)?.secondary_support
       console.log(`[ref] referral milestone 2! referrer tg_id=${referrer.tg_id} dominant=${dominant} shadow=${shadow}`)
@@ -207,7 +217,11 @@ export async function POST(request: NextRequest) {
 
         // Финал: жёсткий или мягкий → кнопка открывает чат с автором + подарок через 1 мин (только 1 раз)
         else if (data === 'quiz_final_hard' || data === 'quiz_final_soft') {
-          const { data: profileData } = await supabase.from('profiles').select('bot_quiz_step').eq('tg_id', tgId).limit(1).single()
+          const { data: profileData } = await supabase.from('profiles').select('bot_quiz_step').eq('tg_id', tgId).limit(1).maybeSingle()
+          
+          // Mark as clicked in DB
+          await supabase.from('profiles').update({ contact_author_clicked: true } as any).eq('tg_id', tgId)
+          
           const prefilledText = data === 'quiz_final_hard' ? 'Пробой!' : 'Пирамида Потенциала'
           const authorUrl = `https://t.me/${AUTHOR_USERNAME}?text=${encodeURIComponent(prefilledText)}`
           await sendMessage({
@@ -229,7 +243,7 @@ export async function POST(request: NextRequest) {
 
         // Финал: пока не готова → подарок через 1 мин (только 1 раз)
         else if (data === 'quiz_final_not_ready') {
-          const { data: profileData } = await supabase.from('profiles').select('bot_quiz_step').eq('tg_id', tgId).limit(1).single()
+          const { data: profileData } = await supabase.from('profiles').select('bot_quiz_step').eq('tg_id', tgId).limit(1).maybeSingle()
           if ((profileData as any)?.bot_quiz_step !== 5) {
             await supabase.from('profiles').update({ bot_quiz_step: 5 } as any).eq('tg_id', tgId)
             await (supabase as any).from('bot_tasks_queue').insert({

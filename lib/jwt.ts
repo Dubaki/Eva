@@ -2,12 +2,30 @@ import { createHmac, timingSafeEqual } from 'crypto'
 
 export interface JwtPayload {
   sub: string
-  role: string
-  aud: string
-  iss: string
+  role?: string
+  aud?: string
+  iss?: string
   iat: number
   exp: number
   [key: string]: unknown
+}
+
+/**
+ * Signs a payload as an HS256 JWT using the provided secret.
+ */
+export function signJwt(payload: Omit<JwtPayload, 'iat'>, secret: string): string {
+  const header = { alg: 'HS256', typ: 'JWT' }
+  const iat = Math.floor(Date.now() / 1000)
+  const fullPayload = { ...payload, iat }
+
+  const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url')
+  const encodedPayload = Buffer.from(JSON.stringify(fullPayload)).toString('base64url')
+  
+  const signature = createHmac('sha256', secret)
+    .update(`${encodedHeader}.${encodedPayload}`)
+    .digest('base64url')
+
+  return `${encodedHeader}.${encodedPayload}.${signature}`
 }
 
 /**
@@ -26,7 +44,9 @@ export function verifyJwt(token: string, secret: string): JwtPayload | null {
     .digest('base64url')
 
   try {
-    if (!timingSafeEqual(Buffer.from(sig, 'base64url'), Buffer.from(expectedSig, 'base64url'))) {
+    const bSig = Buffer.from(sig, 'base64url')
+    const bExp = Buffer.from(expectedSig, 'base64url')
+    if (bSig.length !== bExp.length || !timingSafeEqual(bSig, bExp)) {
       return null
     }
   } catch {

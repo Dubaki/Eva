@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     .from('app_settings')
     .select('value')
     .eq('key', key)
-    .single()
+    .maybeSingle()
 
   if (error || !data) {
     return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 })

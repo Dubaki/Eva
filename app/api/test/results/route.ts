@@ -67,22 +67,21 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // 4. Загружаем результаты (safely with limit)
-    const { data: results, error } = await supabaseAdmin
+    // 4. Загружаем результаты (safely with maybeSingle)
+    const { data: result, error } = await supabaseAdmin
       .from('test_results')
       .select('primary_support, secondary_support, score_s, score_u, score_p, score_r, score_k')
       .eq('tg_id', tgIdToUse)
-      .order('created_at', { ascending: false })
-      .limit(1)
+      .maybeSingle()
 
-    if (error || !results || results.length === 0) {
+    if (error || !result) {
       return NextResponse.json(
         { success: false, error: 'Результаты не найдены' },
         { status: 404 }
       )
     }
 
-    const data = results[0]
+    const data = result
 
     return NextResponse.json({
       success: true,

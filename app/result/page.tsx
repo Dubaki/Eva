@@ -1,12 +1,19 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import Image from 'next/image'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Copy, Check } from 'lucide-react'
+import dynamic from 'next/dynamic'
 import { getTraitInfo } from '@/lib/scoring'
-import ConfirmModal from '@/components/ConfirmModal'
+
+// Standard imports for initial bundle
+import ResultScreen from '@/components/results/ResultScreen'
+
+// Dynamic imports for deferred steps
+const SurpriseResponseScreen = dynamic(() => import('@/components/results/SurpriseResponseScreen'), { ssr: false })
+const CooldownScreen = dynamic(() => import('@/components/results/CooldownScreen'), { ssr: false })
+const ReferralGateScreen = dynamic(() => import('@/components/results/ReferralGateScreen'), { ssr: false })
+const ReferralLinkScreen = dynamic(() => import('@/components/results/ReferralLinkScreen'), { ssr: false })
+const ConfirmModal = dynamic(() => import('@/components/ConfirmModal'), { ssr: false })
 
 const THINKING_DELAY = 1000 // ms
 
@@ -35,10 +42,19 @@ type FunnelStep =
   | 'referral-gate'
   | 'referral-link'
 
-export default function ResultPage() {
+function ResultLoading() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-bg-primary">
+      <div className="w-10 h-10 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+    </main>
+  )
+}
+
+function ResultContent() {
   const searchParams = useSearchParams()
   const [result, setResult] = useState<ResultData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [authError, setAuthError] = useState(false)
   const [isThinking, setIsThinking] = useState(false)
   const responseRef = useRef<HTMLDivElement>(null)
 
@@ -51,29 +67,83 @@ export default function ResultPage() {
   const [refLink, setRefLink] = useState('')
   const [copied, setCopied] = useState(false)
   const [userTgId, setUserTgId] = useState<number | null>(null)
+  const [shareUsed, setShareUsed] = useState(false)
+  const [isSharing, setIsSharing] = useState(false)
+
+  const fetchWithRetry = useCallback(async (retry = true) => {
+    let token = localStorage.getItem('eva_token')
+    
+    if (!token) {
+      if (retry) {
+        console.log('[result] No token found, retrying in 500ms...')
+        setTimeout(() => fetchWithRetry(false), 500)
+      } else {
+        setLoading(false)
+        setAuthError(true)
+      }
+      return
+    }
+
+    try {
+      const r = await fetch('/api/test/results', { 
+        headers: { Authorization: 'Bearer ' + token },
+        cache: 'no-store'
+      })
+      const json = await r.json()
+
+      // Silent Re-auth logic
+      if (r.status === 401 || json.error === 'Missing or invalid authorization') {
+        if (retry) {
+          console.warn('[result] Token expired, attempting silent re-auth...')
+          const initData = (window as any).Telegram?.WebApp?.initData
+          if (initData) {
+            const authRes = await fetch('/api/auth', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ initData })
+            })
+            const authJson = await authRes.json()
+            if (authJson.success && authJson.token) {
+              localStorage.setItem('eva_token', authJson.token)
+              // Retry the fetch one last time with new token
+              return fetchWithRetry(false)
+            }
+          }
+        }
+        
+        // If re-auth failed or already retried
+        console.error('[result] Auth completely failed')
+        localStorage.removeItem('eva_token')
+        setAuthError(true)
+        setLoading(false)
+        return
+      }
+
+      if (json.success && json.data) {
+        setResult(json.data)
+        // sessionStorage — только для мгновенной отрисовки сразу после прохождения теста. Источник истины — API.
+        sessionStorage.setItem('eva_result', JSON.stringify(json.data))
+      }
+    } catch (err) {
+      console.error('[result] fetch error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
+    // We use sessionStorage for results to provide instant flicker-free rendering 
+    // after test submission, while still allowing a fresh fetch on new app sessions
+    // to ensure data consistency. Long-term tokens are kept in localStorage.
     const stored = sessionStorage.getItem('eva_result')
     if (stored) {
-      try { setResult(JSON.parse(stored)) } catch { /* ignore */ }
+      try { 
+        setResult(JSON.parse(stored)) 
+        setLoading(false) // Show stored immediately to prevent flicker
+      } catch { /* ignore */ }
     }
 
-    const fetchResult = () => {
-      const token = localStorage.getItem('eva_token')
-      if (!token) return
-      fetch('/api/test/results', { headers: { Authorization: 'Bearer ' + token } })
-        .then((r) => r.json())
-        .then((json: { success: boolean; data?: ResultData }) => {
-          if (json.success && json.data) {
-            setResult(json.data)
-            sessionStorage.setItem('eva_result', JSON.stringify(json.data))
-          }
-        })
-        .catch(() => { /* stays null */ })
-    }
-
-    if (!stored) fetchResult()
-    setLoading(false)
+    fetchWithRetry()
 
     // Get user tg_id for referral link
     const profileRaw = localStorage.getItem('eva_profile')
@@ -82,19 +152,38 @@ export default function ResultPage() {
         const p = JSON.parse(profileRaw) as StoredProfile
         setUserTgId(p.tg_id ?? null)
       } catch { /* ignore */ }
+    } else {
+      // Try to get from Telegram WebApp directly if profile not in storage yet
+      const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user
+      if (tgUser?.id) {
+        setUserTgId(tgUser.id)
+      }
+    }
+
+    // Check for prior share action
+    if (localStorage.getItem('eva_shared_at')) {
+      setShareUsed(true)
     }
 
     // Auto-navigate to referral screen if coming from "Забрать приз" button
     if (searchParams.get('referral') === '1') {
       setFunnelStep('referral-gate')
     }
-  }, [searchParams])
+  }, [searchParams, fetchWithRetry])
+
+  useEffect(() => {
+    // If we're in referral mode but have no result data, ensure we don't try to show 'result' step
+    if (searchParams.get('referral') === '1' && !result && funnelStep === 'result') {
+      setFunnelStep('referral-gate')
+    }
+  }, [searchParams, result, funnelStep])
 
   useEffect(() => {
     if ((funnelStep === 'surprise-response-yes' || funnelStep === 'surprise-response-no') && responseRef.current) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         responseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }, 100)
+      return () => clearTimeout(timer)
     }
   }, [funnelStep])
 
@@ -124,50 +213,74 @@ export default function ResultPage() {
   }, [])
 
   // ── Cooldown screen buttons ──────────────────────────────────────────
-  const handleCooldownButton = useCallback((goFast: boolean) => {
-    if (goFast) {
-      setFunnelStep('referral-gate')
-    } else {
-      setFunnelStep('referral-gate')
-    }
+  const handleCooldownButton = useCallback(() => {
+    setFunnelStep('referral-gate')
   }, [])
 
   // ── Referral gate: "Открыть за рекомендацию" ─────────────────────────
   const handleReferralGate = useCallback(() => {
-    const link = userTgId
-      ? `https://t.me/sprosievubot?start=ref_${userTgId}`
-      : 'https://t.me/sprosievubot'
+    // Last ditch effort to get TG ID
+    let finalTgId = userTgId
+    if (!finalTgId) {
+      const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user
+      if (tgUser?.id) {
+        finalTgId = tgUser.id
+        setUserTgId(tgUser.id)
+      }
+    }
+
+    if (!finalTgId) {
+      alert('Ошибка: Не удалось определить ваш Telegram ID. Пожалуйста, перезапустите приложение.')
+      return
+    }
+
+    const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || 'sprosievubot'
+    const link = `https://t.me/${botUsername}?start=ref_${finalTgId}`
     setRefLink(link)
     setFunnelStep('referral-link')
   }, [userTgId])
 
   // ── Share via Telegram: call API to trigger bot messages, then close ──
-  const [shareUsed, setShareUsed] = useState(false)
-
   const handleShare = useCallback(async () => {
     if (typeof window === 'undefined') return
-    if (shareUsed) return
-    setShareUsed(true)
+    if (shareUsed || isSharing) return
 
     const WebApp = (window as any).Telegram?.WebApp
-    const currentTgId = WebApp?.initDataUnsafe?.user?.id ?? null
+    const currentTgId = WebApp?.initDataUnsafe?.user?.id ?? userTgId
 
-    if (currentTgId) {
-      try {
-        await fetch('/api/share', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tgId: currentTgId, trait: result?.dominantTrait }),
-        })
-      } catch (err) {
-        console.error('[share] API call failed:', err)
+    if (!currentTgId) {
+      alert('Ошибка: Не удалось определить ID пользователя.')
+      return
+    }
+
+    setIsSharing(true)
+    try {
+      const res = await fetch('/api/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          tgId: currentTgId, 
+          trait: result?.dominantTrait,
+          link: refLink // Sending the exact link shown to user
+        }),
+      })
+      
+      if (!res.ok) throw new Error('API failed')
+
+      // Success
+      setShareUsed(true)
+      localStorage.setItem('eva_shared_at', new Date().toISOString())
+      
+      if (WebApp?.close) {
+        WebApp.close()
       }
+    } catch (err) {
+      console.error('[share] API call failed:', err)
+      alert('Не удалось отправить рекомендацию. Пожалуйста, попробуйте еще раз или просто скопируйте ссылку.')
+    } finally {
+      setIsSharing(false)
     }
-
-    if (WebApp?.close) {
-      WebApp.close()
-    }
-  }, [result, shareUsed])
+  }, [result, shareUsed, isSharing, userTgId, refLink])
 
 
   // ── Copy link ────────────────────────────────────────────────────────
@@ -188,18 +301,16 @@ export default function ResultPage() {
     }
   }, [])
 
+  const reauthAndRetry = useCallback(() => {
+    setLoading(true)
+    setAuthError(false)
+    fetchWithRetry()
+  }, [fetchWithRetry])
+
 
   // ── Loading / No result ──────────────────────────────────────────────
   if (loading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-bg-primary">
-        <motion.div
-          className="w-10 h-10 border-2 border-accent border-t-transparent rounded-full"
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-        />
-      </main>
-    )
+    return <ResultLoading />
   }
 
   // ── Referral-only mode (from "Забрать приз" button) ──
@@ -210,10 +321,22 @@ export default function ResultPage() {
       <main className="flex min-h-screen items-center justify-center bg-bg-primary px-6">
         <div className="text-center">
           <p className="text-text-primary text-lg font-medium">Результат не найден</p>
-          <p className="text-text-secondary text-sm mt-2 mb-4">Пройдите тест, чтобы увидеть свою доминирующую опору.</p>
-          <a href="/test" className="inline-block py-3 px-6 bg-accent text-white rounded-xl font-semibold text-sm active:scale-[0.97] transition-transform">
-            Пройти тест
-          </a>
+          <p className="text-text-secondary text-sm mt-2 mb-6">
+            {authError 
+              ? 'Сессия истекла. Пожалуйста, авторизуйтесь заново.' 
+              : 'Пройдите тест, чтобы увидеть свою доминирующую опору.'}
+          </p>
+          {authError ? (
+            <button 
+              onClick={reauthAndRetry}
+              className="inline-block py-3 px-6 bg-accent text-white rounded-xl font-semibold text-sm active:scale-[0.97] transition-transform">
+              Войти заново
+            </button>
+          ) : (
+            <a href="/test" className="inline-block py-3 px-6 bg-accent text-white rounded-xl font-semibold text-sm active:scale-[0.97] transition-transform">
+              Пройти тест
+            </a>
+          )}
         </div>
       </main>
     )
@@ -225,352 +348,84 @@ export default function ResultPage() {
   // Safe accessors — only non-null when result exists
   const tTitle = traitInfo?.title ?? ''
   const tDescription = traitInfo?.description ?? ''
+  const tTrait = result?.dominantTrait ?? '?'
 
   return (
     <main className="flex flex-col min-h-screen bg-bg-primary">
       <div className="flex flex-col flex-1 px-5 pt-10 pb-8 max-w-sm mx-auto w-full gap-6">
 
-        {/* ════════════ RESULT (dominant trait) ════════════ */}
+        {/* ════════════ MAIN FUNNEL SWITCH ════════════ */}
+        
         {funnelStep === 'result' && (
-          <>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
-              className="relative w-full max-h-[40vh] rounded-2xl overflow-hidden"
-              style={{ minHeight: '200px' }}
-            >
-              <Image
-                src={resultImgSrc}
-                alt={`Результат: ${tTitle}`}
-                fill
-                priority
-                className="object-contain"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-              />
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, ease: 'easeOut', delay: 0.2 }}
-              className="text-center"
-            >
-              <p className="text-text-muted text-xs uppercase tracking-widest mb-3">
-                Ваша доминирующая опора
-              </p>
-              <h1 className="text-[28px] font-bold tracking-[-0.02em] leading-tight" style={{ color: 'var(--accent)' }}>
-                {tTitle}
-              </h1>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.3 }}
-              className="bg-bg-secondary rounded-xl p-5 border border-border"
-            >
-              <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap">{tDescription}</p>
-            </motion.div>
-
-            {/* Surprise question */}
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.4 }}
-              className="text-center"
-            >
-              <AnimatePresence mode="wait">
-                {isThinking ? (
-                  <motion.div
-                    key="thinking"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex flex-col items-center py-4"
-                  >
-                    <div className="flex gap-1">
-                      {[0, 1, 2].map((i) => (
-                        <motion.div
-                          key={i}
-                          className="w-2 h-2 rounded-full bg-accent"
-                          animate={{ opacity: [0.3, 1, 0.3] }}
-                          transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
-                        />
-                      ))}
-                    </div>
-                    <p className="text-text-muted text-xs mt-2">Осмысляю...</p>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="question"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    <p className="text-text-primary text-[16px] font-medium mb-3">
-                      Удивил ли тебя результат?
-                    </p>
-                    <div className="flex gap-3">
-                      <motion.button
-                        type="button"
-                        whileTap={{ scale: 0.95 }}
-                        className="flex-1 py-3 rounded-xl font-semibold text-[15px] text-white"
-                        style={{ background: '#2563eb' }}
-                        onClick={() => handleSurpriseAnswer('yes')}
-                      >
-                        Да
-                      </motion.button>
-                      <motion.button
-                        type="button"
-                        whileTap={{ scale: 0.95 }}
-                        className="flex-1 py-3 rounded-xl font-semibold text-[15px] border"
-                        style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                        onClick={() => handleSurpriseAnswer('no')}
-                      >
-                        Нет
-                      </motion.button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          </>
+          <ResultScreen 
+            imgSrc={resultImgSrc} 
+            title={tTitle} 
+            description={tDescription} 
+            trait={tTrait}
+            isThinking={isThinking}
+            onAnswer={handleSurpriseAnswer}
+          />
         )}
 
-        {/* ════════════ SURPRISE RESPONSE — YES ════════════ */}
-        {funnelStep === 'surprise-response-yes' && (
-          <>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="text-center"
-            >
-              <div className="relative w-full max-h-[30vh] mb-4 rounded-2xl overflow-hidden" style={{ minHeight: '160px' }}>
-                <Image src={resultImgSrc} alt={tTitle} fill className="object-contain"
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
-              </div>
-              <h1 className="text-[24px] font-bold" style={{ color: 'var(--accent)' }}>{tTitle}</h1>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.2 }}
-              className="bg-bg-secondary rounded-xl p-5 border border-border"
-            >
-              <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap">{tDescription}</p>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.3 }}
-              className="text-center"
-              ref={responseRef}
-            >
-              <div className="bg-blue-50/50 dark:bg-blue-900/10 border-l-4 border-blue-600 rounded-r-xl p-4 mb-5 text-left">
-                <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap">
-                  Это нормально. Более того — это и есть часть механизма. Искажённая опора устроена так, что ты не видишь её напрямую. И именно поэтому снова и снова оказываешься в одних и тех же ситуациях.
-                </p>
-              </div>
-              <p className="text-text-secondary text-[14px] leading-relaxed mb-5 whitespace-pre-wrap">
-                Базовая опора — это только часть картины. Есть ещё смешанные конфигурации, которые активируются в стрессе.{' '}
-                <b>Хочешь увидеть свою вторую искаженную опору?</b>
-              </p>
-              <div className="flex gap-3">
-                <motion.button type="button" whileTap={{ scale: 0.95 }}
-                  className="flex-1 py-3 rounded-xl font-semibold text-[15px] text-white"
-                  style={{ background: '#2563eb' }}
-                  onClick={() => setFunnelStep('referral-gate')}>
-                  Узнать вторую опору
-                </motion.button>
-                <motion.button type="button" whileTap={{ scale: 0.95 }}
-                  className="flex-1 py-3 rounded-xl font-semibold text-[15px] border"
-                  style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                  onClick={() => setFunnelStep('cooldown-message')}>
-                  Пока не буду
-                </motion.button>
-              </div>
-            </motion.div>
-          </>
+        {(funnelStep === 'surprise-response-yes' || funnelStep === 'surprise-response-no') && (
+          <SurpriseResponseScreen
+            imgSrc={resultImgSrc}
+            title={tTitle}
+            description={tDescription}
+            trait={tTrait}
+            type={funnelStep === 'surprise-response-yes' ? 'yes' : 'no'}
+            responseRef={responseRef}
+            onNext={() => setFunnelStep('referral-gate')}
+            onCancel={() => setFunnelStep('cooldown-message')}
+          />
         )}
 
-        {/* ════════════ SURPRISE RESPONSE — NO ════════════ */}
-        {funnelStep === 'surprise-response-no' && (
-          <>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="text-center"
-            >
-              <div className="relative w-full max-h-[30vh] mb-4 rounded-2xl overflow-hidden" style={{ minHeight: '160px' }}>
-                <Image src={resultImgSrc} alt={tTitle} fill className="object-contain"
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
-              </div>
-              <h1 className="text-[24px] font-bold" style={{ color: 'var(--accent)' }}>{tTitle}</h1>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.2 }}
-              className="bg-bg-secondary rounded-xl p-5 border border-border"
-            >
-              <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap">{tDescription}</p>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.3 }}
-              className="text-center"
-              ref={responseRef}
-            >
-              <div className="bg-blue-50/50 dark:bg-blue-900/10 border-l-4 border-blue-600 rounded-r-xl p-4 mb-5 text-left">
-                <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap">
-                  Это говорит о том, что ты уже явно не новичок в самопознании. Ты видишь этот паттерн, но это еще не меняет ситуацию.
-                </p>
-              </div>
-              <p className="text-text-secondary text-[14px] leading-relaxed mb-5 whitespace-pre-wrap">
-                Базовая опора — это только часть картины. Есть ещё смешанные конфигурации, которые активируются в стрессе.{' '}
-                <b>Хочешь увидеть свою вторую искаженную опору?</b>
-              </p>
-              <div className="flex gap-3">
-                <motion.button type="button" whileTap={{ scale: 0.95 }}
-                  className="flex-1 py-3 rounded-xl font-semibold text-[15px] text-white"
-                  style={{ background: '#2563eb' }}
-                  onClick={() => setFunnelStep('referral-gate')}>
-                  Узнать вторую опору
-                </motion.button>
-                <motion.button type="button" whileTap={{ scale: 0.95 }}
-                  className="flex-1 py-3 rounded-xl font-semibold text-[15px] border"
-                  style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                  onClick={() => setFunnelStep('cooldown-message')}>
-                  Пока не буду
-                </motion.button>
-              </div>
-            </motion.div>
-          </>
-        )}
-
-        {/* ════════════ COOLDOWN MESSAGE ════════════ */}
         {funnelStep === 'cooldown-message' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="text-center"
-          >
-            <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap mb-6">
-              Сейчас нет смысла проходить тест повторно. У тебя есть 2 месяца, чтобы демонтировать текущую опору. Через 2 месяца ты сможешь увидеть изменения.
-            </p>
-            <div className="flex flex-col gap-3">
-              <motion.button type="button" whileTap={{ scale: 0.97 }}
-                className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
-                style={{ background: '#2563eb' }}
-                onClick={() => handleCooldownButton(true)}>
-                Узнать вторую опору
-              </motion.button>
-              <motion.button type="button" whileTap={{ scale: 0.97 }}
-                className="w-full py-3 rounded-xl font-semibold text-[15px] border"
-                style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                onClick={closeApp}>
-                Узнаю через 2 месяца
-              </motion.button>
-            </div>
-          </motion.div>
+          <CooldownScreen 
+            onConfirm={handleCooldownButton} 
+            onClose={closeApp} 
+          />
         )}
 
-        {/* ════════════ REFERRAL GATE ════════════ */}
         {funnelStep === 'referral-gate' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="text-center"
-          >
-            <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap mb-5">
-              <b>Я обычно открываю этот слой только тем, кто идёт в работу.</b>{'\n'}
-              Потому что важно не просто увидеть, а понять, как это устроено и что с этим делать.
-              {'\n\n'}
-              Сейчас у тебя есть возможность открыть свою вторую опору через участие
-            </p>
-            <div className="flex flex-col gap-3">
-              <motion.button type="button" whileTap={{ scale: 0.97 }}
-                className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
-                style={{ background: '#2563eb' }}
-                onClick={handleReferralGate}>
-                Открыть за рекомендацию
-              </motion.button>
-              <motion.button type="button" whileTap={{ scale: 0.97 }}
-                className="w-full py-3 rounded-xl font-semibold text-[15px] border"
-                style={{ background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                onClick={closeApp}>
-                Пока не буду узнавать вторую опору
-              </motion.button>
-            </div>
-          </motion.div>
+          <ReferralGateScreen 
+            onConfirm={handleReferralGate} 
+            onClose={closeApp} 
+          />
         )}
 
-        {/* ════════════ REFERRAL LINK ════════════ */}
         {funnelStep === 'referral-link' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="text-center"
-          >
-            <p className="text-text-primary text-[15px] leading-relaxed whitespace-pre-wrap mb-4">
-              Ты можешь получить разбор своей второй опоры, если поделишься тестом с 2 подругами. Для этого тебе нужно скопировать ссылку и отправить подругам. Когда они пройдут тест, тебе придёт ответ.
-              {'\n\n'}
-              <i>Я даю этот доступ в обмен на расширение проекта</i>
-            </p>
-
-            {/* Referral link box with copy button */}
-            <div className="bg-bg-secondary rounded-xl p-4 border border-border mb-4">
-              <div className="flex items-center gap-2">
-                <p className="text-accent text-[13px] break-all select-all flex-1">{refLink}</p>
-                <motion.button
-                  type="button"
-                  whileTap={{ scale: 0.9 }}
-                  className="flex-shrink-0 p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-                  onClick={handleCopyLink}
-                >
-                  {copied ? <Check size={18} /> : <Copy size={18} />}
-                </motion.button>
-              </div>
-            </div>
-
-            <p className="text-text-secondary text-[14px] leading-relaxed mb-5">
-              Когда 2 человека перейдут по ней и пройдут тест, я открою тебе второй слой — твою вторую опору.
-            </p>
-            <div className="flex flex-col gap-3">
-              <motion.button type="button" whileTap={{ scale: 0.97 }}
-                className="w-full py-3 rounded-xl font-semibold text-[15px] text-white"
-                style={{ background: '#2563eb' }}
-                onClick={handleShare}>
-                Поделиться
-              </motion.button>
-            </div>
-          </motion.div>
+          <ReferralLinkScreen
+            refLink={refLink}
+            copied={copied}
+            onCopy={handleCopyLink}
+            onShare={handleShare}
+          />
         )}
 
-        {/* Confirm Modal */}
-        <ConfirmModal
-          open={showConfirm}
-          title="Уверена?"
-          message="Ты не сможешь изменить свой ответ."
-          confirmText="Подтвердить"
-          cancelText="Отмена"
-          onConfirm={handleConfirmProceed}
-          onCancel={handleConfirmCancel}
-        />
+        {/* Confirm Modal (Loaded dynamically when needed) */}
+        {showConfirm && (
+          <ConfirmModal
+            open={showConfirm}
+            title="Уверена?"
+            message="Ты не сможешь изменить свой ответ."
+            confirmText="Подтвердить"
+            cancelText="Отмена"
+            onConfirm={handleConfirmProceed}
+            onCancel={handleConfirmCancel}
+          />
+        )}
 
         <div className="flex-1" />
       </div>
     </main>
+  )
+}
+
+export default function ResultPage() {
+  return (
+    <Suspense fallback={<ResultLoading />}>
+      <ResultContent />
+    </Suspense>
   )
 }

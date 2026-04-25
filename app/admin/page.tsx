@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation'
 import NextImage from 'next/image'
 import { motion } from 'framer-motion'
 
-const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
-
 type AdminStats = {
   totalUsers: number
   completedTests: number
@@ -104,10 +102,9 @@ const [sortField, setSortField] = useState<SortField>('created_at')
   const router = useRouter()
 
   const adminHeaders = (): Record<string, string> => {
-    const token = localStorage.getItem('eva_token')
+    const token = localStorage.getItem('admin_token')
     const headers: Record<string, string> = {}
     if (token) headers['Authorization'] = `Bearer ${token}`
-    if (localStorage.getItem('isAdmin') === 'true') headers['X-Admin-Pin'] = '2026'
     return headers
   }
 
@@ -117,9 +114,9 @@ const [sortField, setSortField] = useState<SortField>('created_at')
     return fetch(`/api/admin/stats${bustCache}`, { headers, cache: 'no-store' })
       .then((r) => {
         if (!r.ok) {
+          if (r.status === 401) setUnauthorized(true)
           return r.json().then((json) => {
             console.error('[admin] Refresh error:', json.error)
-            if (json.error === 'Unauthorized') setUnauthorized(true)
             return null
           })
         }
@@ -132,33 +129,19 @@ const [sortField, setSortField] = useState<SortField>('created_at')
   }, [])
 
   useEffect(() => {
-    // Check authorization: either TESTER_IDS or isAdmin from PIN
-    const profileRaw = localStorage.getItem('eva_profile')
-    const isAdminViaPin = localStorage.getItem('isAdmin') === 'true'
-    let authorized = isAdminViaPin
-    if (!authorized && profileRaw) {
-      try {
-        const p = JSON.parse(profileRaw) as { tg_id?: number }
-        authorized = TESTER_IDS.includes(String(p.tg_id))
-      } catch { /* ignore */ }
-    }
-
-    if (!authorized) {
+    const token = localStorage.getItem('admin_token')
+    if (!token) {
       setUnauthorized(true)
       setLoading(false)
       return
     }
 
-    // If authorized via PIN but no token, still proceed — PIN is sufficient
-    const token = localStorage.getItem('eva_token')
-    const headers = adminHeaders()
-
-    // Fetch stats (PIN alone is sufficient for access)
+    // Fetch stats
     refreshStats().finally(() => setLoading(false))
 
   }, [refreshStats])
 
-const handleBroadcast = async () => {
+  const handleBroadcast = async () => {
     if (!broadcastMsg.trim() && !broadcastPhoto) return
 
     setBroadcasting(true)
@@ -175,10 +158,7 @@ const handleBroadcast = async () => {
 
       const res = await fetch('/api/admin/broadcast', {
         method: 'POST',
-        headers: {
-          ...adminHeaders(),
-          'X-Admin-Pin': '2026',
-        },
+        headers: adminHeaders(),
         body: formData,
       })
       const json = await res.json()
@@ -248,7 +228,6 @@ const handleBroadcast = async () => {
         headers: {
           ...adminHeaders(),
           'Content-Type': 'application/json',
-          'X-Admin-Pin': '2026',
         },
         body: JSON.stringify({ target_tg_id: msgTargetTgId, text: msgText }),
       })

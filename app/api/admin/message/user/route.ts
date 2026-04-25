@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSupabaseServer } from '@/lib/supabase/server'
+import { isAdminAuthenticated } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,17 +9,10 @@ const BASE = 'https://api.telegram.org'
 /**
  * POST /api/admin/message/user — send direct message to a specific user
  * Body: { target_tg_id: number, text: string }
- * Protected by X-Admin-Pin header
+ * Protected by Admin JWT
  */
-async function checkAdmin(req: NextRequest): Promise<boolean> {
-  const adminPin = req.headers.get('x-admin-pin')
-  if (adminPin !== '2026') return false
-  return true
-}
-
 export async function POST(req: NextRequest) {
-  const isAdmin = await checkAdmin(req)
-  if (!isAdmin) {
+  if (!isAdminAuthenticated(req)) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 

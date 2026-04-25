@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServer } from '@/lib/supabase/server'
+import { isAdminAuthenticated } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
 
-const TESTER_IDS = ['1149371967', '5930269100', '1419397753']
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
 const BASE = 'https://api.telegram.org'
-
-async function checkAdmin(req: NextRequest): Promise<boolean> {
-  const adminPin = req.headers.get('x-admin-pin')
-  if (adminPin !== '2026') return false
-  return true
-}
 
 /**
  * Send text message to a Telegram user
@@ -77,9 +71,8 @@ async function sendPhotoMessage(chatId: number, photoBuffer: Buffer, caption: st
  * Accepts FormData: message (text), photo (optional file), target_tg_ids (optional JSON array)
  */
 export async function POST(req: NextRequest) {
-  const isAdmin = await checkAdmin(req)
-  if (!isAdmin) {
-    return NextResponse.json({ success: false, error: 'Unauthorized. PIN required.' }, { status: 401 })
+  if (!isAdminAuthenticated(req)) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 
   // Parse FormData

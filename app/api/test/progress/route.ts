@@ -145,12 +145,17 @@ export async function PATCH(request: NextRequest) {
     
     const profile = profiles?.[0]
 
-    const updateData: any = { current_step: step }
-    
+    // БРОНЯ: Если в базе нет порядка вопросов, мы не имеем права сохранять шаг,
+    // так как это может привести к рассинхрону. Клиент должен сходить в GET.
     if (!profile?.question_order) {
-      console.log(`[test/progress] PATCH: Generating missing question_order for tgId=${tgId}`)
-      updateData.question_order = generateRandomOrder(25)
+      console.warn(`[test/progress] PATCH: Missing question_order for tgId=${tgId}. Returning 409.`)
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Order not initialized. Please refresh progress via GET.' 
+      }, { status: 409 })
     }
+
+    const updateData: any = { current_step: step }
 
     // Обновляем прогресс (безопасно обновит все дубликаты разом, если они есть)
     const { error } = await supabaseAdmin

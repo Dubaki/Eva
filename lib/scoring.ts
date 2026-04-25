@@ -25,8 +25,8 @@ const SCALE_PRIORITY: Scale[] = [
 /** Маппинг Scale → буква шкалы (как в БД) */
 const SCALE_LETTER: Record<Scale, string> = {
   performance: 'S',
-  perfection: 'U',
-  pleasing: 'P',
+  perfection: 'P',
+  pleasing: 'U',
   control: 'R',
   'hyper-vigilance': 'K',
 }
@@ -79,8 +79,8 @@ export function calculateScores(answers: Answer[]): ScoreResult {
 
   return {
     scoreS: totals['performance'],
-    scoreU: totals['perfection'],
-    scoreP: totals['pleasing'],
+    scoreP: totals['perfection'],
+    scoreU: totals['pleasing'],
     scoreR: totals['control'],
     scoreK: totals['hyper-vigilance'],
     dominantTrait: SCALE_LETTER[dominant],

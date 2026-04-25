@@ -10,18 +10,20 @@ export async function POST(request: NextRequest) {
   const supabaseAdmin = createClient(supabaseAdminUrl, supabaseAdminKey)
 
   try {
-    const { tgId, trait } = await request.json()
+    const { tgId, trait, link: providedLink } = await request.json()
 
     if (!tgId) {
       return NextResponse.json({ success: false, error: 'Missing tgId' }, { status: 400 })
     }
 
-    // 1. Get profile
-    const { data: profile, error: profileError } = await supabaseAdmin
+    // 1. Get profile (Armor: limit(1) prevents 500 error on duplicates)
+    const { data: profiles, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('id, tg_id, shared_at')
       .eq('tg_id', tgId)
-      .single()
+      .limit(1)
+
+    const profile = profiles?.[0]
 
     if (profileError || !profile) {
       console.error('[api/share] Profile not found:', tgId)
@@ -32,8 +34,12 @@ export async function POST(request: NextRequest) {
     if (!profile.shared_at) {
       console.log(`[api/share] First share for tgId ${tgId}. Sending instructions.`)
       
-      const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || 'eva_test_bot'
-      const referralLink = `https://t.me/${botUsername}?start=ref_${tgId}`
+      // Validate provided link or fallback to generating it
+      let referralLink = providedLink
+      if (!referralLink || !referralLink.startsWith('https://t.me/') || !referralLink.includes(`ref_${tgId}`)) {
+        const botUsername = process.env.NEXT_PUBLIC_BOT_USERNAME || 'sprosievubot'
+        referralLink = `https://t.me/${botUsername}?start=ref_${tgId}`
+      }
 
       // Message 1: Instruction
       await sendMessage({

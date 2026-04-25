@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServer } from '@/lib/supabase/server'
+import { isAdminAuthenticated } from '@/lib/admin-auth'
 
 /**
  * Тестовый эндпоинт для прямой проверки RPC save_test_result.
  * Вызов: POST /api/admin/test-rpc
  * Body: { tg_id: number, primary: string, secondary: string }
- *
- * Пример:
- *   curl -X POST http://localhost:3000/api/admin/test-rpc \
- *     -H "Content-Type: application/json" \
- *     -d '{"tg_id": 99999999, "primary": "S", "secondary": "U"}'
+ * 
+ * Защищен Admin JWT.
  */
 export async function POST(request: NextRequest) {
+  if (!isAdminAuthenticated(request)) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const body = await request.json()
     const tgId = body?.tg_id
@@ -47,7 +49,7 @@ export async function POST(request: NextRequest) {
           username: 'test_user_rpc',
         })
         .select('id, tg_id')
-        .single()
+        .maybeSingle()
 
       if (createErr) {
         console.error('[test-rpc] Failed to create test profile:', createErr)

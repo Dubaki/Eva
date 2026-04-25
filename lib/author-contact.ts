@@ -1,7 +1,5 @@
 /**
- * Global helper: track author contact clicks.
- * Fires a fire-and-forget request to mark `contact_author_clicked = true`,
- * then immediately opens the Telegram link to the author.
+ * Global helper: track author contact clicks and open Telegram.
  */
 
 const AUTHOR_USERNAME = 'evapatrakhina'
@@ -16,45 +14,57 @@ export function openAuthorContact(prefill?: string): void {
   if (typeof window === 'undefined') return;
 
   const WebApp = (window as any).Telegram?.WebApp;
+  const tgId = WebApp?.initDataUnsafe?.user?.id;
 
-  // Fire-and-forget: mark contact in DB
-  try {
-    const profileRaw = typeof localStorage !== 'undefined'
-      ? localStorage.getItem('eva_profile')
-      : null
-    if (profileRaw) {
-      const p = JSON.parse(profileRaw) as { tg_id?: number }
-      if (p.tg_id) {
-        fetch('/api/user/contact-author', {
+  // Track the click in DB (fire-and-forget)
+  const trackContact = async () => {
+    let finalTgId = tgId;
+
+    // Fallback to localStorage if WebApp ID is missing
+    if (!finalTgId) {
+      try {
+        const profileRaw = localStorage.getItem('eva_profile');
+        if (profileRaw) {
+          const p = JSON.parse(profileRaw) as { tg_id?: number };
+          if (p.tg_id) finalTgId = p.tg_id;
+        }
+      } catch { /* ignore */ }
+    }
+
+    if (finalTgId) {
+      try {
+        await fetch('/api/user/contact-author', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tgId: p.tg_id }),
-        }).catch(() => { /* silent */ })
+          body: JSON.stringify({ tgId: finalTgId }),
+        });
+      } catch (err) {
+        console.error('[openAuthorContact] Tracking failed:', err);
       }
     }
-  } catch {
-    /* ignore */
-  }
+  };
 
-  // Always open the link
+  trackContact();
+
+  // Open the Telegram link
   const url = prefill
     ? `https://t.me/${AUTHOR_USERNAME}?text=${encodeURIComponent(prefill)}`
-    : `https://t.me/${AUTHOR_USERNAME}`
+    : `https://t.me/${AUTHOR_USERNAME}`;
 
   try {
     if (WebApp?.openTelegramLink) {
-      WebApp.openTelegramLink(url)
+      WebApp.openTelegramLink(url);
       // Auto-close Mini App after a short delay so the user lands in the chat
       setTimeout(() => {
-        WebApp.close()
-      }, 1000)
+        WebApp.close();
+      }, 1000);
     } else {
-      window.open(url, '_blank')
+      window.open(url, '_blank');
     }
   } catch (err) {
-    console.error('[openAuthorContact] WebApp navigation failed:', err)
-    window.open(url, '_blank')
+    console.error('[openAuthorContact] WebApp navigation failed:', err);
+    window.open(url, '_blank');
   }
 }
 
-export { AUTHOR_USERNAME }
+export { AUTHOR_USERNAME };

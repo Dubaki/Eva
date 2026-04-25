@@ -63,34 +63,23 @@ function ProgressBar({
 }
 
 /** Debounce helper: saves step to DB only after the user stops navigating for a short delay */
-function useDebouncedStepSave(tgId: number | null) {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
+function useStepSave(tgId: number | null) {
   const saveStep = useCallback(
-    (step: number) => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-      timerRef.current = setTimeout(async () => {
-        if (!tgId) return
-        try {
-          await fetch('/api/test/progress', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ step, tgId }),
-          })
-        } catch (e) {
-          console.error('[test] Failed to save progress:', e)
-        }
-      }, 500)
+    async (step: number) => {
+      if (!tgId) return
+      try {
+        await fetch('/api/test/progress', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ step, tgId }),
+          keepalive: true, // Гарантирует отправку даже при закрытии приложения
+        })
+      } catch (e) {
+        console.error('[test] Failed to save progress:', e)
+      }
     },
     [tgId],
   )
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-    }
-  }, [])
 
   return saveStep
 }
@@ -127,7 +116,7 @@ export default function TestPage() {
     }
   }, [])
 
-  const saveStep = useDebouncedStepSave(tgId)
+  const saveStep = useStepSave(tgId)
 
   // Restore saved progress on mount (or when tgId becomes available)
   useEffect(() => {
@@ -170,9 +159,9 @@ export default function TestPage() {
 
   // Save step when currentIndex changes (after loading is done)
   useEffect(() => {
-    if (loading) return
+    if (loading || submitting) return
     saveStep(currentIndex)
-  }, [currentIndex, loading, saveStep])
+  }, [currentIndex, loading, submitting, saveStep])
 
   const actualQuestionIndex = questionOrder?.[currentIndex] ?? currentIndex
   const question = QUESTIONS[actualQuestionIndex]
@@ -229,9 +218,9 @@ export default function TestPage() {
         return
       }
       console.log('Saving result to sessionStorage:', result.data)
+      // sessionStorage — только для мгновенной отрисовки сразу после прохождения теста. Источник истины — API.
       sessionStorage.setItem('eva_result', JSON.stringify(result.data))
-      router.push('/result')
-    } catch (err) {
+      router.push('/result')    } catch (err) {
       console.error('Submit error:', err)
       router.push('/result')
     }
@@ -239,25 +228,44 @@ export default function TestPage() {
 
   const handleAnswer = useCallback(
     (value: 'yes' | 'no') => {
-      if (selected !== null) return
+      if (selected !== null || submitting) return
       setSelected(value)
       const score = value === 'yes' ? 1 : 0
-      setAnswersMap((prev) => ({ ...prev, [question.id]: score }))
+      
+      // 1. Сначала считаем актуальный словарь
+      const newMap = { ...answersMap, [question.id]: score }
+      
+      // 2. Обновляем состояние
+      setAnswersMap(newMap)
+      
       setTimeout(() => {
-        setSelected(null)
         if (currentIndex >= QUESTIONS.length - 1) {
-          setSubmitting(true)
-          const answers: Answer[] = Object.entries(answersMap).map(
-            ([qId, s]) => ({ questionId: Number(qId), score: s })
+          // 3. Строим массив ответов из Object.entries(newMap) без .push
+          const answers: Answer[] = Object.entries(newMap).map(
+            ([qId, s]) => ({ questionId: Number(qId), score: s as number })
           )
-          answers.push({ questionId: question.id, score })
+
+          // 4. Валидация полноты ответов
+          if (answers.length !== QUESTIONS.length) {
+            console.error('[test] Incomplete answers detected:', answers.length)
+            // Ищем первый пропущенный вопрос
+            const firstMissingIndex = QUESTIONS.findIndex(q => newMap[q.id] === undefined)
+            if (firstMissingIndex !== -1) {
+              setCurrentIndex(firstMissingIndex)
+              setSelected(null)
+              return
+            }
+          }
+
+          setSubmitting(true)
           submitAnswers(answers)
         } else {
+          setSelected(null)
           setCurrentIndex((i) => i + 1)
         }
       }, 200)
     },
-    [selected, currentIndex, question.id, answersMap, submitAnswers],
+    [selected, submitting, currentIndex, question.id, answersMap, submitAnswers],
   )
 
   const handleBack = useCallback(() => {

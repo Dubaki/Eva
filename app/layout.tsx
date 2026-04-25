@@ -29,7 +29,7 @@ export const viewport: Viewport = {
   userScalable: false,
 }
 
-const TESTER_IDS = [1149371967, 5930269100, 1419397753]
+import AdminEntrance from '@/components/AdminEntrance'
 
 export default function RootLayout({
   children,
@@ -44,6 +44,7 @@ export default function RootLayout({
             src="https://telegram.org/js/telegram-web-app.js"
             strategy="beforeInteractive"
           />
+          <AdminEntrance />
           <Gatekeeper>
             {children}
           </Gatekeeper>

@@ -33,6 +33,7 @@ export interface Database {
           tg_id: number
           username: string | null
           avatar_url: string | null
+          referred_by: number | null
           referrer_id: string | null
           is_subscribed: boolean
           subscription_checked_at: string | null
@@ -41,6 +42,8 @@ export interface Database {
           selected_sphere: string | null
           reminded_at: string | null
           invites_count: number
+          referral_confirmed: boolean
+          referral_confirmed_at: string | null
           current_step: number | null
           shared_at: string | null
           contact_author_clicked: boolean
@@ -54,6 +57,7 @@ export interface Database {
           tg_id: number
           username?: string | null
           avatar_url?: string | null
+          referred_by?: number | null
           referrer_id?: string | null
           is_subscribed?: boolean
           subscription_checked_at?: string | null
@@ -62,6 +66,8 @@ export interface Database {
           selected_sphere?: string | null
           reminded_at?: string | null
           invites_count?: number
+          referral_confirmed?: boolean
+          referral_confirmed_at?: string | null
           current_step?: number | null
           shared_at?: string | null
           contact_author_clicked?: boolean
@@ -75,6 +81,7 @@ export interface Database {
           tg_id?: number
           username?: string | null
           avatar_url?: string | null
+          referred_by?: number | null
           referrer_id?: string | null
           is_subscribed?: boolean
           subscription_checked_at?: string | null
@@ -83,6 +90,8 @@ export interface Database {
           selected_sphere?: string | null
           reminded_at?: string | null
           invites_count?: number
+          referral_confirmed?: boolean
+          referral_confirmed_at?: string | null
           current_step?: number | null
           shared_at?: string | null
           contact_author_clicked?: boolean
@@ -127,6 +136,7 @@ export interface Database {
         Row: {
           id: string
           tg_id: number
+          profile_id: string
           score_s: number
           score_u: number
           score_p: number
@@ -141,6 +151,7 @@ export interface Database {
         Insert: {
           id?: string
           tg_id: number
+          profile_id: string
           score_s?: number
           score_u?: number
           score_p?: number
@@ -155,6 +166,7 @@ export interface Database {
         Update: {
           id?: string
           tg_id?: number
+          profile_id?: string
           score_s?: number
           score_u?: number
           score_p?: number

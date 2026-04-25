@@ -178,9 +178,7 @@ export default function Gatekeeper({ children, onStatus }: { children: React.Rea
       <main className="flex min-h-screen items-center justify-center bg-bg-primary px-6">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center max-w-sm">
           <p className="text-4xl mb-4">⚠️</p>
-          <a href="/admin" className="block cursor-default active:opacity-70">
-            <h1 className="text-[22px] font-bold text-text-primary mb-3">{msg.title}</h1>
-          </a>
+          <h1 className="text-[22px] font-bold text-text-primary mb-3">{msg.title}</h1>
           <p className="text-text-secondary text-[15px] leading-relaxed mb-6">{msg.message}</p>
           <p className="text-text-muted text-[13px]">{msg.hint}</p>
         </motion.div>

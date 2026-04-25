@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseServer } from '@/lib/supabase/server'
 import { triggerBotNotification } from '@/lib/bot-notification'
 import { MIXED_TRAIT_TEXTS } from '@/lib/telegram'
+import { signJwt } from '@/lib/jwt'
 
 
 // ── Response helpers ────────────────────────────────────────────────────────
@@ -77,21 +78,13 @@ function parseAndValidate(
     return null
   }
 
-  if (!user.id) return null
+  if (user.id) return { user, authDate }
 
   return { user, authDate }
-}
+  }
 
-// ── JWT (Supabase Custom Token) ─────────────────────────────────────────────
+  // ── Route handler ───────────────────────────────────────────────────────────
 
-function signJwt(payload: Record<string, unknown>, secret: string): string {
-  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url')
-  const body = Buffer.from(JSON.stringify(payload)).toString('base64url')
-  const sig = createHmac('sha256', secret).update(`${header}.${body}`).digest('base64url')
-  return `${header}.${body}.${sig}`
-}
-
-// ── Route handler ───────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   const botToken = process.env.TELEGRAM_BOT_TOKEN
@@ -116,6 +109,51 @@ export async function POST(req: NextRequest) {
   const initData = (body as any).initData
   const startParam = (body as any).startParam
 
+  // ── Debug bypass (development only) ──────────────────────────────────
+  if (process.env.NODE_ENV === 'development' && initData === 'debug') {
+    console.log('[auth] Debug bypass triggered')
+    const debugUser = {
+      id: 999999999,
+      username: 'debug_user',
+      first_name: 'Debug',
+      last_name: 'User',
+    }
+
+    const supabase = getSupabaseServer()
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('id, tg_id, username, avatar_url, is_subscribed, referrer_id, created_at')
+      .eq('tg_id', debugUser.id)
+      .single()
+
+    let activeProfile = profile
+    if (error || !profile) {
+      const { data: newProfile } = await supabase
+        .from('profiles')
+        .insert([{
+          tg_id: debugUser.id,
+          username: debugUser.username,
+          is_subscribed: true,
+        }])
+        .select()
+        .single()
+      activeProfile = newProfile
+    }
+
+    const now = Math.floor(Date.now() / 1000)
+    const token = signJwt(
+      {
+        sub: activeProfile.id,
+        role: 'authenticated',
+        aud: 'authenticated',
+        iss: 'supabase',
+        exp: now + 60 * 60 * 24 * 7,
+      },
+      jwtSecret,
+    )
+    return ok({ profile: activeProfile, token })
+  }
+
   // 1. Validate Telegram signature
   const parsed = parseAndValidate(initData, botToken)
   if (!parsed) {
@@ -126,27 +164,57 @@ export async function POST(req: NextRequest) {
   const { user } = parsed
   const supabase = getSupabaseServer()
 
-  // 2. Ищем или создаём профиль
-  let profile: any = null
+    // 2. Ищем или создаём профиль
+    let profile: any = null
 
-  const { data: existingProfiles } = await supabase
-    .from('profiles')
-    .select('id, tg_id, username, avatar_url, is_subscribed, referrer_id, created_at')
-    .eq('tg_id', user.id)
-    .limit(1)
+    // Парсим startParam (может быть "ref_123" или просто "123")
+    const parseRef = (param: string | null): number | null => {
+      if (!param) return null
+      const match = param.match(/^(?:ref[_-]?)?(\d+)$/i)
+      if (match) {
+        const num = parseInt(match[1], 10)
+        return isNaN(num) ? null : num
+      }
+      return null
+    }
 
-  if (existingProfiles && existingProfiles.length > 0) {
-    profile = existingProfiles[0]
-  } else {
-    const { data: newProfiles, error: insertErr } = await supabase
+    const numericStartParam = parseRef(startParam)
+
+    const { data: existingProfiles } = await supabase
       .from('profiles')
-      .insert([{
-        tg_id: user.id,
-        username: user.username ?? null,
-        avatar_url: user.photo_url ?? null,
-        is_subscribed: false,
-      }])
-      .select('id, tg_id, username, avatar_url, is_subscribed, referrer_id, created_at')
+      .select('id, tg_id, username, avatar_url, is_subscribed, referred_by, referrer_id, created_at')
+      .eq('tg_id', user.id)
+      .limit(1)
+
+    if (existingProfiles && existingProfiles.length > 0) {
+      profile = existingProfiles[0]
+      // If user already exists but has no referred_by, and we have a startParam, update it
+      if (!profile.referred_by && numericStartParam) {
+        if (numericStartParam !== user.id) {
+          const { data: updatedProfile } = await supabase
+            .from('profiles')
+            .update({ referred_by: numericStartParam })
+            .eq('id', profile.id)
+            .select()
+            .single()
+          if (updatedProfile) profile = updatedProfile
+        }
+      }
+    } else {
+      const finalReferredBy = (numericStartParam && numericStartParam !== user.id) 
+        ? numericStartParam 
+        : null
+
+      const { data: newProfiles, error: insertErr } = await supabase
+        .from('profiles')
+        .insert([{
+          tg_id: user.id,
+          username: user.username ?? null,
+          avatar_url: user.photo_url ?? null,
+          is_subscribed: false,
+          referred_by: finalReferredBy
+        }])
+        .select('id, tg_id, username, avatar_url, is_subscribed, referred_by, referrer_id, created_at')
 
     if (insertErr) {
       console.error('[auth] DB insert error:', insertErr)
@@ -167,7 +235,6 @@ export async function POST(req: NextRequest) {
       role: 'authenticated',
       aud: 'authenticated',
       iss: 'supabase',
-      iat: now,
       exp: now + 60 * 60 * 24 * 7,
     },
     jwtSecret,

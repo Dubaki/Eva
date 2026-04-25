@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       .from('profiles')
       .select('tg_id')
       .eq('tg_id', tgId)
-      .single()
+      .maybeSingle()
 
     const refLink = profile
       ? `https://t.me/sprosievubot?start=ref_${profile.tg_id}`

@@ -42,7 +42,8 @@
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY, DEFAULT gen_random_uuid() | ID результата |
-| `tg_id` | BIGINT | UNIQUE, NOT NULL | Telegram User ID (1:1) |
+| `profile_id` | UUID | UNIQUE, NOT NULL, REFERENCES profiles(id) | Связь с профилем (1:1) |
+| `tg_id` | BIGINT | UNIQUE, NOT NULL | Telegram User ID (для бота) |
 | `score_s` | SMALLINT | DEFAULT 0, CHECK (>=0) | Баллы: Самоценность |
 | `score_u` | SMALLINT | DEFAULT 0, CHECK (>=0) | Баллы: Угодничество |
 | `score_p` | SMALLINT | DEFAULT 0, CHECK (>=0) | Баллы: Перфекционизм |
@@ -78,8 +79,8 @@
 - `UPDATE`: `auth.uid() = id` (Пользователь меняет только себя)
 
 ### `test_results`
-- `SELECT`: `(SELECT tg_id FROM profiles WHERE id = auth.uid()) = tg_id`
-- `INSERT`: `(SELECT tg_id FROM profiles WHERE id = auth.uid()) = tg_id`
+- `SELECT`: `profile_id = auth.uid()`
+- `INSERT`: `profile_id = auth.uid()`
 
 ---
 

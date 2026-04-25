@@ -7,8 +7,6 @@ import { openAuthorContact } from '@/lib/author-contact'
 import { QUESTIONS } from '@/lib/questions'
 import { useGatekeeper } from '@/components/Gatekeeper'
 
-const ADMIN_PIN = '2026'
-
 const fadeUp = (delay: number) => ({
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
@@ -16,30 +14,27 @@ const fadeUp = (delay: number) => ({
 })
 
 export default function Home() {
-  const clickTimesRef = useRef<number[]>([])
-  
-  // Получаем данные о блокировке ТОЛЬКО из единого источника (Gatekeeper)
   const gatekeeperState = useGatekeeper()
-  
-  // ИСПРАВЛЕНИЕ: Гарантируем для Vercel, что это всегда число (0 если данных нет)
   const cooldownDays = 'cooldownDays' in gatekeeperState ? (gatekeeperState.cooldownDays ?? 0) : 0
 
-  const handleTitleClick = useCallback(() => {
-    const now = Date.now()
-    clickTimesRef.current = clickTimesRef.current.filter((t) => now - t < 2000)
-    clickTimesRef.current.push(now)
+  const handleContactAuthor = useCallback(async () => {
+    const WebApp = (window as any).Telegram?.WebApp
+    const tgId = WebApp?.initDataUnsafe?.user?.id
 
-    if (clickTimesRef.current.length >= 5) {
-      clickTimesRef.current = []
-      const pin = window.prompt('Введите PIN-код')
-      if (pin === null) return 
-      if (pin === ADMIN_PIN) {
-        localStorage.setItem('isAdmin', 'true')
-        window.location.href = '/admin'
-      } else {
-        alert('❌ Неверный PIN-код')
+    if (tgId) {
+      try {
+        await fetch('/api/user/contact-author', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tgId })
+        })
+      } catch (err) {
+        console.error('[contact-author] API call failed:', err)
       }
     }
+
+    // Открыть чат с автором
+    openAuthorContact()
   }, [])
 
   return (
@@ -58,10 +53,7 @@ export default function Home() {
               </>
             ) : (
               <>
-                <h1
-                  className="text-[22px] font-bold leading-[1.2] tracking-[-0.02em] text-text-primary cursor-pointer select-none"
-                  onClick={handleTitleClick}
-                >
+                <h1 className="text-[22px] font-bold leading-[1.2] tracking-[-0.02em] text-text-primary select-none">
                   У каждого человека есть внутренняя <span className="text-accent">«опора»</span>
                 </h1>
                 <p className="text-[14px] leading-[1.5] text-text-secondary opacity-90">
@@ -103,7 +95,7 @@ export default function Home() {
               <motion.button
                 type="button"
                 whileTap={{ scale: 0.97 }}
-                onClick={() => openAuthorContact()}
+                onClick={handleContactAuthor}
                 className="w-full py-3 px-4 rounded-xl font-semibold text-[14px] text-white shadow-md active:scale-[0.98] transition-all"
                 style={{ background: '#2563eb' }}
               >

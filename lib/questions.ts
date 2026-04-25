@@ -19,19 +19,19 @@ export const QUESTIONS: Question[] = [
   { id: 4, text: 'Я редко прошу о помощи', scale: 'performance' },
   { id: 5, text: 'Я чувствую, что должна держать уровень, определённую планку', scale: 'performance' },
 
-  // === perfection (U — Перфекционизм) ===
-  { id: 6, text: 'Мне сложно вступать в открытый конфликт', scale: 'perfection' },
-  { id: 7, text: 'Я чаще подстраиваюсь, чем настаиваю', scale: 'perfection' },
-  { id: 8, text: 'Я переживаю, если кто-то мной недоволен', scale: 'perfection' },
-  { id: 9, text: 'Мне легче уступить, чем выдерживать напряжение', scale: 'perfection' },
-  { id: 10, text: 'Я боюсь выглядеть сложной и некомфортной', scale: 'perfection' },
+  // === pleasing (U — Угодничество) ===
+  { id: 6, text: 'Мне сложно вступать в открытый конфликт', scale: 'pleasing' },
+  { id: 7, text: 'Я чаще подстраиваюсь, чем настаиваю', scale: 'pleasing' },
+  { id: 8, text: 'Я переживаю, если кто-то мной недоволен', scale: 'pleasing' },
+  { id: 9, text: 'Мне легче уступить, чем выдерживать напряжение', scale: 'pleasing' },
+  { id: 10, text: 'Я боюсь выглядеть сложной и некомфортной', scale: 'pleasing' },
 
-  // === pleasing (P — Угодничество) ===
-  { id: 11, text: 'Ошибки сильно влияют на мою самооценку', scale: 'pleasing' },
-  { id: 12, text: 'Мне важно выглядеть компетентной', scale: 'pleasing' },
-  { id: 13, text: 'Критика выбивает меня сильнее, чем я это показываю', scale: 'pleasing' },
-  { id: 14, text: 'Я не люблю показывать сомнения', scale: 'pleasing' },
-  { id: 15, text: 'Результат влияет на моё ощущение ценности', scale: 'pleasing' },
+  // === perfection (P — Перфекционизм) ===
+  { id: 11, text: 'Ошибки сильно влияют на мою самооценку', scale: 'perfection' },
+  { id: 12, text: 'Мне важно выглядеть компетентной', scale: 'perfection' },
+  { id: 13, text: 'Критика выбивает меня сильнее, чем я это показываю', scale: 'perfection' },
+  { id: 14, text: 'Я не люблю показывать сомнения', scale: 'perfection' },
+  { id: 15, text: 'Результат влияет на моё ощущение ценности', scale: 'perfection' },
 
   // === control (R — Контроль) ===
   { id: 16, text: 'Я чувствую атмосферу и напряжение раньше других', scale: 'control' },
@@ -50,8 +50,8 @@ export const QUESTIONS: Question[] = [
 
 const SCALE_SHORT_MAP: Record<Scale, string> = {
   performance: 'S',
-  perfection: 'U',
-  pleasing: 'P',
+  perfection: 'P',
+  pleasing: 'U',
   control: 'R',
   'hyper-vigilance': 'K',
 }

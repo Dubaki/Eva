@@ -6,28 +6,25 @@ export const dynamic = 'force-dynamic'
 /**
  * POST /api/user/contact-author
  * Marks contact_author_clicked = true for the current user.
- * Called when user clicks "Связь с Автором" on the result page.
  */
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const body = await req.json()
-    const rawTgId = body.tgId ?? req.headers.get('x-tg-id')
-    const tgId = rawTgId ? Number(rawTgId) : null
+    const { tgId } = await request.json()
 
     if (!tgId) {
       return NextResponse.json(
-        { success: false, error: 'Отсутствует tg_id' },
-        { status: 401 }
+        { success: false, error: 'Missing tgId' },
+        { status: 400 }
       )
     }
 
-    const supabaseAdminUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseAdminKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-    const supabaseAdmin = createClient(supabaseAdminUrl, supabaseAdminKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    })
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
 
-    const { error } = await supabaseAdmin
+    // Update the flag in profiles
+    const { error } = await supabase
       .from('profiles')
       .update({ contact_author_clicked: true })
       .eq('tg_id', tgId)

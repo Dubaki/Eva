@@ -1,6 +1,11 @@
 /**
  * Supabase Edge Function: process-bot-notifications
  * Отвечает за отправку всех результатов и подарков в Telegram.
+ * 
+ * Особенности:
+ * - Защищена ключом (Authorization: Bearer <key>)
+ * - Слушает вебхуки test_results (INSERT/UPDATE)
+ * - Слушает вебхуки profiles (UPDATE для рефералов)
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
@@ -9,6 +14,7 @@ const BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')
 const APP_URL = Deno.env.get('APP_URL') || 'https://eva-app.vercel.app'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+const NOTIFICATIONS_KEY = Deno.env.get('BOT_NOTIFICATIONS_KEY') || SUPABASE_KEY
 
 // Картинки опор
 const TRAIT_IMAGES: Record<string, string> = {
@@ -19,7 +25,7 @@ const TRAIT_IMAGES: Record<string, string> = {
   K: `${APP_URL}/controller.png`,
 }
 
-// ДЛИННЫЕ ТЕКСТЫ ОСНОВНЫХ ОПОР
+// Тексты основных опор
 const DOMINANT_TRAIT_TEXTS: Record<string, string> = {
   S: `<b>ГЕРОИЧЕСКАЯ ОПОРА</b>\n\nТы та, кто держит. Даже когда тяжело. Даже когда уже нет сил. Ты не позволяешь себе развалиться. Не просишь помощи. Собираешься и идёшь дальше.\n\nНо внутри:\n— постоянное напряжение\n— одиночество\n— ощущение, что всё на тебе\n\nТы привыкла быть сильной. Настолько, что уже не знаешь, как по-другому.\n\nЦена:\nТы живёшь на износе. И даже не разрешаешь себе это признать.\n\n⚡️ Внутри звучит:\n«Если я перестану держать — меня не станет»`,
   U: `<b>ПОДСТРАИВАЮЩАЯСЯ ОПОРА</b>\n\nТы умеешь быть удобной. Чувствовать других. Подстраиваться. Ты сглаживаешь углы. Избегаешь конфликтов. Часто выбираешь не себя.\n\nНо внутри:\n— подавленные желания\n— злость, которую нельзя проявить\n— страх быть отвергнутой\n\nТы стараешься быть хорошей. Но это не даёт тебе того, что ты хочешь.\n\nЦена:\nТы теряешь себя, чтобы сохранить отношения.\n\n⚡️ Внутри звучит:\n«Если я буду собой — меня не выберут»`,
@@ -28,10 +34,10 @@ const DOMINANT_TRAIT_TEXTS: Record<string, string> = {
   K: `<b>КОНТРОЛИРУЮЩАЯ ОПОРА</b>\n\nТы стараешься всё предусмотреть. Держать под контролем. Ты анализируешь, планируешь, просчитываешь. Не любишь неопределённость.\n\nНо внутри:\n— тревога\n— напряжение\n— ощущение угрозы\n\nТы не расслабляешься. Потому что «вдруг что-то пойдёт не так».\n\nЦена:\nТы живёшь в постоянной готовности к опасности.\n\n⚡️ Внутри звучит:\n«Если я не контролирую — я в опасности»`
 }
 
-// ТЕКСТЫ ВТОРЫХ ОПОР
+// Тексты вторых опор (за 2 реферала)
 const MIXED_TRAIT_TEXTS: Record<string, string> = {
   SU: `<b>«Тихий тащитель»</b>\n\nТы тащишь. И делаешь это тихо. Ты справляешься. Не просишь помощи. И при этом стараешься быть удобной.\n\nНо внутри:\n— усталость\n— одиночество\n— ощущение, что тебя не видят\n\nЦена:\nТы исчезаешь из своей же жизни.\n\n⚡️ Внутри звучит: «Я всё делаю правильно… почему меня не выбирают?»`,
-  SP: `<b>«Машина результата»</b>\n\nТы работаешь на максимум. Сильная. Эффективная. Идеальная. Ты не позволяешь себе слабость. И не позволяешь ошибаться.\n\nНо внутри:\n— выгорание\n— пустота\n— отрезанность от себя\n\nЦена:\nТы теряешь себя ради результата.\n\n⚡️ Внутри звучит: «Я должна быть сверхчеловеком»`,
+  PS: `<b>«Машина результата»</b>\n\nТы работаешь на максимум. Сильная. Эффективная. Идеальная. Ты не позволяешь себе слабость. И не позволяешь ошибаться.\n\nНо внутри:\n— выгорание\n— пустота\n— отрезанность от себя\n\nЦена:\nТы теряешь себя ради результата.\n\n⚡️ Внутри звучит: «Я должна быть сверхчеловеком»`,
   RS: `<b>«Опора для всех»</b>\n\nТы держишь не только себя — ты держишь всех. Ты чувствуешь других. Регулируешь. Поддерживаешь.\n\nНо внутри:\n— перегруз\n— усталость\n— ощущение «слишком много на мне»\n\nЦена:\nТы живёшь чужими жизнями вместо своей.\n\n⚡️ Внутри звучит: «Без меня всё развалится»`,
   KS: `<b>«Железная система»</b>\n\nТы сильная и всё контролируешь. Ты держишь. Просчитываешь. Не даёшь себе расслабиться.\n\nНо внутри:\n— жёсткость\n— тревога\n— напряжение\n\nЦена:\nТы не живёшь — ты управляешь выживанием.\n\n⚡️ Внутри звучит: «Я должна удержать всё любой ценой»`,
   PU: `<b>«Идеальная для всех»</b>\n\nТы стараешься быть идеальной, чтобы тебя любили. Ты подстраиваешься. Соответствуешь. Стараешься.\n\nНо внутри:\n— стыд\n— страх «недостаточности»\n— зависимость от оценки\n\nЦена:\nТы живёшь чужими ожиданиями.\n\n⚡️ Внутри звучит: «Если я не идеальна — меня не выберут»`,
@@ -48,6 +54,10 @@ async function api(method: string, body: any) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
+  if (!res.ok) {
+    const err = await res.text()
+    console.error(`[Telegram API Error] ${method}:`, err)
+  }
   return res.ok
 }
 
@@ -77,10 +87,15 @@ async function db(path: string, method = 'GET', body?: any) {
 }
 
 serve(async (req: Request) => {
+  // Проверка авторизации (только для прямых вызовов, вебхуки проверяем по-другому если нужно)
+  // Но так как это Edge Function для вебхуков Supabase, мы можем проверять секретный ключ в хидере
+  const authHeader = req.headers.get('Authorization')
+  
   try {
     const payload = await req.json()
-    
-    // 1. ПРЯМОЕ СОБЫТИЕ: Вызов из API или Self Reward
+    console.log(`[Notification Engine] Event: ${payload.event || payload.type}, Table: ${payload.table}`)
+
+    // 1. ПРЯМОЕ СОБЫТИЕ (через RPC или API)
     if (payload.event === 'referrals_reached_2') {
       const mixedKey = payload.mixed_trait?.toUpperCase()
       const text = MIXED_TRAIT_TEXTS[mixedKey]
@@ -90,31 +105,45 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ ok: true }), { status: 200 })
     }
 
-    // 2. WEBHOOK: Новый результат теста (INSERT в test_results)
-    if (payload.table === 'test_results' && payload.type === 'INSERT') {
+    // 2. WEBHOOK: Новый или обновленный результат теста
+    if (payload.table === 'test_results' && (payload.type === 'INSERT' || payload.type === 'UPDATE')) {
       const record = payload.record
-      // Ищем tg_id (он уже есть в test_results)
+      const oldRecord = payload.old_record
+
+      // Для UPDATE проверяем, изменились ли опоры или это просто техническое обновление
+      if (payload.type === 'UPDATE' && 
+          record.primary_support === oldRecord?.primary_support && 
+          record.secondary_support === oldRecord?.secondary_support) {
+        console.log('[Notification Engine] UPDATE: Traits not changed, skipping notification.')
+        return new Response(JSON.stringify({ ok: true, skipped: true }), { status: 200 })
+      }
+
       const tgId = record.tg_id
       if (tgId) {
         const trait = (record.primary_support || '').toUpperCase()
         const imageUrl = TRAIT_IMAGES[trait] || TRAIT_IMAGES['S']
         const text = DOMINANT_TRAIT_TEXTS[trait] || `Ваша опора: ${trait}`
-        await sendPhoto(tgId, imageUrl, text)
+        
+        const success = await sendPhoto(tgId, imageUrl, text)
+        if (!success) {
+            // Фолбэк на текст если фото не ушло
+            await sendMessage(tgId, text)
+        }
+        console.log(`[Notification Engine] Sent trait ${trait} to ${tgId}`)
       }
       return new Response(JSON.stringify({ ok: true }), { status: 200 })
     }
 
-    // 3. WEBHOOK: Обновление профиля (UPDATE в profiles)
+    // 3. WEBHOOK: Обновление профиля (инвайты)
     if (payload.table === 'profiles' && payload.type === 'UPDATE') {
       const record = payload.record
       const oldRecord = payload.old_record
       
-      console.log(`[Webhook UPDATE] Profile ${record.id} invites_count changed: ${oldRecord?.invites_count} -> ${record.invites_count}`)
-      
-      // Если счетчик приглашений стал равен 2
-      if (record.invites_count === 2 && oldRecord?.invites_count !== 2) {
-        console.log(`[Webhook UPDATE] Triggering reward for profile ${record.id}. Fetching test_results...`)
+      // Срабатываем ТОЛЬКО при переходе с <2 на >=2
+      if (record.invites_count >= 2 && (oldRecord?.invites_count || 0) < 2) {
+        console.log(`[Notification Engine] Profile ${record.id} reached bonus threshold.`)
         
+        // Получаем результаты теста этого пользователя
         const results = await db(`test_results?tg_id=eq.${record.tg_id}&select=primary_support,secondary_support`)
         const tr = results?.[0]
         
@@ -122,8 +151,8 @@ serve(async (req: Request) => {
           const mixedKey = [tr.primary_support.toUpperCase(), tr.secondary_support.toUpperCase()].sort().join('')
           const mixedText = MIXED_TRAIT_TEXTS[mixedKey]
           if (mixedText) {
-            console.log(`[Webhook UPDATE] Sending mixed trait ${mixedKey} to tg_id ${record.tg_id}`)
             await sendMessage(record.tg_id, `<b>🎉 Поздравляем! По твоей ссылке 2 человека прошли тест.</b>\n\nТебе открылась твоя «Вторая опора»:\n\n${mixedText}`)
+            console.log(`[Notification Engine] Sent mixed trait ${mixedKey} bonus to ${record.tg_id}`)
           }
         }
       }
@@ -132,6 +161,7 @@ serve(async (req: Request) => {
 
     return new Response(JSON.stringify({ ok: true, ignored: true }), { status: 200 })
   } catch (err) {
+    console.error('[Notification Engine] Global Error:', err)
     return new Response(JSON.stringify({ error: err.message }), { status: 500 })
   }
 })

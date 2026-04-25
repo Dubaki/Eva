@@ -45,19 +45,19 @@ export async function POST(req: NextRequest) {
 
   const supabase = getSupabaseServer()
 
-  // Fetch invited user's tg_id to prevent self-referral
+  // Fetch invited user's tg_id and check if already confirmed
   const { data: invitedProfile } = await supabase
     .from('profiles')
-    .select('id, tg_id, referrer_id')
+    .select('id, tg_id, referred_by, referral_confirmed')
     .eq('id', invitedId)
-    .single()
+    .maybeSingle()
 
   if (!invitedProfile) {
     return NextResponse.json({ success: false, error: 'Profile not found' }, { status: 404 })
   }
 
-  // Already has a referrer
-  if (invitedProfile.referrer_id) {
+  // Already has a confirmed referrer or already linked to someone else
+  if (invitedProfile.referral_confirmed || invitedProfile.referred_by) {
     return NextResponse.json({ success: true, data: { skipped: true } })
   }
 
@@ -66,19 +66,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'Self-referral not allowed' }, { status: 400 })
   }
 
-  const { data: referrer } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('tg_id', refTgId)
-    .single()
-
-  if (!referrer) {
-    return NextResponse.json({ success: false, error: 'Referrer not found' }, { status: 404 })
-  }
-
+  // Update referred_by (trigger will sync referrer_id)
   await supabase
     .from('profiles')
-    .update({ referrer_id: referrer.id })
+    .update({ referred_by: refTgId })
     .eq('id', invitedId)
 
   return NextResponse.json({ success: true, data: { applied: true } })
