@@ -140,6 +140,10 @@ export async function POST(req: NextRequest) {
       activeProfile = newProfile
     }
 
+    if (!activeProfile) {
+      return NextResponse.json({ success: false, error: 'Failed to create profile' }, { status: 500 })
+    }
+
     const now = Math.floor(Date.now() / 1000)
     const token = signJwt(
       {
