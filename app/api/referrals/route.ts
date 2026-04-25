@@ -33,16 +33,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: true, data: { count: 0 } })
   }
 
-  // Query referrals table: count rows where this user is the owner
   const supabase = getSupabaseServer()
-  const { count, error } = await supabase
-    .from('referrals')
-    .select('id', { count: 'exact', head: true })
-    .eq('owner_id', profileId)
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('invites_count')
+    .eq('id', profileId)
+    .maybeSingle()
 
   if (error) {
     return NextResponse.json({ success: false, error: 'Database error' }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, data: { count: count ?? 0 } })
+  return NextResponse.json({ success: true, data: { count: (profile as any)?.invites_count ?? 0 } })
 }

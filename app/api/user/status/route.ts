@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
   // Fetch profile
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, tg_id, is_subscribed, last_test_date')
+    .select('id, tg_id, is_subscribed, last_test_date, invites_count')
     .eq('id', profileId)
     .maybeSingle()
 
@@ -82,11 +82,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'Profile not found' }, { status: 404 })
   }
 
-  // Fetch referral count
-  const { count: refCount } = await supabase
-    .from('referrals')
-    .select('*', { count: 'exact', head: true })
-    .eq('owner_id', profileId)
+  // Referral count is stored directly in profiles.invites_count
+  const refCount = (profile as any).invites_count ?? 0
 
   // Fetch existing test results
   const { data: testResult } = await supabase
