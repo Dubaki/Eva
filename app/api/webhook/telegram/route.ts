@@ -262,7 +262,31 @@ export async function POST(request: NextRequest) {
       // ── Текстовые сообщения ────────────────────────────────────────
       const text = message?.text || ''
 
-      if (text.startsWith('/start')) {
+      if (text.startsWith('/test')) {
+        const status = await getChatMember(CHANNEL_ID!, tgId)
+        const isSubscribed = ['member', 'administrator', 'creator'].includes(status || '')
+
+        if (!isSubscribed) {
+          await sendMessage({
+            chatId: tgId,
+            text: '🔒 Чтобы пройти тест, сначала подпишись на канал.',
+            replyMarkup: {
+              inline_keyboard: [
+                [{ text: 'Подписаться на канал', url: CHANNEL_URL }],
+                [{ text: 'Я подписалась', callback_data: 'check_sub' }]
+              ]
+            }
+          })
+        } else {
+          await sendMessage({
+            chatId: tgId,
+            text: '🌿 Нажми кнопку, чтобы открыть тест:',
+            replyMarkup: { inline_keyboard: [[{ text: '▶️ Пройти тест', web_app: { url: getTmaUrl() } }]] }
+          })
+        }
+      }
+
+      else if (text.startsWith('/start')) {
         const refCode = extractReferralCode(text)
 
         await supabase

@@ -272,7 +272,7 @@ export async function setWebhook(params: {
 
   const body: Record<string, unknown> = {
     url: params.url,
-    allowed_updates: ['message'],
+    allowed_updates: ['message', 'callback_query'],
   }
 
   if (params.secretToken) {
@@ -313,6 +313,60 @@ export async function deleteWebhook(): Promise<boolean> {
   }
 
   return true
+}
+
+/**
+ * Set the persistent Menu Button for all users (no chat_id = global default).
+ * Configures a WebApp button that opens the TMA directly from the chat input area.
+ */
+export async function setMenuButton(url: string): Promise<boolean> {
+  if (!BOT_TOKEN) return false
+
+  const res = await fetch(`${BASE}/bot${BOT_TOKEN}/setChatMenuButton`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      menu_button: { type: 'web_app', text: '🌿 Тест', web_app: { url } },
+    }),
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    console.error(`[telegram] setChatMenuButton failed (${res.status}):`, err)
+    return false
+  }
+
+  const data = await res.json()
+  console.log('[telegram] setChatMenuButton response:', JSON.stringify(data))
+  return data.ok ?? false
+}
+
+/**
+ * Register bot commands visible in the Telegram command menu (/ autocomplete).
+ */
+export async function setMyCommands(): Promise<boolean> {
+  if (!BOT_TOKEN) return false
+
+  const commands = [
+    { command: 'start', description: 'Начать работу с ботом' },
+    { command: 'test', description: '▶️ Пройти тест' },
+  ]
+
+  const res = await fetch(`${BASE}/bot${BOT_TOKEN}/setMyCommands`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ commands }),
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    console.error(`[telegram] setMyCommands failed (${res.status}):`, err)
+    return false
+  }
+
+  const data = await res.json()
+  console.log('[telegram] setMyCommands response:', JSON.stringify(data))
+  return data.ok ?? false
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
