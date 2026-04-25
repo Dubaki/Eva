@@ -42,8 +42,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const authorized = await checkAdmin(req)
-  if (!authorized) {
+  if (!isAdminAuthenticated(req)) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 
