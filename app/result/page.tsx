@@ -92,9 +92,9 @@ function ResultContent() {
     setTimeout(() => {
       const element = document.getElementById('insight-block')
       if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }
-    }, 150)
+    }, 200)
   }
 
   if (loading) return <ResultLoading />
@@ -182,7 +182,7 @@ function ResultContent() {
                 key="insight-step" 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="space-y-lg"
+                className="space-y-lg scroll-mt-24"
                 id="insight-block"
               >
                 {/* Insight Block with Vertical Line */}
