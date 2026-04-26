@@ -2,7 +2,6 @@
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import EvaHeader from '@/components/EvaHeader'
 import { TEXTS } from '@/lib/constants/texts'
 import { useGatekeeper } from '@/components/Gatekeeper'
 import { openAuthorContact } from '@/lib/author-contact'
@@ -20,7 +19,6 @@ export default function Home() {
   if (cooldownDays > 0) {
     return (
       <div className="min-h-screen flex flex-col bg-background text-on-background font-body-md overflow-x-hidden">
-        <EvaHeader />
         <main className="flex-1 flex flex-col items-center px-container-padding pt-xl pb-32">
           <div className="w-full max-w-md flex flex-col items-center text-center space-y-xl">
             <motion.div {...fadeUp(0.1)} className="relative w-full aspect-square flex items-center justify-center max-w-[140px]">
@@ -79,9 +77,7 @@ export default function Home() {
 
   return (
     <div className="bg-background text-on-background min-h-screen flex flex-col font-body-md overflow-x-hidden">
-      <EvaHeader />
-      
-      <main className="flex-1 flex flex-col px-container-padding max-w-lg mx-auto w-full pb-32 pt-16">
+      <main className="flex-1 flex flex-col px-container-padding max-w-lg mx-auto w-full pb-32 pt-lg">
         {/* Main Narrative Card */}
         <motion.section 
           {...fadeUp(0.1)}
@@ -89,7 +85,7 @@ export default function Home() {
         >
           <div className="absolute top-0 left-0 w-1 h-full bg-primary-container"></div>
           <div className="flex flex-col gap-md">
-            <p className="font-headline-md italic text-on-surface/90 leading-relaxed text-xl" style={{ fontFamily: 'var(--font-newsreader)' }}>
+            <p className="font-headline-md italic text-on-surface/90 leading-relaxed">
               {TEXTS.start.part1}
             </p>
             <div className="space-y-sm text-on-surface-variant font-body-md">
@@ -116,7 +112,7 @@ export default function Home() {
           <img 
             alt="abstract" 
             className="w-full h-full object-cover" 
-            src="/112.png" 
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBs6MWQ-rApnHJhVK9yhk7S7mNQUKCyQ4cf0KcvLnp54eUoxgybNpjivgwgCkemY1bfsk-yFjCW-QKAn2SyUnjGgJDoWL6xXadaKJ1fDzQJ3npP_gvO80_pDKx0SIeAVt9_YuX-jhDbLSqneeKRAoK48_wiDhBxLUKG9JxQ__RqO5raHi7Twrm8lf9VGJMdS1NVpbS-6bPbXbmEnuIirGzlGgfOghn_8TDSq-I3wUD-mao5BDfF_JLYI1B3cr72pgDgBnLD4HEokV4F" 
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent"></div>
         </motion.div>
@@ -169,7 +165,7 @@ export default function Home() {
         className="fixed bottom-0 left-0 w-full p-container-padding bg-gradient-to-t from-background via-background/90 to-transparent z-40 px-container-padding pb-container-padding pt-0 bg-background"
       >
         <Link href="/test" className="block w-full">
-          <button className="w-full h-14 bg-primary text-on-primary font-bold text-lg rounded-full flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-transform duration-150 uppercase">
+          <button className="w-full h-14 bg-primary text-on-primary font-bold text-lg rounded-full flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-transform duration-150">
             <span className="material-symbols-outlined" style={{ fontVariationSettings: '"FILL" 1' }}>play_arrow</span>
             {TEXTS.start.btnStart}
           </button>
