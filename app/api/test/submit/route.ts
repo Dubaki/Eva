@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         dominantTrait: scores.dominantTrait,
+        secondaryTrait: scores.secondaryTrait,
         referralProcessed: (rpcData as any)?.referral_processed
       }
     })

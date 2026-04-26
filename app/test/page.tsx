@@ -94,15 +94,18 @@ export default function TestPage() {
         body: JSON.stringify({ answers, tgId }),
       })
       const result = await res.json()
+      console.log('[test] Submit response:', result)
 
       const elapsed = Date.now() - startTime
       const wait = Math.max(0, 2000 - elapsed)
       if (wait > 0) await new Promise(r => setTimeout(r, wait))
 
-      if (result.success) {
+      if (result.success && result.data) {
+        console.log('[test] Saving result to sessionStorage:', result.data)
         sessionStorage.setItem('eva_result', JSON.stringify(result.data))
         router.push('/result')
       } else {
+        console.error('[test] Submit failed or no data:', result)
         router.push('/result')
       }
     } catch (err) {
