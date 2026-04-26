@@ -105,12 +105,14 @@ export default function TestPage() {
         sessionStorage.setItem('eva_result', JSON.stringify(result.data))
         router.push('/result')
       } else {
-        console.error('[test] Submit failed or no data:', result)
-        router.push('/result')
+        console.error('[test] Submit failed:', result)
+        alert('Ошибка при сохранении теста. Пожалуйста, попробуйте еще раз. ' + (result.error || ''))
+        setSubmitting(false)
       }
     } catch (err) {
       console.error('Submit error:', err)
-      router.push('/result')
+      alert('Ошибка сети или сервера при сохранении теста.')
+      setSubmitting(false)
     }
   }, [router, tgId])
 

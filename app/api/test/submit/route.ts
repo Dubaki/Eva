@@ -51,6 +51,9 @@ export async function POST(request: NextRequest) {
     const primary = scores.dominantTrait.toUpperCase()
     const secondary = scores.secondaryTrait.toUpperCase()
 
+    console.log(`[API] Submitting test for tgId: ${tgId}, profileId: ${profileId}`);
+    console.log(`[API] Scores:`, scores);
+
     // RPC handles: test_results upsert, profiles update, referral, cooldown_reminder +60d, start_qualification +24h
     const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('submit_test_result_v2', {
       p_tg_id: tgId,
@@ -66,8 +69,8 @@ export async function POST(request: NextRequest) {
     })
 
     if (rpcError) {
-      console.error('[API] RPC Error (submit_test_result_v2):', rpcError)
-      return NextResponse.json({ success: false, error: rpcError.message }, { status: 500 })
+      console.error('[API] RPC Error details:', JSON.stringify(rpcError, null, 2))
+      return NextResponse.json({ success: false, error: rpcError.message, details: rpcError }, { status: 500 })
     }
 
     console.log(`[API] Test submitted for ${tgId}. Result:`, rpcData)
