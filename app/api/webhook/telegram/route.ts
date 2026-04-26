@@ -45,13 +45,18 @@ async function handleMessage(msg: any) {
   const currentAppUrl = process.env.NEXT_PUBLIC_APP_URL!
   const channelUrl = process.env.TELEGRAM_CHANNEL_URL!
 
-  // 1. Debug: file_id catcher for admins
-  if (msg.video && (msg.from.username === 'evapatrakhina' || msg.from.username === 'bizbezit')) {
-    await bot.sendMessage({
-      chatId,
-      text: `✅ FILE ID:\n<code>${msg.video.file_id}</code>`,
-    })
-    return
+  // 1. Debug: file_id catcher for admins (expanded)
+  const isAdmin = msg.from.username === 'evapatrakhina' || msg.from.username === 'bizbezit';
+  
+  if (isAdmin) {
+    const fileId = msg.video?.file_id || msg.video_note?.file_id || msg.document?.file_id || msg.animation?.file_id;
+    if (fileId) {
+      await bot.sendMessage({
+        chatId,
+        text: `✅ FILE ID (${msg.video_note ? 'video_note' : 'file'}):\n<code>${fileId}</code>`,
+      })
+      return
+    }
   }
 
   // 2. Commands
