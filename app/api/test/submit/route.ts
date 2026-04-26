@@ -74,14 +74,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Ошибка сохранения результатов: ' + trError.message }, { status: 500 })
     }
 
-    // 2. Обновляем профиль пользователя
+    // 2. Обновляем профиль пользователя (по tg_id для надежности)
     const { data: updatedProfile, error: profError } = await supabaseAdmin.from('profiles').update({
       current_step: null,
       question_order: null,
       reminded_at: null,
       mixed_trait_sent: false,
       last_test_date: new Date().toISOString()
-    }).eq('id', profileId).select('referred_by, referrer_id, referral_confirmed').single()
+    }).eq('tg_id', tgId).select('referred_by, referrer_id, referral_confirmed').single()
 
     if (profError) {
       console.error('[API] profiles update error:', profError)
