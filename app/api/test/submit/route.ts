@@ -88,33 +88,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Ошибка обновления профиля: ' + profError.message }, { status: 500 })
     }
 
-    // 3. Ставим задачи в очередь
-    await supabaseAdmin.from('bot_tasks_queue').upsert([
-      { 
-        profile_id: profileId, 
-        tg_id: tgId, 
-        event_type: 'cooldown_reminder', 
-        run_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-        status: 'pending'
-      },
-      { 
-        profile_id: profileId, 
-        tg_id: tgId, 
-        event_type: 'start_qualification', 
-        run_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        status: 'pending'
-      }
-    ], { onConflict: 'profile_id,event_type' })
+    // 3. Ставим задачи в очередь (просто INSERT, так как уникального индекса для upsert нет)
+    try {
+      await supabaseAdmin.from('bot_tasks_queue').insert([
+        { 
+          profile_id: profileId, 
+          tg_id: tgId, 
+          event_type: 'cooldown_reminder', 
+          run_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+          status: 'pending'
+        },
+        { 
+          profile_id: profileId, 
+          tg_id: tgId, 
+          event_type: 'start_qualification', 
+          run_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          status: 'pending'
+        }
+      ])
+    } catch (err) {
+      console.error('[API] Failed to queue tasks (non-fatal):', err)
+    }
 
     // 4. Реферальная логика (упрощенно)
     let referralProcessed = false
-    if (updatedProfile.referred_by && !updatedProfile.referral_confirmed) {
-       // Здесь можно добавить логику начисления, но для теста достаточно подтверждения
-       await supabaseAdmin.from('profiles').update({
-         referral_confirmed: true,
-         referral_confirmed_at: new Date().toISOString()
-       }).eq('id', profileId)
-       referralProcessed = true
+    try {
+      if (updatedProfile && updatedProfile.referred_by && !updatedProfile.referral_confirmed) {
+         await supabaseAdmin.from('profiles').update({
+           referral_confirmed: true,
+           referral_confirmed_at: new Date().toISOString()
+         }).eq('id', profileId)
+         referralProcessed = true
+      }
+    } catch (err) {
+      console.error('[API] Referral logic error (non-fatal):', err)
     }
 
     console.log(`[API] Test submitted successfully for ${tgId}`);
