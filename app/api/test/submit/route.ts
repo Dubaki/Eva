@@ -75,6 +75,31 @@ export async function POST(request: NextRequest) {
 
     console.log(`[API] Test submitted successfully for ${tgId}. RPC result:`, rpcResult);
 
+    // Send Message #3 — «Твоя опора» to Bot
+    try {
+      const caption = RESULT_TEXTS[primary as keyof typeof RESULT_TEXTS]
+      const photoName = TRAIT_IMAGES[primary]
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+      const photoUrl = `${appUrl}/${photoName}`
+      
+      const sent = await sendPhoto({
+        chatId: Number(tgId),
+        photo: photoUrl,
+        caption,
+        parseMode: 'HTML'
+      })
+      
+      if (!sent) {
+        await sendMessage({
+          chatId: Number(tgId),
+          text: caption,
+          parseMode: 'HTML'
+        })
+      }
+    } catch (notifyErr) {
+      console.error('[API] Failed to send Result notification to Bot (non-fatal):', notifyErr)
+    }
+
     return NextResponse.json({
       success: true,
       data: {
