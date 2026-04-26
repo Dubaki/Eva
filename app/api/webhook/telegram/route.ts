@@ -302,18 +302,26 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      else if (text) {
-        // Любое текстовое сообщение — не команда
+      else if (message) {
+        // Сообщение №9: Любое другое сообщение
         const { data: profileData } = await supabase
           .from('profiles')
           .select('first_name')
           .eq('tg_id', tgId)
           .maybeSingle()
+        
         const name = (profileData as any)?.first_name || firstName || null
+        
         await sendMessage({
           chatId: tgId,
           text: TEXTS.bot.anyMessage(name),
-          replyMarkup: { inline_keyboard: [[{ text: 'Написать Еве', url: 'https://t.me/evapatrakhina' }]] }
+          replyMarkup: { 
+            inline_keyboard: [[{ 
+              text: 'Написать Еве', 
+              url: `https://t.me/${AUTHOR_USERNAME}` 
+            }]] 
+          },
+          parseMode: 'HTML'
         })
       }
 
