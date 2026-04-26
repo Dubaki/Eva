@@ -60,7 +60,7 @@ export default function Home() {
         {/* Visual Anchor / Decorative Image */}
         <motion.div 
           {...fadeUp(0.2)}
-          className="w-full rounded-xl overflow-hidden relative grayscale opacity-80 h-48 my-md"
+          className="w-full rounded-xl overflow-hidden relative grayscale opacity-80 h-24 my-md"
         >
           <Image 
             alt="abstract" 
