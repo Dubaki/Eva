@@ -17,6 +17,18 @@ export default function MechanismPage() {
     <div className="font-body-md bg-background text-on-background min-h-screen flex flex-col">
       <main className="flex-1 flex flex-col px-container-padding pt-10 pb-32 max-w-lg mx-auto w-full">
         <motion.section {...fadeUp()} className="space-y-xl">
+          {/* Decorative Pulsing Circle */}
+          <div className="flex justify-center py-md">
+            <div className="relative w-40 h-40">
+              <div className="absolute inset-0 bg-secondary/10 blur-[40px] rounded-full animate-ping"></div>
+              <div className="relative w-full h-full glass-card rounded-full border border-outline/10 flex items-center justify-center">
+                <div className="w-24 h-24 bg-surface-container-highest rounded-full flex items-center justify-center animate-pulse">
+                  <span className="material-symbols-outlined text-secondary text-5xl">psychology</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <h2 className="font-headline-lg text-headline-lg text-on-surface text-center">
             {TEXTS.mechanism.title}
           </h2>

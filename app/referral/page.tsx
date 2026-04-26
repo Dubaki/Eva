@@ -15,7 +15,7 @@ export default function ReferralPage() {
   const [isSharing, setIsSharing] = useState(false)
 
   useEffect(() => {
-    const WebApp = (window as any).Telegram?.WebApp
+    const WebApp = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null
     const id = WebApp?.initDataUnsafe?.user?.id || 999999999
     setTgId(id)
   }, [])
@@ -29,7 +29,8 @@ export default function ReferralPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tgId }),
       })
-      if (res.ok) {
+      const json = await res.json()
+      if (res.ok || json.alreadyShared) {
         (window as any).Telegram?.WebApp?.close?.()
       } else {
         alert('Не удалось отправить сообщение. Попробуйте скопировать ссылку вручную.')
@@ -47,14 +48,31 @@ export default function ReferralPage() {
     <div className="font-body-md bg-background text-on-background min-h-screen flex flex-col">
       <main className="flex-1 flex flex-col px-container-padding pt-10 pb-32 max-w-lg mx-auto w-full">
         <motion.section {...fadeUp()} className="space-y-xl">
+          {/* Decorative Icon */}
+          <div className="flex justify-center py-md">
+            <div className="relative w-40 h-40">
+              <div className="absolute inset-0 bg-primary/20 blur-[50px] rounded-full"></div>
+              <div className="relative w-full h-full glass-card rounded-3xl border border-primary/10 flex items-center justify-center rotate-12">
+                <span className="material-symbols-outlined text-primary text-6xl -rotate-12">share</span>
+              </div>
+            </div>
+          </div>
+
           <div className="p-lg bg-surface-container rounded-xl border border-outline-variant/30 space-y-md shadow-xl">
             <div className="flex items-center gap-sm">
               <span className="material-symbols-outlined text-sm text-primary" style={{ fontVariationSettings: '"FILL" 1' }}>stars</span>
               <span className="font-label-md text-primary uppercase tracking-wider">{TEXTS.referral.subtitle}</span>
             </div>
 
-            <div className="w-full p-md bg-surface-container-highest rounded-lg border border-outline/20 font-body-sm text-on-surface-variant truncate select-all">
-              {tgId ? referralLink : 'Загрузка ссылки...'}
+            <div 
+              onClick={() => {
+                navigator.clipboard.writeText(referralLink)
+                // Могли бы добавить Toast здесь
+              }}
+              className="w-full p-md bg-surface-container-highest rounded-lg border border-outline/20 font-body-sm text-on-surface-variant truncate select-all flex justify-between items-center cursor-pointer active:bg-surface-variant"
+            >
+              <span className="truncate">{tgId ? referralLink : 'Загрузка ссылки...'}</span>
+              <span className="material-symbols-outlined text-sm ml-2">content_copy</span>
             </div>
 
             <button 

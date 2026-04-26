@@ -44,16 +44,26 @@ function ResultContent() {
 
   useEffect(() => {
     const stored = sessionStorage.getItem('eva_result')
+    let hasLocalData = false
     if (stored) {
       try {
-        setResult(JSON.parse(stored))
-        setLoading(false)
+        const parsed = JSON.parse(stored)
+        if (parsed && parsed.dominantTrait) {
+          setResult(parsed)
+          setLoading(false)
+          hasLocalData = true
+        }
       } catch (e) {
         console.error('Failed to parse stored result', e)
       }
     }
 
     const token = localStorage.getItem('eva_token')
+    if (!token) {
+      if (!hasLocalData) setLoading(false)
+      return
+    }
+
     fetch('/api/test/results', {
       headers: { Authorization: `Bearer ${token}` }
     })
@@ -63,11 +73,12 @@ function ResultContent() {
         setResult(json.data)
         sessionStorage.setItem('eva_result', JSON.stringify(json.data))
       }
+    })
+    .catch(err => console.error('[result] API fetch error:', err))
+    .finally(() => {
       setLoading(false)
     })
-    .catch(() => setLoading(false))
 
-    // Если пришли за рефералкой напрямую
     if (searchParams.get('referral') === '1') {
       router.replace('/access')
     }
@@ -76,6 +87,12 @@ function ResultContent() {
   const handleSurprise = (val: 'yes' | 'no') => {
     setSurpriseAnswer(val)
     setStep('insight')
+    
+    // Smooth scroll to the new content after a short delay for animation
+    setTimeout(() => {
+      const element = document.getElementById('insight-block')
+      element?.scrollIntoView({ behavior: 'smooth' })
+    }, 100)
   }
 
   if (loading) return <ResultLoading />
@@ -97,14 +114,16 @@ function ResultContent() {
   return (
     <div className="font-body-md bg-background text-on-background min-h-screen flex flex-col">
       <main className="flex-1 pb-32">
+        {/* Hero Section */}
         <section className="relative w-full h-[397px] overflow-hidden">
           <motion.img 
             initial={{ scale: 1.1, opacity: 0 }}
             animate={{ scale: 1, opacity: 0.6 }}
             src={traitImg} 
             className="w-full h-full object-cover"
+            alt={traitName}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent"></div>
           <div className="absolute bottom-0 left-0 p-container-padding">
             <span className="inline-block px-3 py-1 bg-primary/20 text-primary rounded-full text-label-sm mb-sm backdrop-blur-sm border border-primary/20">
               {TEXTS.result.badge}
@@ -116,13 +135,20 @@ function ResultContent() {
         </section>
 
         <div className="px-container-padding space-y-xl mt-md">
-          <motion.article {...fadeUp()} className="glass-card p-lg rounded-xl">
+          {/* Main Result Card */}
+          <motion.article {...fadeUp(0.1)} className="glass-card p-lg rounded-xl">
             <div className="font-body-md text-on-surface-variant leading-relaxed whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: traitFullText }} />
           </motion.article>
 
           <AnimatePresence mode="wait">
             {step === 'result' && (
-              <motion.section key="result-step" {...fadeUp()} className="space-y-md">
+              <motion.section 
+                key="result-step" 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="space-y-md"
+              >
                 <h3 className="font-headline-md text-headline-md text-center">{TEXTS.result.questionTitle}</h3>
                 <div className="flex gap-md">
                   <button 
@@ -142,7 +168,14 @@ function ResultContent() {
             )}
 
             {step === 'insight' && (
-              <motion.section key="insight-step" {...fadeUp()} className="space-y-lg">
+              <motion.section 
+                key="insight-step" 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-lg"
+                id="insight-block"
+              >
+                {/* Insight Block with Vertical Line */}
                 <div className="relative pl-lg py-sm">
                   <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-primary"></div>
                   <p className="font-body-sm text-on-surface-variant italic leading-relaxed">
@@ -152,6 +185,7 @@ function ResultContent() {
                   </p>
                 </div>
                 
+                {/* Second Support Promo */}
                 <div className="p-lg rounded-xl border border-outline-variant bg-surface-container-low space-y-md">
                   <h3 className="font-body-lg text-center text-on-surface">{TEXTS.result.secondQuestion}</h3>
                   <div className="flex flex-col gap-sm">

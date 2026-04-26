@@ -55,10 +55,11 @@ async function dbPatch(path: string, body: any): Promise<void> {
 
 serve(async (_req: Request) => {
   try {
-    console.log(`[bot-queue] Checking for pending tasks at ${new Date().toISOString()}`)
+    const now = new Date().toISOString()
+    console.log(`[bot-queue] Checking for pending tasks at ${now}`)
 
     const tasks = await dbGet(
-      `bot_tasks_queue?status=eq.pending&run_at=lte.${new Date().toISOString()}&order=run_at.asc&limit=50`
+      `bot_tasks_queue?status=eq.pending&run_at=lte.${now}&order=run_at.asc&limit=50`
     )
     console.log(`[bot-queue] Found ${tasks.length} tasks to process.`)
 
@@ -66,9 +67,9 @@ serve(async (_req: Request) => {
 
     for (const task of tasks) {
       try {
-        console.log(`[bot-queue] Processing task ${task.id} (type: ${task.event_type}, tg_id: ${task.tg_id})`)
+        console.log(`[bot-queue] Processing task ${task.id} (type: ${task.event_type})`)
 
-        await dbPatch(`bot_tasks_queue?id=eq.${task.id}`, { status: 'processing', updated_at: new Date().toISOString() })
+        await dbPatch(`bot_tasks_queue?id=eq.${task.id}`, { status: 'processing', updated_at: now })
 
         let success = false
 
@@ -78,7 +79,7 @@ serve(async (_req: Request) => {
           const quizStep = profiles?.[0]?.bot_quiz_step ?? 0
 
           if (quizStep >= 1) {
-            console.log(`[bot-queue] start_qualification: quiz already started (step=${quizStep}), skipping`)
+            console.log(`[bot-queue] start_qualification: skipping, step already ${quizStep}`)
             success = true
           } else {
             const intro1 = 'Ты уже заметила, как искажённая опора влияет на твою жизнь?\n\nДавай ещё немного пообщаемся! Ответь на три простых вопроса и получи подарок.'
@@ -96,12 +97,10 @@ serve(async (_req: Request) => {
 
             await sendMessage(task.tg_id, intro1)
             await sendMessage(task.tg_id, intro2)
-            const sent = await sendMessage(task.tg_id, q1Text, q1Keyboard)
-
-            if (sent) {
+            success = await sendMessage(task.tg_id, q1Text, q1Keyboard)
+            if (success) {
               await dbPatch(`profiles?id=eq.${task.profile_id}`, { bot_quiz_step: 1 })
             }
-            success = sent
           }
         }
 
@@ -122,22 +121,19 @@ serve(async (_req: Request) => {
           if (!profile) {
             success = true
           } else if ((profile.invites_count ?? 0) >= 2 && !profile.mixed_trait_sent) {
-            // Условие выполнено — шлём вторую опору
             const results = await dbGet(`test_results?tg_id=eq.${profile.tg_id}&select=primary_support,secondary_support`)
             const tr = results?.[0]
             if (tr?.primary_support && tr?.secondary_support) {
               const mixedKey = [tr.primary_support.toUpperCase(), tr.secondary_support.toUpperCase()].sort().join('')
-              const mixedTexts = getMixedTraitTexts()
-              const mixedText = mixedTexts[mixedKey]
+              const mixedText = getMixedTraitTexts()[mixedKey]
               if (mixedText) {
-                const sent = await sendMessage(task.tg_id, mixedText)
-                if (sent) {
+                success = await sendMessage(task.tg_id, mixedText)
+                if (success) {
                   await dbPatch(`profiles?id=eq.${task.profile_id}`, {
                     mixed_trait_sent: true,
-                    mixed_trait_sent_at: new Date().toISOString()
+                    mixed_trait_sent_at: now
                   })
                 }
-                success = sent
               } else {
                 success = true
               }
@@ -157,31 +153,23 @@ serve(async (_req: Request) => {
           const profile = profiles?.[0]
 
           if (profile?.reminded_at) {
-            console.log(`[bot-queue] cooldown_reminder: already sent, skipping`)
             success = true
           } else {
-            const tmaUrl = `${APP_URL}`
             const keyboard = {
-              inline_keyboard: [[{ text: '✨ Пройти тест', web_app: { url: tmaUrl } }]]
+              inline_keyboard: [[{ text: '✨ Пройти тест', web_app: { url: APP_URL } }]]
             }
-            const sent = await sendMessage(task.tg_id, 'Хорошая новость!\n\nДоступ к тесту снова открыт. Заходи и проверь динамику своих изменений.', keyboard)
-            if (sent) {
-              await dbPatch(`profiles?id=eq.${task.profile_id}`, { reminded_at: new Date().toISOString() })
+            success = await sendMessage(task.tg_id, 'Хорошая новость!\n\nДоступ к тесту снова открыт. Заходи и проверь динамику своих изменений.', keyboard)
+            if (success) {
+              await dbPatch(`profiles?id=eq.${task.profile_id}`, { reminded_at: now })
             }
-            success = sent
           }
         }
 
-        else {
-          console.warn(`[bot-queue] Unknown event type: ${task.event_type}`)
-          success = true
-        }
-
         if (success) {
-          await dbPatch(`bot_tasks_queue?id=eq.${task.id}`, { status: 'processed', updated_at: new Date().toISOString() })
+          await dbPatch(`bot_tasks_queue?id=eq.${task.id}`, { status: 'processed', updated_at: now })
           processed++
         } else {
-          throw new Error('Telegram send failed')
+          throw new Error('Action failed')
         }
 
       } catch (err) {
@@ -189,21 +177,15 @@ serve(async (_req: Request) => {
         await dbPatch(`bot_tasks_queue?id=eq.${task.id}`, {
           status: 'failed',
           error_message: String(err),
-          updated_at: new Date().toISOString()
+          updated_at: now
         })
       }
     }
 
-    return new Response(JSON.stringify({ success: true, processed }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    return new Response(JSON.stringify({ success: true, processed }), { headers: { 'Content-Type': 'application/json' } })
   } catch (err) {
     console.error('[bot-queue] Global Error:', err)
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+    return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: { 'Content-Type': 'application/json' } })
   }
 })
 

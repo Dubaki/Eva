@@ -78,7 +78,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        // Client reads dominantTrait / secondaryTrait — map from DB column names
         dominantTrait: result.primary_support,
         secondaryTrait: result.secondary_support,
         scores: {
