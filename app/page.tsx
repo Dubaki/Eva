@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import Image from 'next/image'
 import { TEXTS } from '@/lib/constants/texts'
 import { useGatekeeper } from '@/components/Gatekeeper'
 import { openAuthorContact } from '@/lib/author-contact'
@@ -109,10 +110,12 @@ export default function Home() {
           {...fadeUp(0.2)}
           className="w-full rounded-xl overflow-hidden relative grayscale opacity-60 h-24 my-md"
         >
-          <img 
+          <Image 
             alt="abstract" 
-            className="w-full h-full object-cover" 
+            className="object-cover" 
             src="https://lh3.googleusercontent.com/aida-public/AB6AXuBs6MWQ-rApnHJhVK9yhk7S7mNQUKCyQ4cf0KcvLnp54eUoxgybNpjivgwgCkemY1bfsk-yFjCW-QKAn2SyUnjGgJDoWL6xXadaKJ1fDzQJ3npP_gvO80_pDKx0SIeAVt9_YuX-jhDbLSqneeKRAoK48_wiDhBxLUKG9JxQ__RqO5raHi7Twrm8lf9VGJMdS1NVpbS-6bPbXbmEnuIirGzlGgfOghn_8TDSq-I3wUD-mao5BDfF_JLYI1B3cr72pgDgBnLD4HEokV4F" 
+            fill
+            sizes="100vw"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent"></div>
         </motion.div>

@@ -22,11 +22,8 @@ export default function MechanismPage() {
           </h2>
 
           <div className="p-lg bg-surface-container rounded-xl border border-outline-variant/30 space-y-md italic">
-            <p className="font-body-md text-on-surface-variant leading-relaxed">
-              {TEXTS.mechanism.quote1}
-            </p>
-            <p className="font-body-md text-on-surface-variant leading-relaxed">
-              {TEXTS.mechanism.quote2}
+            <p className="font-body-md text-on-surface-variant leading-relaxed whitespace-pre-wrap">
+              {TEXTS.mechanism.quote}
             </p>
           </div>
 
@@ -39,13 +36,13 @@ export default function MechanismPage() {
               onClick={() => router.push('/access')}
               className="w-full py-md bg-primary text-on-primary font-label-md rounded-xl active:scale-95 transition-transform shadow-lg shadow-primary/10"
             >
-              {TEXTS.mechanism.btnFirst}
+              {TEXTS.mechanism.btnNow}
             </button>
             <button 
               onClick={() => (window as any).Telegram?.WebApp?.close?.()}
               className="w-full py-md text-outline font-label-md rounded-xl active:scale-95 transition-transform"
             >
-              {TEXTS.mechanism.btnSecond}
+              {TEXTS.mechanism.btnLater}
             </button>
           </div>
         </motion.section>
