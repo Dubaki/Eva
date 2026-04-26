@@ -50,11 +50,17 @@ async function handleMessage(msg: any) {
   const isAdmin = username === 'evapatrakhina' || username === 'bizbezit';
   
   if (isAdmin) {
+    // If it's a text message "test", confirm admin status
+    if (text.toLowerCase() === 'тест') {
+      await bot.sendMessage({ chatId, text: `✅ Привет, админ! Я тебя узнал. Твой юзернейм в базе: <code>${msg.from.username}</code>` })
+      return
+    }
+
     const fileId = msg.video?.file_id || 
                    msg.video_note?.file_id || 
                    msg.document?.file_id || 
                    msg.animation?.file_id ||
-                   msg.photo?.[msg.photo?.length - 1]?.file_id; // Added photo support too
+                   msg.photo?.[msg.photo?.length - 1]?.file_id;
 
     if (fileId) {
       await bot.sendMessage({
