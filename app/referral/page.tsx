@@ -85,7 +85,7 @@ export default function ReferralPage() {
             </button>
 
             <p className="font-body-sm text-outline leading-tight text-center italic px-2">
-              {TEXTS.referral.body}
+              {TEXTS.referral.description}
             </p>
           </div>
         </motion.section>

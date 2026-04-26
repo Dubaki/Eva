@@ -40,7 +40,7 @@ export default function MechanismPage() {
           </div>
 
           <p className="font-body-md text-on-surface-variant/80 px-xs leading-relaxed text-justify">
-            {TEXTS.mechanism.body}
+            {TEXTS.mechanism.description}
           </p>
 
           <div className="space-y-md pt-md">
@@ -48,13 +48,13 @@ export default function MechanismPage() {
               onClick={() => router.push('/access')}
               className="w-full py-md bg-primary text-on-primary font-label-md rounded-xl active:scale-95 transition-transform shadow-lg shadow-primary/10"
             >
-              {TEXTS.mechanism.btnNow}
+              {TEXTS.mechanism.btnGetSecondNow}
             </button>
             <button 
               onClick={() => (window as any).Telegram?.WebApp?.close?.()}
               className="w-full py-md text-outline font-label-md rounded-xl active:scale-95 transition-transform"
             >
-              {TEXTS.mechanism.btnLater}
+              {TEXTS.mechanism.btnWaitTwoMonths}
             </button>
           </div>
         </motion.section>
