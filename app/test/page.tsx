@@ -171,19 +171,8 @@ export default function TestPage() {
 
   return (
     <div className="font-body-md antialiased overflow-hidden min-h-[100dvh] flex flex-col bg-background">
-      {/* Header */}
-      <header className="bg-slate-950/80 backdrop-blur-md border-b border-slate-800/50 shadow-[0_4px_20px_rgba(0,0,0,0.15)] sticky z-50 top-0 flex justify-between items-center px-5 h-16 w-full shrink-0">
-        <button 
-          onClick={handleBack}
-          className="text-[#8BA88E] active:scale-95 duration-200 flex items-center justify-center w-10 h-10"
-        >
-          <span className="material-symbols-outlined">arrow_back</span>
-        </button>
-        <h1 className="font-headline-md italic text-xl text-[#8BA88E]">EVA</h1>
-        <div className="font-label-md text-slate-400 tracking-widest w-10 text-right">
-          {currentIndex + 1}/{QUESTIONS.length}
-        </div>
-      </header>
+      {/* Header Replacement Spacer or System Space */}
+      <div className="h-16 shrink-0" />
 
       {/* Progress Bar */}
       <ProgressBar current={currentIndex + 1} total={QUESTIONS.length} />
