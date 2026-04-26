@@ -117,7 +117,7 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
       if (json.success) {
         await check()
       } else {
-        setSubError(json.error === 'not_subscribed' ? TEXTS.access.error : (json.error || 'Ошибка проверки'))
+        setSubError(json.error === 'not_subscribed' ? TEXTS.subscriptionBlocked.error : (json.error || 'Ошибка проверки'))
       }
     } catch {
       setSubError('Ошибка сети')
@@ -160,9 +160,9 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
               </div>
 
               <div className="space-y-md px-4">
-                <h1 className="font-['Newsreader'] italic text-3xl text-[#dee2ec]">{TEXTS.access.title}</h1>
+                <h1 className="font-['Newsreader'] italic text-3xl text-[#dee2ec]">{TEXTS.subscriptionBlocked.title}</h1>
                 <p className="font-body-md text-[#dee2ec]/70 leading-relaxed text-center">
-                  {TEXTS.access.description}
+                  {TEXTS.subscriptionBlocked.description}
                 </p>
                 {subError && (
                   <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-red-400 font-label-sm">
@@ -174,7 +174,7 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
               <div className="w-full space-y-md pt-md">
                 <a href={CHANNEL_URL} target="_blank" rel="noopener noreferrer" className="block w-full">
                   <button className="w-full h-[56px] bg-[#8BA88E] text-[#1c3622] rounded-xl font-bold flex items-center justify-center gap-2 active:scale-95 duration-200 shadow-lg shadow-[#8BA88E]/10">
-                    <span>{TEXTS.access.btnSubscribe}</span>
+                    <span>{TEXTS.subscriptionBlocked.btnSubscribe}</span>
                   </button>
                 </a>
                 <button 
@@ -182,12 +182,12 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
                   disabled={confirmingSub}
                   className="w-full h-[56px] border border-[#8BA88E]/30 text-[#8BA88E] rounded-xl font-bold active:scale-95 duration-200 disabled:opacity-50"
                 >
-                  {confirmingSub ? 'Проверка...' : TEXTS.access.btnConfirm}
+                  {confirmingSub ? 'Проверка...' : TEXTS.subscriptionBlocked.btnConfirm}
                 </button>
               </div>
 
               <p className="font-label-sm text-[#dee2ec]/40 px-4 leading-relaxed italic text-[12px]">
-                {TEXTS.access.footer}
+                {TEXTS.subscriptionBlocked.footer}
               </p>
             </motion.div>
           </main>

@@ -52,7 +52,7 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
         />
       </head>
-      <body className="bg-background text-on-surface font-body-md min-h-screen">
+      <body className="bg-[#0f141a] text-[#dee2ec] font-body-md min-h-screen">
         <AuthProvider>
           <Script
             src="https://telegram.org/js/telegram-web-app.js"
