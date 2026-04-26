@@ -3,8 +3,18 @@ import { createClient } from '@supabase/supabase-js'
 import { verifyJwt } from '@/lib/jwt'
 import { calculateScores, type Answer } from '@/lib/scoring'
 import { QUESTIONS } from '@/lib/questions'
+import { sendPhoto, sendMessage } from '@/lib/telegram-bot'
+import { RESULT_TEXTS } from '@/lib/constants/texts'
 
 export const dynamic = 'force-dynamic'
+
+const TRAIT_IMAGES: Record<string, string> = {
+  S: 'hero.png',
+  U: 'pleaser.png',
+  P: 'perfectionist.png',
+  R: 'stayer.png',
+  K: 'controller.png',
+}
 
 export async function POST(request: NextRequest) {
   const jwtSecret = process.env.SUPABASE_JWT_SECRET
@@ -61,6 +71,31 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[API] Test submitted for ${tgId}. Result:`, rpcData)
+
+    // Send Message №3 to Telegram Bot
+    try {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
+      const imageName = TRAIT_IMAGES[primary] || 'hero.png'
+      const photoUrl = `${appUrl}/${imageName}`
+      const caption = RESULT_TEXTS[primary] || `Ваша опора: ${primary}`
+
+      const sent = await sendPhoto({
+        chatId: Number(tgId),
+        photo: photoUrl,
+        caption: caption,
+        parseMode: 'HTML'
+      })
+
+      if (!sent) {
+        await sendMessage({
+          chatId: Number(tgId),
+          text: caption,
+          parseMode: 'HTML'
+        })
+      }
+    } catch (botErr) {
+      console.error('[API] Failed to send Message №3 to bot (non-fatal):', botErr)
+    }
 
     return NextResponse.json({
       success: true,
