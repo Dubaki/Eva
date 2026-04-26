@@ -172,7 +172,7 @@ export default function TestPage() {
   return (
     <div className="font-body-md antialiased overflow-hidden min-h-[100dvh] flex flex-col bg-background">
       {/* Progress Bar */}
-      <div className="pt-16 shrink-0">
+      <div className="shrink-0">
         <ProgressBar current={currentIndex + 1} total={QUESTIONS.length} />
       </div>
 

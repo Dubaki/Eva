@@ -38,7 +38,6 @@ export const viewport: Viewport = {
 }
 
 import AdminEntrance from '@/components/AdminEntrance'
-import EvaHeader from '@/components/EvaHeader'
 
 export default function RootLayout({
   children,
@@ -60,7 +59,6 @@ export default function RootLayout({
             strategy="beforeInteractive"
           />
           <AdminEntrance />
-          <EvaHeader />
           <Gatekeeper>
             {children}
           </Gatekeeper>

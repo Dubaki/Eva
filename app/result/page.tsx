@@ -97,7 +97,7 @@ function ResultContent() {
 
   return (
     <div className="font-body-md bg-background text-on-background min-h-screen flex flex-col">
-      <main className="flex-1 pb-32 pt-16">
+      <main className="flex-1 pb-32">
         <section className="relative w-full h-[397px] overflow-hidden">
           <motion.img 
             initial={{ scale: 1.1, opacity: 0 }}

@@ -19,7 +19,7 @@ export default function Home() {
   if (cooldownDays > 0) {
     return (
       <div className="min-h-screen flex flex-col bg-background text-on-background font-body-md overflow-x-hidden">
-        <main className="flex-1 flex flex-col items-center px-container-padding pt-16 pb-32">
+        <main className="flex-1 flex flex-col items-center px-container-padding pt-xl pb-32">
           <div className="w-full max-w-md flex flex-col items-center text-center space-y-xl">
             <motion.div {...fadeUp(0.1)} className="relative w-full aspect-square flex items-center justify-center max-w-[140px]">
               <div className="absolute inset-0 rounded-full border border-primary/20 animate-pulse"></div>

@@ -16,7 +16,7 @@ export default function AccessPage() {
 
   return (
     <div className="font-body-md bg-background text-on-background min-h-screen flex flex-col">
-      <main className="flex-1 flex flex-col px-container-padding pt-16 pb-32 max-w-lg mx-auto w-full">
+      <main className="flex-1 flex flex-col px-container-padding pt-10 pb-32 max-w-lg mx-auto w-full">
         <motion.section {...fadeUp()} className="space-y-xl">
           <div className="p-lg bg-surface-container-low rounded-xl border-l-2 border-primary-container shadow-sm">
             <p className="font-headline-md italic text-on-surface-variant leading-relaxed">
