@@ -2,7 +2,6 @@
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import EvaHeader from '@/components/EvaHeader'
 import { TEXTS } from '@/lib/constants/texts'
 import { useGatekeeper } from '@/components/Gatekeeper'
 import { openAuthorContact } from '@/lib/author-contact'
@@ -20,7 +19,6 @@ export default function Home() {
   if (cooldownDays > 0) {
     return (
       <div className="min-h-screen flex flex-col bg-background text-on-background font-body-md overflow-x-hidden">
-        <EvaHeader />
         <main className="flex-1 flex flex-col items-center px-container-padding pt-16 pb-32">
           <div className="w-full max-w-md flex flex-col items-center text-center space-y-xl">
             <motion.div {...fadeUp(0.1)} className="relative w-full aspect-square flex items-center justify-center max-w-[140px]">
@@ -79,7 +77,6 @@ export default function Home() {
 
   return (
     <div className="bg-background text-on-background min-h-screen flex flex-col font-body-md overflow-x-hidden">
-      <EvaHeader />
       <main className="flex-1 flex flex-col px-container-padding max-w-lg mx-auto w-full pb-32 pt-16">
         {/* Main Narrative Card */}
         <motion.section 

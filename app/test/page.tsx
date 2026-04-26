@@ -171,23 +171,6 @@ export default function TestPage() {
 
   return (
     <div className="font-body-md antialiased overflow-hidden min-h-[100dvh] flex flex-col bg-background">
-      {/* Header */}
-      <EvaHeader 
-        leftElement={
-          <button 
-            onClick={handleBack}
-            className="text-[#8BA88E] active:scale-95 duration-200 flex items-center justify-start w-10 h-10"
-          >
-            <span className="material-symbols-outlined">arrow_back</span>
-          </button>
-        }
-        rightElement={
-          <div className="font-label-md text-slate-400 tracking-widest text-right whitespace-nowrap">
-            {currentIndex + 1}/{QUESTIONS.length}
-          </div>
-        }
-      />
-
       {/* Progress Bar */}
       <div className="pt-16 shrink-0">
         <ProgressBar current={currentIndex + 1} total={QUESTIONS.length} />
