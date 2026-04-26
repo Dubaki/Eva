@@ -3,7 +3,6 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import EvaHeader from '@/components/EvaHeader'
 import { TEXTS, RESULT_TEXTS } from '@/lib/constants/texts'
 
 type ResultData = {

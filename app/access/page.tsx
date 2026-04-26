@@ -2,7 +2,6 @@
 
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import EvaHeader from '@/components/EvaHeader'
 import { TEXTS } from '@/lib/constants/texts'
 
 const fadeUp = (delay: number = 0) => ({

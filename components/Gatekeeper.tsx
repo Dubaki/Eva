@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useCallback, createContext, useContext } f
 import { motion, AnimatePresence } from 'framer-motion'
 import { getStoredInviterTgId } from '@/components/providers/AuthProvider'
 import { TEXTS } from '@/lib/constants/texts'
-import EvaHeader from '@/components/EvaHeader'
 
 const CHANNEL_URL = process.env.NEXT_PUBLIC_TELEGRAM_CHANNEL_URL ?? 'https://t.me/sprosievu'
 

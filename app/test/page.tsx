@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { QUESTIONS } from '@/lib/questions'
 import type { Answer } from '@/lib/scoring'
-import EvaHeader from '@/components/EvaHeader'
 import { TEXTS } from '@/lib/constants/texts'
 
 /** Progress Bar Component */
