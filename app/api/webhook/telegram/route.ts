@@ -10,18 +10,20 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const CHANNEL_ID = process.env.NEXT_PUBLIC_TELEGRAM_CHANNEL_ID!
+const CHANNEL_ID = process.env.TELEGRAM_CHANNEL_ID!
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL!
 
 export async function POST(req: NextRequest) {
   const secretToken = req.headers.get('x-telegram-bot-api-secret-token')
-  if (process.env.TELEGRAM_WEBHOOK_SECRET && secretToken !== process.env.TELEGRAM_WEBHOOK_SECRET) {
+  const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET
+
+  if (webhookSecret && secretToken !== webhookSecret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
     const update = await req.json()
-    console.log('[webhook] Update:', JSON.stringify(update, null, 2))
+    console.log('[webhook] Update received')
 
     if (update.message) {
       await handleMessage(update.message)
@@ -40,6 +42,8 @@ async function handleMessage(msg: any) {
   const chatId = msg.chat.id
   const userId = msg.from.id
   const text = msg.text || ''
+  const currentAppUrl = process.env.NEXT_PUBLIC_APP_URL!
+  const channelUrl = process.env.TELEGRAM_CHANNEL_URL!
 
   // 1. Debug: file_id catcher for admins
   if (msg.video && (msg.from.username === 'evapatrakhina' || msg.from.username === 'bizbezit')) {
@@ -67,11 +71,11 @@ async function handleMessage(msg: any) {
       // Welcome msg #1
       await bot.sendPhoto({
         chatId,
-        photo: `${APP_URL}/start.png`,
+        photo: `${currentAppUrl}/start.png`,
         caption: TEXTS.bot.welcome.caption,
         replyMarkup: {
           inline_keyboard: [
-            [{ text: TEXTS.bot.welcome.btnSubscribe, url: process.env.NEXT_PUBLIC_TELEGRAM_CHANNEL_URL! }],
+            [{ text: TEXTS.bot.welcome.btnSubscribe, url: channelUrl }],
             [{ text: TEXTS.bot.welcome.btnConfirm, callback_data: 'check_sub' }]
           ]
         }
@@ -82,7 +86,7 @@ async function handleMessage(msg: any) {
         chatId,
         text: TEXTS.bot.startReturning.text,
         replyMarkup: {
-          inline_keyboard: [[{ text: TEXTS.bot.startReturning.btnTest, web_app: { url: APP_URL } }]]
+          inline_keyboard: [[{ text: TEXTS.bot.startReturning.btnTest, web_app: { url: currentAppUrl } }]]
         }
       })
     }
@@ -96,7 +100,7 @@ async function handleMessage(msg: any) {
         chatId,
         text: TEXTS.bot.testButtonSubscribed.text,
         replyMarkup: {
-          inline_keyboard: [[{ text: TEXTS.bot.testButtonSubscribed.btnTest, web_app: { url: APP_URL } }]]
+          inline_keyboard: [[{ text: TEXTS.bot.testButtonSubscribed.btnTest, web_app: { url: currentAppUrl } }]]
         }
       })
     } else {
@@ -105,7 +109,7 @@ async function handleMessage(msg: any) {
         text: TEXTS.bot.testButtonNotSubscribed.text,
         replyMarkup: {
           inline_keyboard: [
-            [{ text: TEXTS.bot.welcome.btnSubscribe, url: process.env.NEXT_PUBLIC_TELEGRAM_CHANNEL_URL! }],
+            [{ text: TEXTS.bot.welcome.btnSubscribe, url: channelUrl }],
             [{ text: TEXTS.bot.welcome.btnConfirm, callback_data: 'check_sub' }]
           ]
         }
@@ -128,9 +132,11 @@ async function handleCallbackQuery(cb: any) {
   const chatId = cb.message.chat.id
   const userId = cb.from.id
   const data = cb.data
+  const currentAppUrl = process.env.NEXT_PUBLIC_APP_URL!
+  const currentChannelId = process.env.TELEGRAM_CHANNEL_ID!
 
   if (data === 'check_sub') {
-    const status = await bot.getChatMember(CHANNEL_ID, userId)
+    const status = await bot.getChatMember(currentChannelId, userId)
     const isSub = status === 'member' || status === 'administrator' || status === 'creator'
 
     if (isSub) {
@@ -142,10 +148,10 @@ async function handleCallbackQuery(cb: any) {
         // Confirmation msg #2
         await bot.sendPhoto({
           chatId,
-          photo: `${APP_URL}/start1.png`,
+          photo: `${currentAppUrl}/start1.png`,
           caption: TEXTS.bot.subscriptionConfirmed.caption,
           replyMarkup: {
-            inline_keyboard: [[{ text: TEXTS.bot.subscriptionConfirmed.btnTest, web_app: { url: APP_URL } }]]
+            inline_keyboard: [[{ text: TEXTS.bot.subscriptionConfirmed.btnTest, web_app: { url: currentAppUrl } }]]
           }
         })
       }
