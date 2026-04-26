@@ -23,7 +23,6 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
   const router = useRouter()
 
   const check = useCallback(async () => {
-    // 0. Bypass for admin routes
     if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
       setState({ checking: false, blocked: false, cooldownDays: 0, lastTestDate: null })
       return
@@ -52,7 +51,6 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
     }
 
     try {
-      // 1. Авторизация (UPSERT профиля + получение JWT)
       const authRes = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -63,7 +61,6 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
         localStorage.setItem('eva_token', authJson.data.token)
       }
 
-      // 2. Проверка статуса
       const res = await fetch(`/api/user/status?tg_id=${currentTgId}`)
       const json = await res.json()
 
@@ -120,7 +117,7 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
       if (json.success) {
         await check()
       } else {
-        setSubError(json.error === 'not_subscribed' ? TEXTS.gatekeeper.errorNotSubscribed : (json.error || 'Ошибка проверки'))
+        setSubError(json.error === 'not_subscribed' ? TEXTS.access.error : (json.error || 'Ошибка проверки'))
       }
     } catch {
       setSubError('Ошибка сети')
@@ -130,9 +127,9 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
 
   if (state.checking) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-background">
+      <main className="flex min-h-screen items-center justify-center bg-[#0f141a]">
         <motion.div 
-          className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full" 
+          className="w-10 h-10 border-2 border-[#8BA88E] border-t-transparent rounded-full" 
           animate={{ rotate: 360 }} 
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} 
         />
@@ -143,7 +140,12 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
   if (state.blocked) {
     if (state.reason === 'not_subscribed') {
       return (
-        <div className="min-h-screen flex flex-col font-body-md bg-background text-on-background">
+        <div className="min-h-screen flex flex-col font-body-md bg-[#0f141a] text-[#dee2ec]">
+          {/* Header Spacer */}
+          <header className="flex justify-center items-center h-16 w-full shrink-0">
+            <h1 className="font-['Newsreader'] italic text-xl text-[#8BA88E]">EvaTest</h1>
+          </header>
+
           <main className="flex-grow flex flex-col items-center justify-center px-container-padding py-xl">
             <motion.div 
               initial={{ opacity: 0, scale: 0.9 }}
@@ -151,19 +153,19 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
               className="w-full max-w-sm flex flex-col items-center text-center space-y-xl"
             >
               <div className="relative">
-                <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full"></div>
-                <div className="relative glass-card w-32 h-32 rounded-full flex items-center justify-center shadow-[0_4px_20px_rgba(0,0,0,0.15)] border border-outline/10">
-                  <span className="material-symbols-outlined text-primary text-6xl" style={{ fontVariationSettings: '"FILL" 1' }}>lock</span>
+                <div className="absolute inset-0 bg-[#8BA88E]/20 blur-3xl rounded-full"></div>
+                <div className="relative glass-card w-32 h-32 rounded-full flex items-center justify-center shadow-[0_4px_20px_rgba(0,0,0,0.15)] border border-white/10 backdrop-blur-md">
+                  <span className="material-symbols-outlined text-[#8BA88E] text-6xl" style={{ fontVariationSettings: '"FILL" 1' }}>lock</span>
                 </div>
               </div>
 
-              <div className="space-y-md">
-                <h1 className="font-headline-lg text-headline-lg text-on-surface">{TEXTS.gatekeeper.title}</h1>
-                <p className="font-body-md text-body-md text-on-surface-variant px-2 leading-relaxed">
-                  {TEXTS.gatekeeper.subtitle}
+              <div className="space-y-md px-4">
+                <h1 className="font-['Newsreader'] italic text-3xl text-[#dee2ec]">{TEXTS.access.title}</h1>
+                <p className="font-body-md text-[#dee2ec]/70 leading-relaxed text-center">
+                  {TEXTS.access.description}
                 </p>
                 {subError && (
-                  <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-error font-label-sm">
+                  <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-red-400 font-label-sm">
                     {subError}
                   </motion.p>
                 )}
@@ -171,38 +173,37 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
 
               <div className="w-full space-y-md pt-md">
                 <a href={CHANNEL_URL} target="_blank" rel="noopener noreferrer" className="block w-full">
-                  <button className="w-full h-[56px] bg-primary-container text-on-primary-container rounded-xl font-label-md flex items-center justify-center gap-2 active:scale-95 duration-200 shadow-lg">
-                    <span>{TEXTS.gatekeeper.btnSubscribe}</span>
-                    <span className="material-symbols-outlined text-lg">open_in_new</span>
+                  <button className="w-full h-[56px] bg-[#8BA88E] text-[#1c3622] rounded-xl font-bold flex items-center justify-center gap-2 active:scale-95 duration-200 shadow-lg shadow-[#8BA88E]/10">
+                    <span>{TEXTS.access.btnSubscribe}</span>
                   </button>
                 </a>
                 <button 
                   onClick={handleConfirmSubscription}
                   disabled={confirmingSub}
-                  className="w-full h-[56px] border border-secondary text-secondary rounded-xl font-label-md active:scale-95 duration-200 disabled:opacity-50"
+                  className="w-full h-[56px] border border-[#8BA88E]/30 text-[#8BA88E] rounded-xl font-bold active:scale-95 duration-200 disabled:opacity-50"
                 >
-                  {confirmingSub ? 'Проверка...' : TEXTS.gatekeeper.btnConfirm}
+                  {confirmingSub ? 'Проверка...' : TEXTS.access.btnConfirm}
                 </button>
               </div>
 
-              <p className="font-label-sm text-label-sm text-outline px-4 leading-relaxed">
-                {TEXTS.gatekeeper.footer}
+              <p className="font-label-sm text-[#dee2ec]/40 px-4 leading-relaxed italic text-[12px]">
+                {TEXTS.access.footer}
               </p>
             </motion.div>
           </main>
           
-          <div className="fixed -bottom-20 -left-20 w-64 h-64 bg-primary/5 rounded-full blur-[100px] pointer-events-none"></div>
-          <div className="fixed -top-20 -right-20 w-64 h-64 bg-secondary/5 rounded-full blur-[100px] pointer-events-none"></div>
+          <div className="fixed -bottom-20 -left-20 w-64 h-64 bg-[#8BA88E]/5 rounded-full blur-[100px] pointer-events-none"></div>
+          <div className="fixed -top-20 -right-20 w-64 h-64 bg-[#e2bebe]/5 rounded-full blur-[100px] pointer-events-none"></div>
         </div>
       )
     }
 
     return (
-      <main className="flex min-h-screen items-center justify-center bg-background px-6">
+      <main className="flex min-h-screen items-center justify-center bg-[#0f141a] px-6 text-[#dee2ec]">
         <div className="text-center max-w-sm space-y-4">
-          <span className="material-symbols-outlined text-6xl text-primary">cloud_off</span>
-          <h1 className="font-headline-md text-on-surface">Откройте через Telegram</h1>
-          <p className="font-body-md text-on-surface-variant">Приложение работает только внутри Telegram-бота.</p>
+          <span className="material-symbols-outlined text-6xl text-[#8BA88E]">cloud_off</span>
+          <h1 className="font-['Newsreader'] italic text-2xl">Откройте через Telegram</h1>
+          <p className="text-[#dee2ec]/60">Приложение работает только внутри Telegram-бота.</p>
         </div>
       </main>
     )

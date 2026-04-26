@@ -30,6 +30,11 @@ export default function Home() {
 
   return (
     <div className="bg-[#0f141a] text-[#dee2ec] min-h-screen flex flex-col font-body-md overflow-x-hidden">
+      {/* Header Spacer */}
+      <header className="flex justify-center items-center h-16 w-full shrink-0">
+        <h1 className="font-['Newsreader'] italic text-xl text-[#8BA88E]">EvaTest</h1>
+      </header>
+
       <main className="flex-1 flex flex-col px-container-padding max-w-lg mx-auto w-full pb-32 pt-2">
         {/* Main Narrative Card */}
         <motion.section 
@@ -39,20 +44,13 @@ export default function Home() {
           <div className="absolute top-0 left-0 w-1 h-full bg-[#8ba88e]"></div>
           <div className="flex flex-col gap-sm">
             <p className="font-['Newsreader'] italic text-lg text-[#dee2ec]/90 leading-tight">
-              {TEXTS.start.part1}
+              {TEXTS.start.text1}
             </p>
-            <div className="space-y-xs text-[#c2c8c0] text-sm leading-snug">
-              <p>{TEXTS.start.part2}</p>
-              <ul className="space-y-0 list-none pl-2 border-l border-[#424842]/50">
-                {TEXTS.start.items.map((item, i) => (
-                  <li key={i} className="flex gap-2 items-start italic">
-                    <span className="text-[#b0ceb2]">—</span> {item.replace('— ', '')}
-                  </li>
-                ))}
-              </ul>
+            <div className="space-y-xs text-[#c2c8c0] text-sm leading-snug whitespace-pre-wrap">
+              <p>{TEXTS.start.text2}</p>
             </div>
             <p className="text-sm text-[#b0ceb2] font-medium leading-tight">
-              {TEXTS.start.part3}
+              {TEXTS.start.text3}
             </p>
           </div>
         </motion.section>
@@ -82,7 +80,7 @@ export default function Home() {
             <span className="material-symbols-outlined text-[#e9c349]">quiz</span>
             <div>
               <div className="text-[#dee2ec] font-bold text-lg leading-tight">{TEXTS.start.stat1}</div>
-              <div className="text-[#c2c8c0] font-label-md uppercase tracking-wider text-[10px]">{TEXTS.start.stat1sub}</div>
+              <div className="text-[#c2c8c0] font-label-md uppercase tracking-wider text-[10px]">{TEXTS.start.stat1Sub}</div>
             </div>
           </motion.div>
           <motion.div 
@@ -92,7 +90,7 @@ export default function Home() {
             <span className="material-symbols-outlined text-[#e2bebe]">schedule</span>
             <div>
               <div className="text-[#dee2ec] font-bold text-lg leading-tight">{TEXTS.start.stat2}</div>
-              <div className="text-[#c2c8c0] font-label-md uppercase tracking-wider text-[10px]">{TEXTS.start.stat2sub}</div>
+              <div className="text-[#c2c8c0] font-label-md uppercase tracking-wider text-[10px]">{TEXTS.start.stat2Sub}</div>
             </div>
           </motion.div>
         </section>
@@ -107,7 +105,7 @@ export default function Home() {
           </h3>
           <div className="bg-[#5a4041]/10 border-l-2 border-[#e2bebe] rounded-r-lg p-md">
             <p className="text-[#c2c8c0] leading-relaxed italic text-[13px] text-justify px-2">
-              {TEXTS.start.instruction}
+              {TEXTS.start.instructionText}
             </p>
           </div>
         </motion.section>
