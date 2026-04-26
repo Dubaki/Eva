@@ -23,6 +23,14 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
 
   const check = useCallback(async () => {
     const WebApp = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null
+    
+    if (WebApp) {
+      WebApp.ready();
+      WebApp.expand();
+      WebApp.setHeaderColor('#121417');
+      WebApp.setBackgroundColor('#0f141a');
+    }
+
     const currentTgId = WebApp?.initDataUnsafe?.user?.id ?? null
 
     if (!currentTgId) {

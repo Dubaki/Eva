@@ -58,15 +58,6 @@ export default function RootLayout({
           <Script
             src="https://telegram.org/js/telegram-web-app.js"
             strategy="beforeInteractive"
-            onLoad={() => {
-              if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp) {
-                const tg = (window as any).Telegram.WebApp;
-                tg.ready();
-                tg.expand();
-                tg.setHeaderColor('#121417');
-                tg.setBackgroundColor('#0f141a');
-              }
-            }}
           />
           <AdminEntrance />
           <EvaHeader />
