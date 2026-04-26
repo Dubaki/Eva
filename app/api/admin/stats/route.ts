@@ -37,11 +37,16 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  // Recent 50 users with their test results and referral data
-  // Includes contact_author_clicked (migration 089 must be applied)
+  // Recent 50 users with their test results using JOIN
   const { data: recentUsers, error: usersError } = await supabase
     .from('profiles')
-    .select('id, tg_id, username, created_at, invites_count, last_test_date, contact_author_clicked')
+    .select(`
+      id, tg_id, username, created_at, invites_count, last_test_date, contact_author_clicked,
+      test_results!left (
+        primary_support,
+        secondary_support
+      )
+    `)
     .order('created_at', { ascending: false })
     .limit(50)
 
@@ -49,37 +54,25 @@ export async function GET(req: NextRequest) {
     console.error('[admin/stats] Error fetching recent users:', usersError.message)
   }
 
-  if (!recentUsers || recentUsers.length === 0) {
-    console.error('[admin/stats] recentUsers is empty — no users in DB or query returned 0 results')
-  }
+  const recentUsersFormatted = (recentUsers ?? []).map((user: any) => {
+    const testResult = user.test_results?.[0] || user.test_results // Depends on structure
+    const lastTest = user.last_test_date ?? null
+    const nextTestAvailable = lastTest
+      ? new Date(new Date(lastTest).getTime() + 60 * 24 * 60 * 60 * 1000).toISOString()
+      : null
 
-  // Enrich with test results
-  const recentUsersWithResults = await Promise.all(
-    (recentUsers ?? []).map(async (user) => {
-      const { data: testResult } = await supabase
-        .from('test_results')
-        .select('primary_support, secondary_support')
-        .eq('tg_id', user.tg_id)
-        .single()
-
-      const lastTest = user.last_test_date ?? null
-      const nextTestAvailable = lastTest
-        ? new Date(new Date(lastTest).getTime() + 60 * 24 * 60 * 60 * 1000).toISOString()
-        : null
-
-      return {
-        tg_id: user.tg_id,
-        username: user.username,
-        created_at: user.created_at,
-        primarySupport: testResult?.primary_support ?? null,
-        secondarySupport: testResult?.secondary_support ?? null,
-        invites_count: user.invites_count ?? 0,
-        last_test_date: lastTest,
-        next_test_available: nextTestAvailable,
-        contact_author_clicked: user.contact_author_clicked ?? false,
-      }
-    })
-  )
+    return {
+      tg_id: user.tg_id,
+      username: user.username,
+      created_at: user.created_at,
+      dominantTrait: testResult?.primary_support ?? null,
+      secondaryTrait: testResult?.secondary_support ?? null,
+      invites_count: user.invites_count ?? 0,
+      last_test_date: lastTest,
+      next_test_available: nextTestAvailable,
+      contact_author_clicked: user.contact_author_clicked ?? false,
+    }
+  })
 
   return NextResponse.json(
     {
@@ -88,7 +81,7 @@ export async function GET(req: NextRequest) {
         totalUsers: totalUsers ?? 0,
         completedTests: completedTests ?? 0,
         traitCounts,
-        recentUsers: recentUsersWithResults,
+        recentUsers: recentUsersFormatted,
       },
     },
     {
