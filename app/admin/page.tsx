@@ -460,7 +460,10 @@ export default function AdminPanel() {
       {/* Footer Nav */}
       <div className="fixed bottom-6 left-6 right-6 z-40 max-w-lg mx-auto">
         <button
-          onClick={() => router.push('/result')}
+          onClick={() => {
+            const returnUrl = sessionStorage.getItem('admin_return_url') || '/'
+            router.push(returnUrl)
+          }}
           className="w-full py-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl text-white/60 font-bold hover:bg-white/10 active:scale-95 transition-all"
         >
           🔙 Назад в приложение
