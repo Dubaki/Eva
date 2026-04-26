@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback, createContext, useContext } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useEffect, useState, useCallback, createContext, useContext } from 'react'
+import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
 import { getStoredInviterTgId } from '@/components/providers/AuthProvider'
 import { TEXTS } from '@/lib/constants/texts'
 
@@ -19,6 +20,7 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
   const [state, setState] = useState<GatekeeperState>({ checking: true })
   const [confirmingSub, setConfirmingSub] = useState(false)
   const [subError, setSubError] = useState<string | null>(null)
+  const router = useRouter()
 
   const check = useCallback(async () => {
     const WebApp = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null
@@ -26,14 +28,15 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
     if (WebApp) {
       WebApp.ready();
       WebApp.expand();
-      WebApp.setHeaderColor('#121417');
+      WebApp.setHeaderColor('#0f141a');
       WebApp.setBackgroundColor('#0f141a');
     }
 
     const currentTgId = WebApp?.initDataUnsafe?.user?.id ?? null
+    const initData = WebApp?.initData
+    const startParam = WebApp?.initDataUnsafe?.start_param
 
     if (!currentTgId) {
-      // In development, we might not have WebApp, but we want to see the app
       if (process.env.NODE_ENV === 'development') {
          setState({ checking: false, blocked: false, cooldownDays: 0, lastTestDate: null })
          return
@@ -43,6 +46,18 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
     }
 
     try {
+      // 1. Авторизация (UPSERT профиля + получение JWT)
+      const authRes = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initData, startParam }),
+      })
+      const authJson = await authRes.json()
+      if (authJson.success && authJson.data?.token) {
+        localStorage.setItem('eva_token', authJson.data.token)
+      }
+
+      // 2. Проверка статуса
       const res = await fetch(`/api/user/status?tg_id=${currentTgId}`)
       const json = await res.json()
 
@@ -51,16 +66,24 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
         return
       }
 
+      const cooldown = json.cooldownDays ?? 0
+      if (cooldown > 0) {
+        setState({ checking: false, blocked: false, cooldownDays: cooldown, lastTestDate: json.lastTestDate })
+        router.replace('/cooldown')
+        return
+      }
+
       setState({ 
         checking: false, 
         blocked: false, 
-        cooldownDays: json.cooldownDays ?? 0, 
+        cooldownDays: 0, 
         lastTestDate: json.lastTestDate 
       })
     } catch (err) {
+      console.error('[gatekeeper] check error:', err)
       setState({ checking: false, blocked: true, reason: 'not_subscribed' })
     }
-  }, [])
+  }, [router])
 
   useEffect(() => { check() }, [check])
 
@@ -89,19 +112,6 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
       const json = await res.json()
 
       if (json.success) {
-        // Silent re-auth to get a valid token if needed
-        const initData = WebApp?.initData
-        if (initData) {
-          await fetch('/api/auth', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ initData }),
-          }).then(r => r.json()).then(authJson => {
-            if (authJson.success && authJson.data?.token) {
-              localStorage.setItem('eva_token', authJson.data.token)
-            }
-          }).catch(() => {})
-        }
         await check()
       } else {
         setSubError(json.error === 'not_subscribed' ? TEXTS.gatekeeper.errorNotSubscribed : (json.error || 'Ошибка проверки'))
