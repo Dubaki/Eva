@@ -23,6 +23,12 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
   const router = useRouter()
 
   const check = useCallback(async () => {
+    // 0. Bypass for admin routes
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
+      setState({ checking: false, blocked: false, cooldownDays: 0, lastTestDate: null })
+      return
+    }
+
     const WebApp = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null
     
     if (WebApp) {
