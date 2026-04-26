@@ -54,106 +54,33 @@ export async function POST(request: NextRequest) {
     console.log(`[API] Submitting test for tgId: ${tgId}, profileId: ${profileId}`);
     console.log(`[API] Scores:`, scores);
 
-    // 1. Сохраняем результат теста (UPSERT)
-    const { error: trError } = await supabaseAdmin.from('test_results').upsert({
-      tg_id: tgId,
-      profile_id: profileId,
-      primary_support: primary,
-      secondary_support: secondary,
-      answers: answers as any,
-      score_s: scores.scoreS,
-      score_u: scores.scoreU,
-      score_p: scores.scoreP,
-      score_r: scores.scoreR,
-      score_k: scores.scoreK,
-      created_at: new Date().toISOString()
-    }, { onConflict: 'tg_id' })
+    // Вызываем RPC функцию для атомарного сохранения
+    const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc('submit_test_result_v2', {
+      p_tg_id: tgId,
+      p_profile_id: profileId,
+      p_primary: primary,
+      p_secondary: secondary,
+      p_answers: answers,
+      p_score_s: scores.scoreS,
+      p_score_u: scores.scoreU,
+      p_score_p: scores.scoreP,
+      p_score_r: scores.scoreR,
+      p_score_k: scores.scoreK
+    })
 
-    if (trError) {
-      console.error('[API] test_results upsert error:', trError)
-      return NextResponse.json({ success: false, error: 'Ошибка сохранения результатов: ' + trError.message }, { status: 500 })
+    if (rpcError) {
+      console.error('[API] RPC submit_test_result_v2 error:', rpcError)
+      return NextResponse.json({ success: false, error: 'Ошибка сохранения: ' + rpcError.message }, { status: 500 })
     }
 
-    // 2. Обновляем профиль пользователя (по tg_id для надежности)
-    const { data: updatedProfile, error: profError } = await supabaseAdmin.from('profiles').update({
-      current_step: null,
-      question_order: null,
-      reminded_at: null,
-      mixed_trait_sent: false,
-      last_test_date: new Date().toISOString()
-    }).eq('tg_id', tgId).select('referred_by, referrer_id, referral_confirmed').single()
-
-    if (profError) {
-      console.error('[API] profiles update error:', profError)
-      return NextResponse.json({ success: false, error: 'Ошибка обновления профиля: ' + profError.message }, { status: 500 })
-    }
-
-    // 3. Ставим задачи в очередь (просто INSERT, так как уникального индекса для upsert нет)
-    try {
-      await supabaseAdmin.from('bot_tasks_queue').insert([
-        { 
-          profile_id: profileId, 
-          tg_id: tgId, 
-          event_type: 'cooldown_reminder', 
-          run_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-          status: 'pending'
-        },
-        { 
-          profile_id: profileId, 
-          tg_id: tgId, 
-          event_type: 'start_qualification', 
-          run_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          status: 'pending'
-        }
-      ])
-    } catch (err) {
-      console.error('[API] Failed to queue tasks (non-fatal):', err)
-    }
-
-    // 4. Реферальная логика
-    let referralProcessed = false
-    try {
-      if (updatedProfile && updatedProfile.referred_by && !updatedProfile.referral_confirmed) {
-        // Ищем пригласившего по его tg_id
-        const { data: inviter } = await supabaseAdmin
-          .from('profiles')
-          .select('id, invites_count')
-          .eq('tg_id', updatedProfile.referred_by)
-          .maybeSingle()
-
-        if (inviter) {
-          // 1. Увеличиваем счетчик пригласившему
-          await supabaseAdmin
-            .from('profiles')
-            .update({ invites_count: (inviter.invites_count || 0) + 1 })
-            .eq('id', inviter.id)
-
-          // 2. Помечаем текущего пользователя как подтвержденного
-          await supabaseAdmin
-            .from('profiles')
-            .update({
-              referrer_id: inviter.id,
-              referral_confirmed: true,
-              referral_confirmed_at: new Date().toISOString()
-            })
-            .eq('id', profileId)
-
-          referralProcessed = true
-          console.log(`[API] Referral confirmed: inviter ${inviter.id} got +1`);
-        }
-      }
-    } catch (err) {
-      console.error('[API] Referral logic error (non-fatal):', err)
-    }
-
-    console.log(`[API] Test submitted successfully for ${tgId}`);
+    console.log(`[API] Test submitted successfully for ${tgId}. RPC result:`, rpcResult);
 
     return NextResponse.json({
       success: true,
       data: {
         primary_support: primary,
         secondary_support: secondary,
-        referralProcessed: referralProcessed
+        referralProcessed: rpcResult?.referral_processed || false
       }
     })
   } catch (err) {

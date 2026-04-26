@@ -3,7 +3,8 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { TEXTS, RESULT_TEXTS } from '@/lib/constants/texts'
+import { TEXTS } from '@/lib/constants/texts'
+import { TRAIT_NAMES, TRAIT_DESCRIPTIONS } from '@/lib/constants/results'
 
 type ResultData = {
   primary_support: string
@@ -88,7 +89,6 @@ function ResultContent() {
     setSurpriseAnswer(val)
     setStep('insight')
     
-    // Smooth scroll to the new content after a delay to allow animation to complete
     setTimeout(() => {
       const element = document.getElementById('insight-block')
       if (element) {
@@ -114,9 +114,9 @@ function ResultContent() {
   }
 
   const trait = (result.primary_support || 'S').toUpperCase()
-  const traitName = TEXTS.result.traitNames[trait] || trait
+  const traitName = TRAIT_NAMES[trait] || trait
   const traitImg = RESULT_IMG[trait] || '/hero.png'
-  const traitFullText = RESULT_TEXTS[trait] || ''
+  const traitFullText = TRAIT_DESCRIPTIONS[trait] || ''
 
   return (
     <div className="font-body-md bg-[#0f141a] text-[#dee2ec] min-h-screen flex flex-col">
@@ -146,8 +146,9 @@ function ResultContent() {
           <motion.article {...fadeUp(0.1)} className="glass-card p-lg rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
             <div 
               className="font-body-md text-[#dee2ec]/80 leading-relaxed whitespace-pre-wrap" 
-              dangerouslySetInnerHTML={{ __html: traitFullText }} 
-            />
+            >
+              {traitFullText}
+            </div>
           </motion.article>
 
           <AnimatePresence mode="wait">
@@ -187,9 +188,9 @@ function ResultContent() {
               >
                 {/* Insight Block with Vertical Line */}
                 <div className="relative pl-lg py-sm border-l-2 border-[#8BA88E]">
-                  <p className="font-body-sm text-[#dee2ec]/70 italic leading-relaxed">
+                  <p className="font-body-sm text-[#dee2ec]/70 italic leading-relaxed whitespace-pre-wrap">
                     {surpriseAnswer === 'yes' ? TEXTS.result.insightYes1 : TEXTS.result.insightNo1}
-                    <br /><br />
+                    {"\n\n"}
                     {surpriseAnswer === 'yes' ? TEXTS.result.insightYes2 : TEXTS.result.insightNo2}
                   </p>
                 </div>
