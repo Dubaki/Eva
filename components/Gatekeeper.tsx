@@ -121,6 +121,7 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
     if (state.reason === 'not_subscribed') {
       return (
         <div className="min-h-screen flex flex-col font-body-md bg-background text-on-background">
+          <EvaHeader />
           <main className="flex-grow flex flex-col items-center justify-center px-container-padding py-xl">
             <motion.div 
               initial={{ opacity: 0, scale: 0.9 }}

@@ -123,6 +123,8 @@ function ResultContent() {
 
   return (
     <div className="font-body-md bg-background text-on-background min-h-screen flex flex-col">
+      <EvaHeader />
+
       <main className="flex-1 pb-32">
         {/* Hero Section (Always visible) */}
         <section className="relative w-full h-[397px] overflow-hidden">

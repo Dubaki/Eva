@@ -20,6 +20,7 @@ export default function Home() {
   if (cooldownDays > 0) {
     return (
       <div className="min-h-screen flex flex-col bg-background text-on-background font-body-md overflow-x-hidden">
+        <EvaHeader />
         <main className="flex-1 flex flex-col items-center px-container-padding pt-xl pb-32">
           <div className="w-full max-w-md flex flex-col items-center text-center space-y-xl">
             <motion.div {...fadeUp(0.1)} className="relative w-full aspect-square flex items-center justify-center max-w-[140px]">
@@ -78,6 +79,8 @@ export default function Home() {
 
   return (
     <div className="bg-background text-on-background min-h-screen flex flex-col font-body-md overflow-x-hidden">
+      <EvaHeader />
+      
       <main className="flex-1 flex flex-col px-container-padding pt-16 max-w-lg mx-auto w-full pb-32">
         {/* Main Narrative Card */}
         <motion.section 
