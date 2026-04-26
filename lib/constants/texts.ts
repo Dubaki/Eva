@@ -103,8 +103,10 @@ export const TEXTS = {
       btnTest: '▶️ Пройти тест',
     },
     referralLinkPart1: 'Скопируй сообщение ниже и отправь его друзьям. Когда твои друзья пройдут тест, тебе придёт твоя вторая искажённая опора.',
-    referralLinkPart2: (tgId: number | string) =>
-      `Пройди этот тест и узнай, какой механизм снова и снова приводит тебя к одним и тем же проблемам.\n\nhttps://t.me/${process.env.NEXT_PUBLIC_BOT_USERNAME ?? 'sprosievubot'}?start=ref_${tgId}`,
+    referralLinkPart2: (tgId: number | string) => {
+      const botUser = (process.env.NEXT_PUBLIC_BOT_USERNAME || 'sprosievubot').trim();
+      return `Пройди этот тест и узнай, какой механизм снова и снова приводит тебя к одним и тем же проблемам.\n\nhttps://t.me/${botUser}?start=ref_${tgId}`;
+    },
     referralFailed: 'Вижу, твои друзья ещё не прошли тест. Попробуем им напомнить?',
     cooldownEnded: {
       text: 'Хорошая новость!\n\nДоступ к тесту снова открыт. Заходи и проверь динамику своих изменений.',

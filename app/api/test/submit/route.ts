@@ -126,31 +126,6 @@ export async function POST(request: NextRequest) {
 
     console.log(`[API] Test submitted successfully for ${tgId}`);
 
-    // Send Message №3 to Telegram Bot
-    try {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
-      const imageName = TRAIT_IMAGES[primary] || 'hero.png'
-      const photoUrl = `${appUrl}/${imageName}`
-      const caption = RESULT_TEXTS[primary] || `Ваша опора: ${primary}`
-
-      const sent = await sendPhoto({
-        chatId: Number(tgId),
-        photo: photoUrl,
-        caption: caption,
-        parseMode: 'HTML'
-      })
-
-      if (!sent) {
-        await sendMessage({
-          chatId: Number(tgId),
-          text: caption,
-          parseMode: 'HTML'
-        })
-      }
-    } catch (botErr) {
-      console.error('[API] Failed to send Message №3 to bot (non-fatal):', botErr)
-    }
-
     return NextResponse.json({
       success: true,
       data: {
