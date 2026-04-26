@@ -54,26 +54,70 @@ export async function POST(request: NextRequest) {
     console.log(`[API] Submitting test for tgId: ${tgId}, profileId: ${profileId}`);
     console.log(`[API] Scores:`, scores);
 
-    // RPC handles: test_results upsert, profiles update, referral, cooldown_reminder +60d, start_qualification +24h
-    const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('submit_test_result_v2', {
-      p_tg_id: tgId,
-      p_profile_id: profileId,
-      p_primary: primary,
-      p_secondary: secondary,
-      p_answers: answers,
-      p_score_s: scores.scoreS,
-      p_score_u: scores.scoreU,
-      p_score_p: scores.scoreP,
-      p_score_r: scores.scoreR,
-      p_score_k: scores.scoreK
-    })
+    // 1. Сохраняем результат теста (UPSERT)
+    const { error: trError } = await supabaseAdmin.from('test_results').upsert({
+      tg_id: tgId,
+      profile_id: profileId,
+      primary_support: primary,
+      secondary_support: secondary,
+      answers: answers as any,
+      score_s: scores.scoreS,
+      score_u: scores.scoreU,
+      score_p: scores.scoreP,
+      score_r: scores.scoreR,
+      score_k: scores.scoreK,
+      created_at: new Date().toISOString()
+    }, { onConflict: 'tg_id' })
 
-    if (rpcError) {
-      console.error('[API] RPC Error details:', JSON.stringify(rpcError, null, 2))
-      return NextResponse.json({ success: false, error: rpcError.message, details: rpcError }, { status: 500 })
+    if (trError) {
+      console.error('[API] test_results upsert error:', trError)
+      return NextResponse.json({ success: false, error: 'Ошибка сохранения результатов: ' + trError.message }, { status: 500 })
     }
 
-    console.log(`[API] Test submitted for ${tgId}. Result:`, rpcData)
+    // 2. Обновляем профиль пользователя
+    const { data: updatedProfile, error: profError } = await supabaseAdmin.from('profiles').update({
+      current_step: null,
+      question_order: null,
+      reminded_at: null,
+      mixed_trait_sent: false,
+      last_test_date: new Date().toISOString()
+    }).eq('id', profileId).select('referred_by, referrer_id, referral_confirmed').single()
+
+    if (profError) {
+      console.error('[API] profiles update error:', profError)
+      return NextResponse.json({ success: false, error: 'Ошибка обновления профиля: ' + profError.message }, { status: 500 })
+    }
+
+    // 3. Ставим задачи в очередь
+    await supabaseAdmin.from('bot_tasks_queue').upsert([
+      { 
+        profile_id: profileId, 
+        tg_id: tgId, 
+        event_type: 'cooldown_reminder', 
+        run_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+        status: 'pending'
+      },
+      { 
+        profile_id: profileId, 
+        tg_id: tgId, 
+        event_type: 'start_qualification', 
+        run_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        status: 'pending'
+      }
+    ], { onConflict: 'profile_id,event_type' })
+
+    // 4. Реферальная логика (упрощенно)
+    let referralProcessed = false
+    if (updatedProfile.referred_by && !updatedProfile.referral_confirmed) {
+       // Здесь можно добавить логику начисления, но для теста достаточно подтверждения
+       await supabaseAdmin.from('profiles').update({
+         referral_confirmed: true,
+         referral_confirmed_at: new Date().toISOString()
+       }).eq('id', profileId)
+       referralProcessed = true
+    }
+
+    console.log(`[API] Test submitted successfully for ${tgId}`);
 
     // Send Message №3 to Telegram Bot
     try {
@@ -105,7 +149,7 @@ export async function POST(request: NextRequest) {
       data: {
         dominantTrait: scores.dominantTrait,
         secondaryTrait: scores.secondaryTrait,
-        referralProcessed: (rpcData as any)?.referral_processed
+        referralProcessed: referralProcessed
       }
     })
   } catch (err) {
