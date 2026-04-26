@@ -81,7 +81,7 @@ export default function Home() {
     <div className="bg-background text-on-background min-h-screen flex flex-col font-body-md overflow-x-hidden">
       <EvaHeader />
       
-      <main className="flex-1 flex flex-col px-container-padding pt-16 max-w-lg mx-auto w-full pb-32">
+      <main className="flex-1 flex flex-col px-container-padding max-w-lg mx-auto w-full pb-32 pt-16">
         {/* Main Narrative Card */}
         <motion.section 
           {...fadeUp(0.1)}
@@ -89,7 +89,7 @@ export default function Home() {
         >
           <div className="absolute top-0 left-0 w-1 h-full bg-primary-container"></div>
           <div className="flex flex-col gap-md">
-            <p className="font-headline-md italic text-on-surface/90 leading-relaxed">
+            <p className="font-headline-md italic text-on-surface/90 leading-relaxed text-xl" style={{ fontFamily: 'var(--font-newsreader)' }}>
               {TEXTS.start.part1}
             </p>
             <div className="space-y-sm text-on-surface-variant font-body-md">
@@ -169,7 +169,7 @@ export default function Home() {
         className="fixed bottom-0 left-0 w-full p-container-padding bg-gradient-to-t from-background via-background/90 to-transparent z-40 px-container-padding pb-container-padding pt-0 bg-background"
       >
         <Link href="/test" className="block w-full">
-          <button className="w-full h-14 bg-primary text-on-primary font-bold text-lg rounded-full flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-transform duration-150">
+          <button className="w-full h-14 bg-primary text-on-primary font-bold text-lg rounded-full flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-transform duration-150 uppercase">
             <span className="material-symbols-outlined" style={{ fontVariationSettings: '"FILL" 1' }}>play_arrow</span>
             {TEXTS.start.btnStart}
           </button>
