@@ -151,8 +151,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        dominantTrait: scores.dominantTrait,
-        secondaryTrait: scores.secondaryTrait,
+        primary_support: primary,
+        secondary_support: secondary,
         referralProcessed: referralProcessed
       }
     })

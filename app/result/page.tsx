@@ -6,8 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { TEXTS, RESULT_TEXTS } from '@/lib/constants/texts'
 
 type ResultData = {
-  dominantTrait: string
-  secondaryTrait: string
+  primary_support: string
+  secondary_support: string
 }
 
 type FunnelStep = 'result' | 'insight'
@@ -28,8 +28,8 @@ const RESULT_IMG: Record<string, string> = {
 
 function ResultLoading() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background">
-      <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+    <main className="flex min-h-screen items-center justify-center bg-[#0f141a]">
+      <div className="w-10 h-10 border-2 border-[#8BA88E] border-t-transparent rounded-full animate-spin" />
     </main>
   )
 }
@@ -48,7 +48,7 @@ function ResultContent() {
     if (stored) {
       try {
         const parsed = JSON.parse(stored)
-        if (parsed && parsed.dominantTrait) {
+        if (parsed && parsed.primary_support) {
           setResult(parsed)
           setLoading(false)
           hasLocalData = true
@@ -101,20 +101,25 @@ function ResultContent() {
 
   if (!result) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-container-padding text-center">
-        <h1 className="text-xl font-bold mb-4">Результат не найден</h1>
-        <button onClick={() => router.push('/')} className="bg-primary text-on-primary px-6 py-2 rounded-full">На главную</button>
+      <div className="min-h-screen bg-[#0f141a] flex flex-col items-center justify-center p- container-padding text-center text-[#dee2ec]">
+        <h1 className="text-xl font-bold mb-4 font-['Newsreader'] italic">Результат не найден</h1>
+        <button 
+          onClick={() => router.push('/')} 
+          className="bg-[#8BA88E] text-[#1c3622] px-6 py-2 rounded-full font-bold active:scale-95 transition-transform"
+        >
+          На главную
+        </button>
       </div>
     )
   }
 
-  const trait = result.dominantTrait.toUpperCase()
+  const trait = (result.primary_support || 'S').toUpperCase()
   const traitName = TEXTS.result.traitNames[trait] || trait
   const traitImg = RESULT_IMG[trait] || '/hero.png'
   const traitFullText = RESULT_TEXTS[trait] || ''
 
   return (
-    <div className="font-body-md bg-background text-on-background min-h-screen flex flex-col">
+    <div className="font-body-md bg-[#0f141a] text-[#dee2ec] min-h-screen flex flex-col">
       <main className="flex-1 pb-32">
         {/* Hero Section */}
         <section className="relative w-full h-[397px] overflow-hidden">
@@ -125,12 +130,12 @@ function ResultContent() {
             className="w-full h-full object-cover"
             alt={traitName}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0f141a] via-[#0f141a]/20 to-transparent"></div>
           <div className="absolute bottom-0 left-0 p-container-padding">
-            <span className="inline-block px-3 py-1 bg-primary/20 text-primary rounded-full text-label-sm mb-sm backdrop-blur-sm border border-primary/20">
+            <span className="inline-block px-3 py-1 bg-[#8BA88E]/20 text-[#8BA88E] rounded-full text-label-sm mb-sm backdrop-blur-sm border border-[#8BA88E]/20">
               {TEXTS.result.badge}
             </span>
-            <h2 className="font-headline-lg text-headline-lg text-on-surface leading-tight">
+            <h2 className="font-['Newsreader'] italic text-[32px] text-[#dee2ec] leading-tight">
               {TEXTS.result.titleTemplate}{traitName}
             </h2>
           </div>
@@ -138,8 +143,11 @@ function ResultContent() {
 
         <div className="px-container-padding space-y-xl mt-md">
           {/* Main Result Card */}
-          <motion.article {...fadeUp(0.1)} className="glass-card p-lg rounded-xl">
-            <div className="font-body-md text-on-surface-variant leading-relaxed whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: traitFullText }} />
+          <motion.article {...fadeUp(0.1)} className="glass-card p-lg rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+            <div 
+              className="font-body-md text-[#dee2ec]/80 leading-relaxed whitespace-pre-wrap" 
+              dangerouslySetInnerHTML={{ __html: traitFullText }} 
+            />
           </motion.article>
 
           <AnimatePresence mode="wait">
@@ -151,17 +159,17 @@ function ResultContent() {
                 exit={{ opacity: 0 }}
                 className="space-y-md"
               >
-                <h3 className="font-headline-md text-headline-md text-center">{TEXTS.result.questionTitle}</h3>
+                <h3 className="font-['Newsreader'] italic text-2xl text-center text-[#dee2ec]">{TEXTS.result.questionTitle}</h3>
                 <div className="flex gap-md">
                   <button 
                     onClick={() => handleSurprise('yes')}
-                    className="flex-1 py-md bg-primary text-on-primary font-label-md rounded-xl active:scale-95 transition-transform"
+                    className="flex-1 py-md bg-[#8BA88E] text-[#1c3622] font-bold rounded-xl active:scale-95 transition-transform"
                   >
                     {TEXTS.result.btnYes}
                   </button>
                   <button 
                     onClick={() => handleSurprise('no')}
-                    className="flex-1 py-md border border-secondary text-secondary font-label-md rounded-xl active:scale-95 transition-transform"
+                    className="flex-1 py-md border border-[#8BA88E]/30 text-[#8BA88E] font-bold rounded-xl active:scale-95 transition-transform"
                   >
                     {TEXTS.result.btnNo}
                   </button>
@@ -178,9 +186,8 @@ function ResultContent() {
                 id="insight-block"
               >
                 {/* Insight Block with Vertical Line */}
-                <div className="relative pl-lg py-sm">
-                  <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-primary"></div>
-                  <p className="font-body-sm text-on-surface-variant italic leading-relaxed">
+                <div className="relative pl-lg py-sm border-l-2 border-[#8BA88E]">
+                  <p className="font-body-sm text-[#dee2ec]/70 italic leading-relaxed">
                     {surpriseAnswer === 'yes' ? TEXTS.result.insightYes1 : TEXTS.result.insightNo1}
                     <br /><br />
                     {surpriseAnswer === 'yes' ? TEXTS.result.insightYes2 : TEXTS.result.insightNo2}
@@ -188,18 +195,18 @@ function ResultContent() {
                 </div>
                 
                 {/* Second Support Promo */}
-                <div className="p-lg rounded-xl border border-outline-variant bg-surface-container-low space-y-md">
-                  <h3 className="font-body-lg text-center text-on-surface">{TEXTS.result.secondQuestion}</h3>
+                <div className="p-lg rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md space-y-md">
+                  <h3 className="font-body-lg text-center text-[#dee2ec]">{TEXTS.result.secondQuestion}</h3>
                   <div className="flex flex-col gap-sm">
                     <button 
                       onClick={() => router.push('/access')}
-                      className="w-full py-md bg-primary text-on-primary font-label-md rounded-xl active:scale-95 transition-transform shadow-lg shadow-primary/10"
+                      className="w-full py-md bg-[#8BA88E] text-[#1c3622] font-bold rounded-xl active:scale-95 transition-transform shadow-lg shadow-[#8BA88E]/10"
                     >
                       {TEXTS.result.btnSecondYes}
                     </button>
                     <button 
                       onClick={() => router.push('/mechanism')}
-                      className="w-full py-md text-outline font-label-md rounded-xl active:scale-95 transition-transform"
+                      className="w-full py-md text-[#dee2ec]/50 font-medium rounded-xl active:scale-95 transition-transform"
                     >
                       {TEXTS.result.btnSecondNo}
                     </button>

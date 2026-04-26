@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import NextImage from 'next/image'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 
 type AdminStats = {
   totalUsers: number
@@ -13,15 +13,14 @@ type AdminStats = {
     tg_id: number
     username: string | null
     created_at: string
-    dominantTrait: string | null
-    secondaryTrait: string | null
+    primary_support: string | null
+    secondary_support: string | null
     invites_count: number
     last_test_date: string | null
     next_test_available: string | null
     contact_author_clicked: boolean
   }>
 }
-
 
 const TRAIT_LABELS: Record<string, string> = {
   S: 'Самоценность',
@@ -31,204 +30,123 @@ const TRAIT_LABELS: Record<string, string> = {
   K: 'Сверхбдительность',
 }
 
-/**
- * Compress an image file client-side using Canvas API.
- * Target: ~500KB. Max dimension: 1920px. Quality: 0.7.
- */
-async function compressImage(file: File, maxSizeKB = 500): Promise<Blob> {
-  const MAX_DIM = 1920
-  const quality = 0.7
-
-  return new Promise((resolve) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const img = document.createElement('img')
-      img.onload = () => {
-        const canvas = document.createElement('canvas')
-        let { width, height } = img
-        if (width > MAX_DIM || height > MAX_DIM) {
-          if (width > height) {
-            height = Math.round((height / width) * MAX_DIM)
-            width = MAX_DIM
-          } else {
-            width = Math.round((width / height) * MAX_DIM)
-            height = MAX_DIM
-          }
-        }
-        canvas.width = width
-        canvas.height = height
-        const ctx = canvas.getContext('2d')!
-        ctx.drawImage(img, 0, 0, width, height)
-
-        canvas.toBlob(
-          (blob) => {
-            if (blob) resolve(blob)
-            else resolve(file) // fallback to original
-          },
-          'image/jpeg',
-          quality
-        )
-      }
-      img.src = e.target!.result as string
-    }
-    reader.readAsDataURL(file)
-  })
-}
-
 type Tab = 'stats' | 'crm' | 'broadcast'
-type SortField = 'created_at' | 'invites_count' | 'last_test_date'
-type SortDir = 'asc' | 'desc'
 
 export default function AdminPanel() {
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [unauthorized, setUnauthorized] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('stats')
-const [sortField, setSortField] = useState<SortField>('created_at')
-  const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [broadcastMsg, setBroadcastMsg] = useState('')
-  const [broadcastPhoto, setBroadcastPhoto] = useState<File | null>(null)
-  const [broadcastPhotoPreview, setBroadcastPhotoPreview] = useState<string | null>(null)
   const [broadcasting, setBroadcasting] = useState(false)
   const [broadcastResult, setBroadcastResult] = useState<{ sent: number; failed: number; total: number } | null>(null)
   const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set())
-  // CRM direct message modal
+  
+  // CRM message modal
   const [msgModalOpen, setMsgModalOpen] = useState(false)
   const [msgTargetTgId, setMsgTargetTgId] = useState<number | null>(null)
   const [msgTargetUsername, setMsgTargetUsername] = useState<string>('')
   const [msgText, setMsgText] = useState('')
   const [msgSending, setMsgSending] = useState(false)
   const [msgSent, setMsgSent] = useState(false)
+  
   const router = useRouter()
 
-  const adminHeaders = (): Record<string, string> => {
+  const adminHeaders = useCallback((): Record<string, string> => {
     const token = localStorage.getItem('admin_token')
     const headers: Record<string, string> = {}
     if (token) headers['Authorization'] = `Bearer ${token}`
     return headers
-  }
-
-  const refreshStats = useCallback((): Promise<void> => {
-    const headers = adminHeaders()
-    const bustCache = `?t=${Date.now()}`
-    return fetch(`/api/admin/stats${bustCache}`, { headers, cache: 'no-store' })
-      .then((r) => {
-        if (!r.ok) {
-          if (r.status === 401) setUnauthorized(true)
-          return r.json().then((json) => {
-            console.error('[admin] Refresh error:', json.error)
-            return null
-          })
-        }
-        return r.json()
-      })
-      .then((json) => {
-        if (json?.success) setStats(json.data)
-      })
-      .catch((err) => console.error('[admin] Refresh fetch error:', err))
   }, [])
 
-  useEffect(() => {
-    const token = localStorage.getItem('admin_token')
-    if (!token) {
+  const refreshStats = useCallback(async () => {
+    try {
+      const headers = adminHeaders()
+      const res = await fetch(`/api/admin/stats?t=${Date.now()}`, { headers, cache: 'no-store' })
+      
+      if (res.status === 401) {
+        setUnauthorized(true)
+        setLoading(false)
+        return
+      }
+      
+      const json = await res.json()
+      if (json?.success) {
+        setStats(json.data)
+        setUnauthorized(false)
+      } else {
+        setUnauthorized(true)
+      }
+    } catch (err) {
+      console.error('[admin] Fetch error:', err)
       setUnauthorized(true)
+    } finally {
       setLoading(false)
-      return
     }
+  }, [adminHeaders])
 
-    // Fetch stats
-    refreshStats().finally(() => setLoading(false))
-
+  useEffect(() => {
+    refreshStats()
   }, [refreshStats])
 
-  const handleBroadcast = async () => {
-    if (!broadcastMsg.trim() && !broadcastPhoto) return
+  const handleLogin = async () => {
+    const pin = window.prompt('Введите PIN-код администратора')
+    if (!pin) return
 
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin }),
+      })
+      const data = await res.json()
+      if (data.success && data.token) {
+        localStorage.setItem('admin_token', data.token)
+        refreshStats()
+      } else {
+        alert('❌ Неверный PIN-код')
+        setLoading(false)
+      }
+    } catch (err) {
+      alert('❌ Ошибка сети')
+      setLoading(false)
+    }
+  }
+
+  const handleBroadcast = async () => {
+    if (!broadcastMsg.trim()) return
     setBroadcasting(true)
-    setBroadcastResult(null)
     try {
       const formData = new FormData()
       formData.append('message', broadcastMsg)
-      if (broadcastPhoto) {
-        formData.append('photo', broadcastPhoto)
-      }
       if (selectedUsers.size > 0) {
         formData.append('target_tg_ids', JSON.stringify(Array.from(selectedUsers)))
       }
-
       const res = await fetch('/api/admin/broadcast', {
         method: 'POST',
         headers: adminHeaders(),
         body: formData,
       })
       const json = await res.json()
-      if (json.success && json.data) {
-        setBroadcastResult({ sent: json.data.sent, failed: json.data.failed, total: json.data.total })
+      if (json.success) {
+        setBroadcastResult(json.data)
         setBroadcastMsg('')
-        setBroadcastPhoto(null)
-        setBroadcastPhotoPreview(null)
-        setSelectedUsers(new Set())
       }
     } catch (err) {
-      console.error('[admin] Broadcast error:', err)
+      alert('Ошибка при рассылке')
     } finally {
       setBroadcasting(false)
     }
   }
 
-  const toggleUserSelection = (tgId: number) => {
-    setSelectedUsers((prev) => {
-      const next = new Set(prev)
-      if (next.has(tgId)) next.delete(tgId)
-      else next.add(tgId)
-      return next
-    })
-  }
-
-  const toggleAllUsers = () => {
-    if (!stats) return
-    const allIds = stats.recentUsers.map((u) => u.tg_id)
-    const allSelected = allIds.every((id) => selectedUsers.has(id))
-    setSelectedUsers(allSelected ? new Set() : new Set(allIds))
-  }
-
-  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      let processedFile: File = file
-      // Compress if > 5MB
-      if (file.size > 5 * 1024 * 1024) {
-        console.log(`[admin] Compressing image: ${(file.size / 1024 / 1024).toFixed(1)}MB`)
-        const blob = await compressImage(file)
-        processedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' })
-        console.log(`[admin] Compressed to: ${(processedFile.size / 1024 / 1024).toFixed(1)}MB`)
-      }
-      setBroadcastPhoto(processedFile)
-      const reader = new FileReader()
-      reader.onload = () => setBroadcastPhotoPreview(reader.result as string)
-      reader.readAsDataURL(processedFile)
-    }
-  }
-
-  const openMessageModal = (tgId: number, username: string | null) => {
-    setMsgTargetTgId(tgId)
-    setMsgTargetUsername(username ?? `ID: ${tgId}`)
-    setMsgText('')
-    setMsgSent(false)
-    setMsgModalOpen(true)
-  }
-
   const handleSendDirectMessage = async () => {
     if (!msgTargetTgId || !msgText.trim()) return
     setMsgSending(true)
-    setMsgSent(false)
     try {
       const res = await fetch('/api/admin/message/user', {
         method: 'POST',
-        headers: {
-          ...adminHeaders(),
-          'Content-Type': 'application/json',
-        },
+        headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ target_tg_id: msgTargetTgId, text: msgText }),
       })
       const json = await res.json()
@@ -237,468 +155,278 @@ const [sortField, setSortField] = useState<SortField>('created_at')
         setTimeout(() => {
           setMsgModalOpen(false)
           setMsgSent(false)
+          setMsgText('')
         }, 2000)
       }
     } catch (err) {
-      console.error('[admin] Direct message error:', err)
+      alert('Ошибка отправки')
     } finally {
       setMsgSending(false)
     }
   }
 
-  if (unauthorized) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-bg-primary px-6">
-        <div className="text-center">
-          <p className="text-4xl mb-4">🔒</p>
-          <p className="text-text-primary text-lg font-medium mb-2">Доступ ограничен</p>
-          <p className="text-text-muted text-sm mb-4">Эта панель доступна только авторизованным тестировщикам.</p>
-          <button
-            onClick={() => router.push('/result')}
-            className="inline-block py-3 px-6 bg-accent text-white rounded-xl font-semibold text-sm"
-          >
-            🔙 Назад в приложение
-          </button>
-        </div>
-      </main>
-    )
-  }
-
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-bg-primary">
-        <motion.div
-          className="w-10 h-10 border-2 border-accent border-t-transparent rounded-full"
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-        />
-      </main>
+      <div className="min-h-screen bg-[#0f141a] flex flex-col items-center justify-center space-y-4">
+        <div className="w-12 h-12 border-2 border-[#8BA88E] border-t-transparent rounded-full animate-spin" />
+        <p className="text-[#8BA88E] font-medium animate-pulse">Загрузка системы...</p>
+      </div>
     )
   }
 
-  if (!stats) {
+  if (unauthorized) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-bg-primary px-6">
-        <div className="text-center">
-          <p className="text-text-primary text-lg font-medium">Не удалось загрузить статистику</p>
-          <a href="/result" className="inline-block mt-4 py-3 px-6 bg-accent text-white rounded-xl font-semibold text-sm">
-            🔙 Назад в приложение
-          </a>
+      <div className="min-h-screen bg-[#0f141a] flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-20 h-20 bg-[#8BA88E]/10 rounded-full flex items-center justify-center mb-6 border border-[#8BA88E]/20 shadow-lg shadow-[#8BA88E]/5">
+          <span className="material-symbols-outlined text-[#8BA88E] text-4xl">lock</span>
         </div>
-      </main>
+        <h1 className="font-['Newsreader'] italic text-[32px] text-[#dee2ec] mb-2">Админ-панель</h1>
+        <p className="text-[#dee2ec]/60 mb-8 max-w-xs">Доступ только для авторизованных пользователей</p>
+        <button
+          onClick={handleLogin}
+          className="w-full max-w-xs py-4 bg-[#8BA88E] text-[#1c3622] font-bold rounded-2xl active:scale-95 transition-all shadow-lg shadow-[#8BA88E]/10"
+        >
+          Войти по PIN-коду
+        </button>
+      </div>
     )
   }
 
   return (
-    <main className="flex flex-col h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 overflow-hidden">
-      <div className="flex flex-col flex-1 min-h-0 px-4 pt-4 pb-3 max-w-lg mx-auto w-full gap-3">
-
-        {/* Header — Glass */}
-        <div className="bg-white/70 backdrop-blur-md border border-white/30 shadow-lg rounded-2xl px-5 py-3 shrink-0">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex-1 text-center">
-              <h1 className="text-[22px] font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                👑 Админ-панель
-              </h1>
-              <p className="text-gray-400 text-xs mt-0.5">Статистика проекта EVA</p>
-            </div>
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.9, rotate: -180 }}
-              onClick={refreshStats}
-              className="p-2 rounded-xl bg-white/60 hover:bg-white border border-gray-200 transition-all text-lg"
-              title="Обновить данные"
-            >
-              🔄
-            </motion.button>
-          </div>
+    <div className="min-h-screen bg-[#0f141a] text-[#dee2ec] font-body-md">
+      {/* Top Header */}
+      <header className="sticky top-0 z-40 bg-[#0f141a]/80 backdrop-blur-xl border-b border-white/5 px-6 h-16 flex items-center justify-between shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-[#8BA88E] rounded-lg flex items-center justify-center text-[#1c3622] font-bold">E</div>
+          <h1 className="font-['Newsreader'] italic text-xl">EvaAdmin</h1>
         </div>
+        <button 
+          onClick={() => { localStorage.removeItem('admin_token'); setUnauthorized(true); }}
+          className="text-[#dee2ec]/40 hover:text-red-400 transition-colors"
+        >
+          <span className="material-symbols-outlined">logout</span>
+        </button>
+      </header>
 
-        {/* Tabs — pill bar */}
-        <div className="bg-white/60 backdrop-blur-md border border-white/20 shadow-md rounded-2xl p-1.5 flex gap-1 shrink-0">
-          {([
-            ['stats', '📊 Статистика'],
-            ['crm', '👥 CRM'],
-            ['broadcast', '📢 Рассылка'],
-          ] as [Tab, string][]).map(([key, label]) => (
+      <main className="p-6 pb-32 max-w-5xl mx-auto space-y-6">
+        {/* Navigation Tabs */}
+        <nav className="flex p-1 bg-white/5 rounded-2xl border border-white/5">
+          {[
+            { id: 'stats', label: 'Статистика', icon: 'query_stats' },
+            { id: 'crm', label: 'Пользователи', icon: 'group' },
+            { id: 'broadcast', label: 'Рассылка', icon: 'campaign' }
+          ].map(tab => (
             <button
-              key={key}
-              type="button"
-              onClick={() => { setActiveTab(key); setBroadcastResult(null) }}
-              className={`flex-1 py-2 rounded-xl text-[12px] font-semibold transition-all duration-300 ${
-                activeTab === key
-                  ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30 scale-[1.02]'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as Tab)}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all ${
+                activeTab === tab.id 
+                  ? 'bg-[#8BA88E] text-[#1c3622] shadow-lg shadow-[#8BA88E]/10' 
+                  : 'text-[#dee2ec]/60 hover:bg-white/5'
               }`}
             >
-              {label}
+              <span className="material-symbols-outlined text-lg">{tab.icon}</span>
+              <span className="hidden sm:inline">{tab.label}</span>
             </button>
           ))}
-        </div>
-
-        {/* ════════════ SCROLLABLE CONTENT AREA ════════════ */}
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        </nav>
 
         {/* ════════════ STATS TAB ════════════ */}
-        {activeTab === 'stats' && (
-          <>
-            {/* Summary cards */}
-            <div className="grid grid-cols-2 gap-3">
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05 }}
-                className="bg-white/70 backdrop-blur-md border border-white/30 shadow-xl rounded-2xl p-5 text-center hover:shadow-2xl transition-all duration-300"
-              >
-                <p className="text-gray-400 text-[11px] uppercase tracking-widest mb-2 font-medium">Всего пользователей</p>
-                <p className="text-[32px] font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">{stats.totalUsers}</p>
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="bg-white/70 backdrop-blur-md border border-white/30 shadow-xl rounded-2xl p-5 text-center hover:shadow-2xl transition-all duration-300"
-              >
-                <p className="text-gray-400 text-[11px] uppercase tracking-widest mb-2 font-medium">Прошли тест</p>
-                <p className="text-[32px] font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{stats.completedTests}</p>
-              </motion.div>
+        {activeTab === 'stats' && stats && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+                <p className="text-[#dee2ec]/40 text-xs uppercase font-bold tracking-wider mb-1">Всего пользователей</p>
+                <p className="text-3xl font-['Newsreader'] italic text-[#8BA88E]">{stats.totalUsers}</p>
+              </div>
+              <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+                <p className="text-[#dee2ec]/40 text-xs uppercase font-bold tracking-wider mb-1">Пройдено тестов</p>
+                <p className="text-3xl font-['Newsreader'] italic text-[#8BA88E]">{stats.completedTests}</p>
+              </div>
             </div>
-          </>
+
+            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md space-y-4">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-[#dee2ec]/60">Распределение опор</h3>
+              <div className="space-y-3">
+                {Object.entries(TRAIT_LABELS).map(([key, label]) => {
+                  const count = stats.traitCounts[key] || 0
+                  const percent = stats.completedTests > 0 ? (count / stats.completedTests) * 100 : 0
+                  return (
+                    <div key={key} className="space-y-1.5">
+                      <div className="flex justify-between text-xs font-medium">
+                        <span className="text-[#dee2ec]/80">{label} ({key})</span>
+                        <span className="text-[#8BA88E] font-bold">{count} ({Math.round(percent)}%)</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }} 
+                          animate={{ width: `${percent}%` }} 
+                          className="h-full bg-[#8BA88E] shadow-[0_0_8px_rgba(139,168,142,0.4)]"
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </motion.div>
         )}
 
         {/* ════════════ CRM TAB ════════════ */}
-        {activeTab === 'crm' && (
-          <div className="flex flex-col gap-3">
-            {/* All users table */}
-            <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="p-3 border-b border-gray-100 flex items-center justify-between">
-                <p className="text-gray-500 text-xs uppercase tracking-widest font-medium">👥 Все пользователи</p>
-                <div className="flex gap-1.5">
-                  {(['created_at', 'invites_count', 'last_test_date'] as SortField[]).map((field) => {
-                    const labels: Record<SortField, string> = {
-                      created_at: '📅 Дата',
-                      invites_count: '🔗 Реф.',
-                      last_test_date: '🧪 Тест',
-                    }
-                    const isActive = sortField === field
-                    return (
-                      <button
-                        key={field}
-                        type="button"
-                        onClick={() => {
-                          if (sortField === field) {
-                            setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
-                          } else {
-                            setSortField(field)
-                            setSortDir('desc')
-                          }
-                        }}
-                        className={`text-[11px] font-medium px-2.5 py-1.5 rounded-lg transition-colors ${
-                          isActive
-                            ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md'
-                            : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                        }`}
-                      >
-                        {labels[field]} {isActive && (sortDir === 'asc' ? '↑' : '↓')}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {stats.recentUsers.length === 0 ? (
-                <p className="text-gray-400 text-sm text-center py-8">Пока нет пользователей</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-[12px]">
-                    <thead>
-                      <tr className="border-b border-gray-100">
-                        <th className="text-center py-2.5 px-1 text-gray-400 font-medium w-8">
-                          <input
-                            type="checkbox"
-                            checked={stats.recentUsers.every((u) => selectedUsers.has(u.tg_id))}
-                            onChange={toggleAllUsers}
-                            className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                          />
-                        </th>
-                        <th className="text-left py-2.5 px-2 text-gray-400 font-medium">Username</th>
-                        <th className="text-left py-2.5 px-2 text-gray-400 font-medium">Опора</th>
-                        <th className="text-center py-2.5 px-2 text-gray-400 font-medium">🔗</th>
-                        <th className="text-center py-2.5 px-2 text-gray-400 font-medium">Тест</th>
-                        <th className="text-center py-2.5 px-2 text-gray-400 font-medium">✉️</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[...stats.recentUsers]
-                        .sort((a, b) => {
-                          const mul = sortDir === 'asc' ? 1 : -1
-                          if (sortField === 'invites_count') {
-                            return mul * ((a.invites_count ?? 0) - (b.invites_count ?? 0))
-                          }
-                          if (sortField === 'last_test_date') {
-                            const da = a.last_test_date || '1970-01-01'
-                            const db2 = b.last_test_date || '1970-01-01'
-                            return mul * (da < db2 ? -1 : da > db2 ? 1 : 0)
-                          }
-                          return mul * (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0)
-                        })
-                        .map((u, i) => (
-                            <tr key={i} className={`border-b border-gray-100 last:border-b-0 hover:bg-gray-50/50 transition-colors ${
-                              selectedUsers.has(u.tg_id) ? 'bg-blue-50/60' : ''
-                            }`}>
-                              <td className="py-2.5 px-1 text-center">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedUsers.has(u.tg_id)}
-                                  onChange={() => toggleUserSelection(u.tg_id)}
-                                  className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                                />
-                              </td>
-                              <td className="py-2.5 px-2">
-                                <div className="flex flex-col gap-0.5">
-                                  <p className="font-medium text-gray-700 truncate max-w-[120px]">
-                                    {u.username ? (
-                                      <a
-                                        href={`https://t.me/${u.username}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-blue-600 hover:underline"
-                                      >
-                                        @{u.username}
-                                      </a>
-                                    ) : (
-                                      <span className="text-gray-400 text-[11px]">{u.tg_id}</span>
-                                    )}
-                                  </p>
-                                  <p className="text-[10px] text-gray-400">
-                                    {new Date(u.created_at).toLocaleDateString('ru-RU')}
-                                  </p>
-                                </div>
-                              </td>
-                              <td className="py-2.5 px-2 text-center">
-                                {u.dominantTrait ? (
-                                  <span className="text-blue-600 font-medium text-[11px]">{TRAIT_LABELS[u.dominantTrait] ?? u.dominantTrait}</span>
-                                ) : (
-                                  <span className="text-gray-400 text-[11px]">—</span>
-                                )}
-                              </td>
-                              <td className="py-2.5 px-2 text-center">
-                                <span className="font-medium text-gray-600">{u.invites_count ?? 0}</span>
-                              </td>
-                              <td className="py-2.5 px-2 text-center">
-                                {u.last_test_date ? (
-                                  <span className="text-gray-400 text-[11px]">
-                                    {new Date(u.last_test_date).toLocaleDateString('ru-RU')}
-                                  </span>
-                                ) : (
-                                  <span className="text-gray-400 text-[11px]">нет</span>
-                                )}
-                              </td>
-                              <td className="py-2.5 px-2 text-center">
-                                <div className="flex flex-col items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => openMessageModal(u.tg_id, u.username)}
-                                    className="text-[11px] px-2 py-1 rounded-md bg-gray-50 text-gray-500 hover:bg-blue-500 hover:text-white transition-all font-medium"
-                                  >
-                                    ✉️
-                                  </button>
-                                  {u.contact_author_clicked && (
-                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600 text-[9px] font-semibold leading-none">
-                                      🔥 Запросил
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          )
+        {activeTab === 'crm' && stats && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+            <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead>
+                  <tr className="bg-white/5 border-b border-white/10">
+                    <th className="p-4 font-bold text-[#dee2ec]/40 text-[10px] uppercase tracking-wider">Пользователь</th>
+                    <th className="p-4 font-bold text-[#dee2ec]/40 text-[10px] uppercase tracking-wider text-center">Опора</th>
+                    <th className="p-4 font-bold text-[#dee2ec]/40 text-[10px] uppercase tracking-wider text-center">Друзья</th>
+                    <th className="p-4 font-bold text-[#dee2ec]/40 text-[10px] uppercase tracking-wider text-right">Действия</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {stats.recentUsers.map(user => (
+                    <tr key={user.tg_id} className="hover:bg-white/[0.02] transition-colors group">
+                      <td className="p-4">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-[#dee2ec]">{user.username || 'Без ника'}</span>
+                          <span className="text-[10px] text-[#dee2ec]/30">{new Date(user.created_at).toLocaleDateString()}</span>
+                        </div>
+                      </td>
+                      <td className="p-4 text-center">
+                        {user.primary_support ? (
+                          <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#8BA88E]/10 border border-[#8BA88E]/20 text-[#8BA88E] font-bold text-[10px]">
+                            {user.primary_support}
+                            {user.secondary_support && <span className="text-[#dee2ec]/30">• {user.secondary_support}</span>}
+                          </div>
+                        ) : (
+                          <span className="text-[#dee2ec]/20">—</span>
                         )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      </td>
+                      <td className="p-4 text-center font-bold text-[#8BA88E]">{user.invites_count}</td>
+                      <td className="p-4 text-right">
+                        <div className="flex justify-end items-center gap-2">
+                          {user.contact_author_clicked && (
+                            <span className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]" title="Запросил связь" />
+                          )}
+                          <button
+                            onClick={() => {
+                              setMsgTargetTgId(user.tg_id)
+                              setMsgTargetUsername(user.username || String(user.tg_id))
+                              setMsgModalOpen(true)
+                            }}
+                            className="p-2 rounded-xl bg-white/5 text-[#8BA88E] hover:bg-[#8BA88E] hover:text-[#1c3622] transition-all"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">mail</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-
-            {/* Direct Message Modal */}
-            {msgModalOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[17px] font-semibold text-gray-800">
-                      💬 Написать @{msgTargetUsername}
-                    </h3>
-                    <button
-                      type="button"
-                      onClick={() => setMsgModalOpen(false)}
-                      className="text-gray-400 hover:text-gray-600 text-xl transition-colors"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  {msgSent ? (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="text-center py-6"
-                    >
-                      <p className="text-3xl mb-2">✅</p>
-                      <p className="text-gray-700 font-medium">Сообщение отправлено!</p>
-                    </motion.div>
-                  ) : (
-                    <>
-                      <textarea
-                        value={msgText}
-                        onChange={(e) => setMsgText(e.target.value)}
-                        placeholder="Введите сообщение (поддерживается HTML)..."
-                        rows={4}
-                        className="w-full py-3 px-4 bg-gray-50 border border-gray-200 rounded-xl text-[14px] text-gray-800 placeholder:text-gray-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none mb-4"
-                      />
-                      <motion.button
-                        type="button"
-                        whileTap={{ scale: msgSending ? 1 : 0.97 }}
-                        onClick={handleSendDirectMessage}
-                        disabled={msgSending || !msgText.trim()}
-                        className={`w-full py-3 rounded-xl font-semibold text-[15px] text-white transition-all shadow-md ${
-                          msgSending || !msgText.trim()
-                            ? 'opacity-60 cursor-not-allowed shadow-none'
-                            : 'active:scale-[0.98] hover:shadow-lg'
-                        }`}
-                        style={{ background: 'var(--accent)' }}
-                      >
-                        {msgSending ? '⏳ Отправка...' : '📤 Отправить'}
-                      </motion.button>
-                    </>
-                  )}
-                </motion.div>
-              </div>
-            )}
-          </div>
+          </motion.div>
         )}
 
         {/* ════════════ BROADCAST TAB ════════════ */}
         {activeTab === 'broadcast' && (
-          <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 shadow-sm border border-gray-100">
-            <div className="text-center mb-4">
-              <p className="text-gray-400 text-xs uppercase tracking-widest font-medium">
-                {selectedUsers.size > 0
-                  ? `Рассылка выбранным (${selectedUsers.size})`
-                  : 'Рассылка всем пользователям'}
-              </p>
-              {selectedUsers.size > 0 && (
-                <button
-                  type="button"
-                  onClick={() => { setActiveTab('crm') }}
-                  className="text-[11px] text-blue-500 hover:text-blue-700 mt-1 font-medium"
-                >
-                  ← Выбрать в CRM
-                </button>
+          <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
+            <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md space-y-6">
+              <div className="text-center space-y-1">
+                <h3 className="font-['Newsreader'] italic text-2xl text-[#dee2ec]">Массовая рассылка</h3>
+                <p className="text-xs text-[#dee2ec]/40 uppercase tracking-widest font-bold">
+                  {selectedUsers.size > 0 ? `Выбрано ${selectedUsers.size} получателей` : 'Будет отправлено всем пользователям'}
+                </p>
+              </div>
+
+              <textarea
+                value={broadcastMsg}
+                onChange={(e) => setBroadcastMsg(e.target.value)}
+                placeholder="Текст сообщения (поддерживается HTML)..."
+                rows={6}
+                className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-sm text-[#dee2ec] focus:border-[#8BA88E] focus:ring-1 focus:ring-[#8BA88E]/20 transition-all outline-none resize-none placeholder:text-white/10"
+              />
+
+              <button
+                onClick={handleBroadcast}
+                disabled={broadcasting || !broadcastMsg.trim()}
+                className="w-full py-4 bg-[#8BA88E] text-[#1c3622] font-bold rounded-2xl active:scale-95 transition-all shadow-lg shadow-[#8BA88E]/10 disabled:opacity-50"
+              >
+                {broadcasting ? '⏳ Отправка...' : '📢 Запустить рассылку'}
+              </button>
+
+              {broadcastResult && (
+                <div className="p-4 bg-[#8BA88E]/5 border border-[#8BA88E]/20 rounded-xl text-center animate-bounce-in">
+                  <p className="text-sm font-bold text-[#8BA88E]">✅ Рассылка завершена</p>
+                  <p className="text-[10px] text-[#dee2ec]/40">Успешно: {broadcastResult.sent} | Ошибок: {broadcastResult.failed}</p>
+                </div>
               )}
             </div>
+          </motion.div>
+        )}
+      </main>
 
-            {/* Photo upload */}
-            <div className="mb-3">
-              <label className="text-[12px] font-medium text-gray-600 mb-2 block">📷 Фото (необязательно)</label>
-              <div className="flex items-center gap-3">
-                <label className="flex-1 flex items-center justify-center py-6 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-blue-50/50 transition-all">
-                  {broadcastPhotoPreview ? (
-                    <NextImage 
-                      src={broadcastPhotoPreview} 
-                      alt="Preview" 
-                      width={200} 
-                      height={112} 
-                      className="max-h-28 w-auto rounded-lg object-cover" 
-                      unoptimized
-                    />
-                  ) : (
-                    <div className="text-center">
-                      <p className="text-2xl mb-1">🖼️</p>
-                      <p className="text-gray-400 text-[12px]">Нажмите для загрузки</p>
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handlePhotoChange}
-                    className="hidden"
-                  />
-                </label>
-                {broadcastPhoto && (
-                  <button
-                    type="button"
-                    onClick={() => { setBroadcastPhoto(null); setBroadcastPhotoPreview(null) }}
-                    className="text-gray-400 hover:text-red-500 transition-colors text-xl shrink-0"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <textarea
-              value={broadcastMsg}
-              onChange={(e) => setBroadcastMsg(e.target.value)}
-              placeholder="Введите текст рассылки (поддерживается HTML)..."
-              rows={4}
-              className="w-full py-2.5 px-3 bg-gray-50 border border-gray-200 rounded-xl text-[13px] text-gray-800 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all resize-none mb-3"
-            />
-
-            <motion.button
-              type="button"
-              whileTap={{ scale: broadcasting ? 1 : 0.97 }}
-              onClick={handleBroadcast}
-              disabled={broadcasting || (!broadcastMsg.trim() && !broadcastPhoto)}
-              className={`w-full py-3 rounded-xl font-semibold text-[14px] text-white transition-all shadow-md ${
-                broadcasting || (!broadcastMsg.trim() && !broadcastPhoto)
-                  ? 'opacity-60 cursor-not-allowed shadow-none'
-                  : 'active:scale-[0.98] hover:shadow-lg'
-              }`}
-              style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}
+      {/* MODAL: Direct Message */}
+      <AnimatePresence>
+        {msgModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#0f141a]/90 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="w-full max-w-md bg-[#1c2229] border border-white/10 rounded-[32px] p-8 shadow-2xl"
             >
-              {broadcasting ? '⏳ Отправка...' : '📢 Сделать рассылку'}
-            </motion.button>
-
-            {broadcastResult && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-100 text-center"
-              >
-                <p className="text-gray-800 text-[13px] font-semibold">
-                  ✅ Рассылка завершена
-                </p>
-                <div className="flex items-center justify-center gap-3 mt-1.5">
-                  <span className="text-emerald-600 text-[12px] font-medium">
-                    Доставлено: {broadcastResult.sent}
-                  </span>
-                  {broadcastResult.failed > 0 && (
-                    <span className="text-red-500 text-[12px] font-medium">
-                      Ошибок: {broadcastResult.failed}
-                    </span>
-                  )}
-                  <span className="text-gray-400 text-[12px]">
-                    Всего: {broadcastResult.total}
-                  </span>
+              <div className="flex justify-between items-start mb-6">
+                <div className="space-y-1">
+                  <h3 className="font-['Newsreader'] italic text-2xl">Написать @{msgTargetUsername}</h3>
+                  <p className="text-[10px] text-[#dee2ec]/40 uppercase tracking-widest font-bold">Личное сообщение</p>
                 </div>
-              </motion.div>
-            )}
+                <button onClick={() => setMsgModalOpen(false)} className="p-2 text-white/20 hover:text-white transition-colors">
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+
+              {msgSent ? (
+                <div className="py-12 text-center space-y-4">
+                  <div className="w-16 h-16 bg-[#8BA88E] rounded-full flex items-center justify-center mx-auto shadow-lg shadow-[#8BA88E]/20">
+                    <span className="material-symbols-outlined text-[#1c3622] text-3xl font-bold">check</span>
+                  </div>
+                  <p className="text-[#8BA88E] font-bold">Сообщение отправлено!</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <textarea
+                    value={msgText}
+                    onChange={(e) => setMsgText(e.target.value)}
+                    placeholder="Введите текст..."
+                    rows={4}
+                    className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-sm outline-none focus:border-[#8BA88E] transition-all"
+                  />
+                  <button
+                    onClick={handleSendDirectMessage}
+                    disabled={msgSending || !msgText.trim()}
+                    className="w-full py-4 bg-[#8BA88E] text-[#1c3622] font-bold rounded-2xl active:scale-95 transition-all shadow-lg"
+                  >
+                    {msgSending ? '⏳ Отправка...' : 'Отправить'}
+                  </button>
+                </div>
+              )}
+            </motion.div>
           </div>
         )}
+      </AnimatePresence>
 
-        </div>{/* end scrollable content area */}
-
-        {/* Back button — outside scrollable area */}
-        <a
-          href="/result"
-          className="block w-full py-2.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-semibold text-[14px] text-center active:scale-[0.98] transition-transform shadow-lg shadow-blue-500/20 shrink-0"
+      {/* Floating Back Button */}
+      <div className="fixed bottom-6 left-6 right-6 z-40 max-w-5xl mx-auto">
+        <button
+          onClick={() => router.push('/result')}
+          className="w-full py-4 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl text-[#dee2ec]/60 font-bold hover:bg-white/10 active:scale-95 transition-all"
         >
           🔙 Назад в приложение
-        </a>
+        </button>
       </div>
-    </main>
+    </div>
   )
 }

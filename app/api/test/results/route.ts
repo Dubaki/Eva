@@ -78,8 +78,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        dominantTrait: result.primary_support,
-        secondaryTrait: result.secondary_support,
+        primary_support: result.primary_support,
+        secondary_support: result.secondary_support,
         scores: {
           S: result.score_s,
           U: result.score_u,
