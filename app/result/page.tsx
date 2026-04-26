@@ -88,11 +88,13 @@ function ResultContent() {
     setSurpriseAnswer(val)
     setStep('insight')
     
-    // Smooth scroll to the new content after a short delay for animation
+    // Smooth scroll to the new content after a delay to allow animation to complete
     setTimeout(() => {
       const element = document.getElementById('insight-block')
-      element?.scrollIntoView({ behavior: 'smooth' })
-    }, 100)
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }, 150)
   }
 
   if (loading) return <ResultLoading />
