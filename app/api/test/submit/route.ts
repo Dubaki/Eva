@@ -110,15 +110,37 @@ export async function POST(request: NextRequest) {
       console.error('[API] Failed to queue tasks (non-fatal):', err)
     }
 
-    // 4. Реферальная логика (упрощенно)
+    // 4. Реферальная логика
     let referralProcessed = false
     try {
       if (updatedProfile && updatedProfile.referred_by && !updatedProfile.referral_confirmed) {
-         await supabaseAdmin.from('profiles').update({
-           referral_confirmed: true,
-           referral_confirmed_at: new Date().toISOString()
-         }).eq('id', profileId)
-         referralProcessed = true
+        // Ищем пригласившего по его tg_id
+        const { data: inviter } = await supabaseAdmin
+          .from('profiles')
+          .select('id, invites_count')
+          .eq('tg_id', updatedProfile.referred_by)
+          .maybeSingle()
+
+        if (inviter) {
+          // 1. Увеличиваем счетчик пригласившему
+          await supabaseAdmin
+            .from('profiles')
+            .update({ invites_count: (inviter.invites_count || 0) + 1 })
+            .eq('id', inviter.id)
+
+          // 2. Помечаем текущего пользователя как подтвержденного
+          await supabaseAdmin
+            .from('profiles')
+            .update({
+              referrer_id: inviter.id,
+              referral_confirmed: true,
+              referral_confirmed_at: new Date().toISOString()
+            })
+            .eq('id', profileId)
+
+          referralProcessed = true
+          console.log(`[API] Referral confirmed: inviter ${inviter.id} got +1`);
+        }
       }
     } catch (err) {
       console.error('[API] Referral logic error (non-fatal):', err)
