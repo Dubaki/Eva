@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, Suspense } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import EvaHeader from '@/components/EvaHeader'
@@ -11,7 +11,7 @@ type ResultData = {
   secondaryTrait: string
 }
 
-type FunnelStep = 'result' | 'insight' | 'second_question' | 'access' | 'cooldown'
+type FunnelStep = 'result' | 'insight'
 
 const fadeUp = (delay: number = 0) => ({
   initial: { opacity: 0, y: 20 },
@@ -42,15 +42,8 @@ function ResultContent() {
   const [loading, setLoading] = useState(true)
   const [step, setStep] = useState<FunnelStep>('result')
   const [surpriseAnswer, setSurpriseAnswer] = useState<'yes' | 'no' | null>(null)
-  const [tgId, setTgId] = useState<number | null>(null)
-  const [isSharing, setIsSharing] = useState(false)
 
-  // 1. Load Result & tgId
   useEffect(() => {
-    const WebApp = (window as any).Telegram?.WebApp
-    const id = WebApp?.initDataUnsafe?.user?.id || 999999999
-    setTgId(id)
-
     const stored = sessionStorage.getItem('eva_result')
     if (stored) {
       try {
@@ -61,7 +54,6 @@ function ResultContent() {
       }
     }
 
-    // Always fetch fresh from API
     const token = localStorage.getItem('eva_token')
     fetch('/api/test/results', {
       headers: { Authorization: `Bearer ${token}` }
@@ -76,33 +68,15 @@ function ResultContent() {
     })
     .catch(() => setLoading(false))
 
+    // Если пришли за рефералкой напрямую
     if (searchParams.get('referral') === '1') {
-      setStep('access')
+      router.replace('/access')
     }
-  }, [searchParams])
+  }, [searchParams, router])
 
   const handleSurprise = (val: 'yes' | 'no') => {
     setSurpriseAnswer(val)
     setStep('insight')
-  }
-
-  const handleShare = async () => {
-    if (isSharing) return
-    setIsSharing(true)
-    try {
-      const res = await fetch('/api/share', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tgId }),
-      })
-      if (res.ok) {
-        (window as any).Telegram?.WebApp?.close?.()
-      }
-    } catch (e) {
-      console.error('Share failed', e)
-    } finally {
-      setIsSharing(false)
-    }
   }
 
   if (loading) return <ResultLoading />
@@ -126,7 +100,6 @@ function ResultContent() {
       <EvaHeader />
 
       <main className="flex-1 pb-32">
-        {/* Hero Section (Always visible) */}
         <section className="relative w-full h-[397px] overflow-hidden">
           <motion.img 
             initial={{ scale: 1.1, opacity: 0 }}
@@ -146,12 +119,10 @@ function ResultContent() {
         </section>
 
         <div className="px-container-padding space-y-xl mt-md">
-          {/* Main Description */}
           <motion.article {...fadeUp()} className="glass-card p-lg rounded-xl">
             <div className="font-body-md text-on-surface-variant leading-relaxed whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: traitFullText }} />
           </motion.article>
 
-          {/* Funnel Steps */}
           <AnimatePresence mode="wait">
             {step === 'result' && (
               <motion.section key="result-step" {...fadeUp()} className="space-y-md">
@@ -188,78 +159,18 @@ function ResultContent() {
                   <h3 className="font-body-lg text-center text-on-surface">{TEXTS.result.secondQuestion}</h3>
                   <div className="flex flex-col gap-sm">
                     <button 
-                      onClick={() => setStep('access')}
+                      onClick={() => router.push('/access')}
                       className="w-full py-md bg-primary text-on-primary font-label-md rounded-xl active:scale-95 transition-transform shadow-lg shadow-primary/10"
                     >
                       {TEXTS.result.btnSecondYes}
                     </button>
                     <button 
-                      onClick={() => setStep('cooldown')}
+                      onClick={() => router.push('/mechanism')}
                       className="w-full py-md text-outline font-label-md rounded-xl active:scale-95 transition-transform"
                     >
                       {TEXTS.result.btnSecondNo}
                     </button>
                   </div>
-                </div>
-              </motion.section>
-            )}
-
-            {step === 'access' && (
-              <motion.section key="access-step" {...fadeUp()} className="space-y-xl">
-                <div className="p-lg bg-surface-container-low rounded-xl border-l-2 border-primary-container">
-                  <p className="font-headline-md italic text-on-surface-variant leading-relaxed">
-                    {TEXTS.access.quote}
-                  </p>
-                </div>
-                <p className="font-body-md text-on-surface-variant/80 px-xs italic">
-                  {TEXTS.access.body}
-                </p>
-                <div className="p-lg bg-surface-container rounded-xl border border-outline-variant/30 space-y-md shadow-xl">
-                  <div className="flex items-center gap-sm">
-                    <span className="material-symbols-outlined text-sm text-primary" style={{ fontVariationSettings: '"FILL" 1' }}>stars</span>
-                    <span className="font-label-md text-primary">{TEXTS.referral.subtitle}</span>
-                  </div>
-                  <div className="w-full p-md bg-surface-container-highest rounded-lg border border-outline/20 font-body-sm text-on-surface-variant truncate">
-                    t.me/{process.env.NEXT_PUBLIC_BOT_USERNAME || 'sprosievubot'}?start=ref_{tgId}
-                  </div>
-                  <button 
-                    onClick={handleShare}
-                    disabled={isSharing}
-                    className="w-full py-md bg-primary text-on-primary font-label-md rounded-xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-sm"
-                  >
-                    {isSharing ? 'Отправляю...' : TEXTS.referral.btnShare}
-                    <span className="material-symbols-outlined text-[18px]">share</span>
-                  </button>
-                  <p className="font-body-sm text-outline leading-tight text-center italic">
-                    {TEXTS.referral.body}
-                  </p>
-                </div>
-              </motion.section>
-            )}
-
-            {step === 'cooldown' && (
-              <motion.section key="cooldown-step" {...fadeUp()} className="space-y-xl text-center">
-                <div className="glass-card p-lg rounded-xl border-l-4 border-primary text-left">
-                  <p className="font-headline-md italic leading-relaxed text-on-surface-variant">
-                    {TEXTS.mechanism.quote}
-                  </p>
-                </div>
-                <p className="font-body-md text-on-surface-variant max-w-md mx-auto">
-                  {TEXTS.mechanism.body}
-                </p>
-                <div className="w-full flex flex-col items-center space-y-md">
-                  <button 
-                    onClick={() => setStep('access')}
-                    className="w-full max-w-sm h-14 bg-primary-container text-on-primary-container font-label-md text-label-md rounded-xl shadow-lg uppercase tracking-wider flex items-center justify-center"
-                  >
-                    {TEXTS.mechanism.btnNow}
-                  </button>
-                  <button 
-                    onClick={() => (window as any).Telegram?.WebApp?.close?.()}
-                    className="w-full max-w-sm h-14 border border-secondary text-secondary font-label-md text-label-md rounded-xl active:scale-95 transition-transform uppercase tracking-wider flex items-center justify-center"
-                  >
-                    {TEXTS.mechanism.btnLater}
-                  </button>
                 </div>
               </motion.section>
             )}
