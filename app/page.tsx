@@ -76,16 +76,16 @@ export default function Home() {
         {/* Main Narrative Card */}
         <motion.section 
           {...fadeUp(0.1)}
-          className="bg-[rgba(27,32,39,0.6)] backdrop-blur-[12px] border border-[rgba(140,146,139,0.1)] rounded-xl p-lg shadow-[0_4px_20px_rgba(0,0,0,0.15)] relative overflow-hidden mt-md"
+          className="bg-[rgba(27,32,39,0.6)] backdrop-blur-[12px] border border-[rgba(140,146,139,0.1)] rounded-xl p-md shadow-[0_4px_20px_rgba(0,0,0,0.15)] relative overflow-hidden mt-md"
         >
           <div className="absolute top-0 left-0 w-1 h-full bg-[#8ba88e]"></div>
-          <div className="flex flex-col gap-md">
-            <p className="font-['Newsreader'] italic text-2xl text-[#dee2ec]/90 leading-relaxed">
+          <div className="flex flex-col gap-sm">
+            <p className="font-['Newsreader'] italic text-lg text-[#dee2ec]/90 leading-tight">
               {TEXTS.start.part1}
             </p>
-            <div className="space-y-sm text-[#c2c8c0] font-body-md">
+            <div className="space-y-xs text-[#c2c8c0] text-sm leading-snug">
               <p>{TEXTS.start.part2}</p>
-              <ul className="space-y-xs list-none pl-2 border-l border-[#424842]/50">
+              <ul className="space-y-0 list-none pl-2 border-l border-[#424842]/50">
                 {TEXTS.start.items.map((item, i) => (
                   <li key={i} className="flex gap-2 items-start italic">
                     <span className="text-[#b0ceb2]">—</span> {item.replace('— ', '')}
@@ -93,7 +93,7 @@ export default function Home() {
                 ))}
               </ul>
             </div>
-            <p className="font-body-lg text-[#b0ceb2] font-medium pt-sm">
+            <p className="text-sm text-[#b0ceb2] font-medium leading-tight">
               {TEXTS.start.part3}
             </p>
           </div>
@@ -102,12 +102,12 @@ export default function Home() {
         {/* Visual Anchor / Decorative Image */}
         <motion.div 
           {...fadeUp(0.2)}
-          className="w-full rounded-xl overflow-hidden relative grayscale opacity-60 h-24 my-md"
+          className="w-full rounded-xl overflow-hidden relative grayscale opacity-80 h-48 my-md"
         >
           <Image 
             alt="abstract" 
             className="object-cover" 
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBs6MWQ-rApnHJhVK9yhk7S7mNQUKCyQ4cf0KcvLnp54eUoxgybNpjivgwgCkemY1bfsk-yFjCW-QKAn2SyUnjGgJDoWL6xXadaKJ1fDzQJ3npP_gvO80_pDKx0SIeAVt9_YuX-jhDbLSqneeKRAoK48_wiDhBxLUKG9JxQ__RqO5raHi7Twrm8lf9VGJMdS1NVpbS-6bPbXbmEnuIirGzlGgfOghn_8TDSq-I3wUD-mao5BDfF_JLYI1B3cr72pgDgBnLD4HEokV4F" 
+            src="/115.png" 
             fill
             sizes="100vw"
           />
