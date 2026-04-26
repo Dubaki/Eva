@@ -7,21 +7,6 @@ import { QUESTIONS } from '@/lib/questions'
 import type { Answer } from '@/lib/scoring'
 import { TEXTS } from '@/lib/constants/texts'
 
-/** Progress Bar Component */
-function ProgressBar({ current, total }: { current: number; total: number }) {
-  const progress = ((current) / total) * 100
-  return (
-    <div className="w-full h-[2px] bg-surface-container-highest shrink-0">
-      <motion.div
-        className="h-full bg-primary-container shadow-[0_0_8px_rgba(139,168,142,0.5)]"
-        initial={{ width: 0 }}
-        animate={{ width: `${progress}%` }}
-        transition={{ duration: 0.3, ease: 'easeOut' }}
-      />
-    </div>
-  )
-}
-
 export default function TestPage() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [selected, setSelected] = useState<'yes' | 'no' | null>(null)
@@ -39,7 +24,6 @@ export default function TestPage() {
     if (id) {
       setTgId(id)
     } else {
-      // For development/testing
       setTgId(999999999)
     }
   }, [])
@@ -158,9 +142,9 @@ export default function TestPage() {
 
   if (loading || !question) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-[#0f141a] flex items-center justify-center">
         <motion.div
-          className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full"
+          className="w-10 h-10 border-2 border-[#b0ceb2] border-t-transparent rounded-full"
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
         />
@@ -168,31 +152,53 @@ export default function TestPage() {
     )
   }
 
+  const progress = ((currentIndex + 1) / QUESTIONS.length) * 100
+
   return (
-    <div className="font-body-md antialiased overflow-hidden min-h-[100dvh] flex flex-col bg-background">
+    <div className="font-body-md antialiased overflow-hidden min-h-[100dvh] flex flex-col bg-[#0f141a] text-[#dee2ec]">
+      {/* Top Navigation */}
+      <header className="bg-slate-950/80 backdrop-blur-md border-b border-slate-800/50 shadow-[0_4px_20px_rgba(0,0,0,0.15)] sticky z-50 top-0 flex justify-between items-center px-5 h-16 w-full shrink-0">
+        <button 
+          onClick={handleBack}
+          className="text-[#8BA88E] active:scale-95 duration-200 flex items-center justify-center"
+        >
+          <span className="material-symbols-outlined">arrow_back</span>
+        </button>
+        <h1 className="font-['Newsreader'] italic text-xl text-[#8BA88E]">EvaTest</h1>
+        <div className="font-label-md text-slate-400 tracking-widest uppercase text-[12px]">
+          {currentIndex + 1}/{QUESTIONS.length}
+        </div>
+      </header>
+
       {/* Progress Bar */}
-      <div className="shrink-0">
-        <ProgressBar current={currentIndex + 1} total={QUESTIONS.length} />
+      <div className="w-full h-[2px] bg-[#30353d] shrink-0">
+        <motion.div 
+          className="h-full bg-[#8ba88e] shadow-[0_0_8px_rgba(139,168,142,0.5)]" 
+          initial={{ width: 0 }}
+          animate={{ width: `${progress}%` }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+        />
       </div>
 
       {/* Main Content Canvas */}
       <main className="relative flex-1 flex flex-col px-container-padding py-xl justify-between overflow-hidden">
         {/* Background Aesthetic Element */}
         <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 -right-20 w-64 h-64 bg-primary/5 rounded-full blur-[80px]"></div>
-          <div className="absolute bottom-1/4 -left-20 w-80 h-80 bg-secondary/5 rounded-full blur-[100px]"></div>
+          <div className="absolute top-1/4 -right-20 w-64 h-64 bg-[#b0ceb2]/5 rounded-full blur-[80px]"></div>
+          <div className="absolute bottom-1/4 -left-20 w-80 h-80 bg-[#e2bebe]/5 rounded-full blur-[100px]"></div>
         </div>
 
         {/* Question Area */}
         <section className="flex-1 flex flex-col justify-center items-center text-center space-y-lg">
           <AnimatePresence mode="wait">
-            <motion.h2
+            <motion.h2 
               key={question.id}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="font-headline-lg text-headline-lg text-on-surface leading-tight px-sm max-w-md"
+              className="font-headline-lg text-[#dee2ec] leading-tight px-sm max-w-md text-[32px] font-medium"
+              style={{ fontFamily: 'Newsreader' }}
             >
               {question.text}
             </motion.h2>
@@ -207,7 +213,7 @@ export default function TestPage() {
               onClick={() => handleAnswer('yes')}
               disabled={selected !== null || submitting}
               className={`rounded-xl font-label-md flex flex-col items-center justify-center transition-all active:scale-[0.97] shadow-lg shadow-black/20 group relative overflow-hidden ${
-                selected === 'yes' ? 'bg-primary text-on-primary' : 'bg-primary-container text-on-primary-container'
+                selected === 'yes' ? 'bg-[#b0ceb2] text-[#1c3622]' : 'bg-[#8ba88e] text-[#233d29]'
               }`}
             >
               <span className="relative z-10 text-lg font-bold">{TEXTS.test.btnYes}</span>
@@ -216,8 +222,8 @@ export default function TestPage() {
             <button 
               onClick={() => handleAnswer('no')}
               disabled={selected !== null || submitting}
-              className={`glass-card text-on-surface rounded-xl font-label-md flex flex-col items-center justify-center transition-all active:scale-[0.97] border border-outline/20 group ${
-                selected === 'no' ? 'bg-surface-variant' : ''
+              className={`bg-[rgba(27,32,39,0.6)] backdrop-blur-[12px] text-[#dee2ec] rounded-xl font-label-md flex flex-col items-center justify-center transition-all active:scale-[0.97] border border-[rgba(140,146,139,0.1)] group ${
+                selected === 'no' ? 'bg-[#30353d]' : ''
               }`}
             >
               <span className="text-lg font-bold">{TEXTS.test.btnNo}</span>
@@ -233,16 +239,16 @@ export default function TestPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-background/90 backdrop-blur-md"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0f141a]/90 backdrop-blur-md"
           >
             <div className="flex flex-col items-center gap-4 text-center px-10">
               <motion.div
-                className="w-12 h-12 border-2 border-primary border-t-transparent rounded-full mb-2"
+                className="w-12 h-12 border-2 border-[#b0ceb2] border-t-transparent rounded-full mb-2"
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
               />
-              <p className="font-headline-md italic text-on-surface">{TEXTS.test.overlay1}</p>
-              <p className="font-body-sm text-on-surface-variant">{TEXTS.test.overlay2}</p>
+              <p className="font-['Newsreader'] italic text-2xl text-[#dee2ec]">{TEXTS.test.overlay1}</p>
+              <p className="font-body-sm text-[#c2c8c0]">{TEXTS.test.overlay2}</p>
             </div>
           </motion.div>
         )}
