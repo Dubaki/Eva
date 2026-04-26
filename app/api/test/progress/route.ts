@@ -100,8 +100,14 @@ export async function GET(request: NextRequest) {
 
     const testResult = testResults && testResults.length > 0 ? testResults[0] : null
 
-    if (testResult?.answers && typeof testResult.answers === 'object') {
-      answers = testResult.answers as unknown as Record<number, number>
+    // Correctly map array [{questionId, score}] to Record {questionId: score}
+    if (Array.isArray(testResult?.answers)) {
+      answers = {}
+      ;(testResult!.answers as any[]).forEach((a: any) => {
+        if (a && typeof a.questionId === 'number') {
+          answers![a.questionId] = a.score
+        }
+      })
     }
 
     return NextResponse.json({

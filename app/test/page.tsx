@@ -125,9 +125,11 @@ export default function TestPage() {
 
     setTimeout(() => {
       if (currentIndex >= QUESTIONS.length - 1) {
-        const answers: Answer[] = Object.entries(newMap).map(
-          ([qId, s]) => ({ questionId: Number(qId), score: s as number })
-        )
+        // DEFENSIVE: Only map entries where qId is a valid question ID from our list
+        const answers: Answer[] = Object.entries(newMap)
+          .filter(([qId]) => QUESTIONS.some(q => q.id === Number(qId)))
+          .map(([qId, s]) => ({ questionId: Number(qId), score: s as number }))
+        
         submitAnswers(answers)
       } else {
         setSelected(null)
