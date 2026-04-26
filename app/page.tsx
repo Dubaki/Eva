@@ -3,7 +3,6 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import EvaHeader from '@/components/EvaHeader'
-import { QUESTIONS } from '@/lib/questions'
 import { TEXTS } from '@/lib/constants/texts'
 import { useGatekeeper } from '@/components/Gatekeeper'
 import { openAuthorContact } from '@/lib/author-contact'
@@ -82,7 +81,7 @@ export default function Home() {
     <div className="bg-background text-on-background min-h-screen flex flex-col font-body-md overflow-x-hidden">
       <EvaHeader />
       
-      <main className="flex-1 flex flex-col px-container-padding pt-0 max-w-lg mx-auto w-full pb-32">
+      <main className="flex-1 flex flex-col px-container-padding pt-16 max-w-lg mx-auto w-full pb-32">
         {/* Main Narrative Card */}
         <motion.section 
           {...fadeUp(0.1)}
@@ -90,7 +89,7 @@ export default function Home() {
         >
           <div className="absolute top-0 left-0 w-1 h-full bg-primary-container"></div>
           <div className="flex flex-col gap-md">
-            <p className="font-headline-md text-headline-md italic text-on-surface/90 leading-relaxed">
+            <p className="font-headline-md italic text-on-surface/90 leading-relaxed">
               {TEXTS.start.part1}
             </p>
             <div className="space-y-sm text-on-surface-variant font-body-md">
@@ -103,7 +102,7 @@ export default function Home() {
                 ))}
               </ul>
             </div>
-            <p className="font-body-lg text-body-lg text-primary font-medium pt-sm">
+            <p className="font-body-lg text-primary font-medium pt-sm">
               {TEXTS.start.part3}
             </p>
           </div>
@@ -112,12 +111,12 @@ export default function Home() {
         {/* Visual Anchor / Decorative Image */}
         <motion.div 
           {...fadeUp(0.2)}
-          className="w-full rounded-xl overflow-hidden relative grayscale opacity-40 h-24 my-md border border-outline/10"
+          className="w-full rounded-xl overflow-hidden relative grayscale opacity-60 h-24 my-md"
         >
           <img 
             alt="abstract" 
             className="w-full h-full object-cover" 
-            src="/hero.png" 
+            src="/112.png" 
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent"></div>
         </motion.div>

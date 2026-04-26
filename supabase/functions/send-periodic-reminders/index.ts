@@ -55,9 +55,9 @@ async function fetchUsers(): Promise<any[]> {
 }
 
 async function sendReminder(tgId: number): Promise<boolean> {
-  const text = `Привет! Прошло уже 2 месяца с твоего последнего теста. Твои опоры могли трансформироваться или укрепиться. Давай проверим твое актуальное состояние?`
+  const text = `Хорошая новость!\n\nДоступ к тесту снова открыт. Заходи и проверь динамику своих изменений.`
   const replyMarkup = {
-    inline_keyboard: [[{ text: '✨ Пройти тест заново', web_app: { url: APP_URL } }]],
+    inline_keyboard: [[{ text: '✨ Пройти тест', web_app: { url: APP_URL } }]],
   }
 
   const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
