@@ -44,16 +44,22 @@ async function handleMessage(msg: any) {
   const text = msg.text || ''
   const currentAppUrl = process.env.NEXT_PUBLIC_APP_URL!
   const channelUrl = process.env.TELEGRAM_CHANNEL_URL!
+  const username = (msg.from.username || '').toLowerCase();
 
-  // 1. Debug: file_id catcher for admins (expanded)
-  const isAdmin = msg.from.username === 'evapatrakhina' || msg.from.username === 'bizbezit';
+  // 1. Debug: file_id catcher for admins (case-insensitive)
+  const isAdmin = username === 'evapatrakhina' || username === 'bizbezit';
   
   if (isAdmin) {
-    const fileId = msg.video?.file_id || msg.video_note?.file_id || msg.document?.file_id || msg.animation?.file_id;
+    const fileId = msg.video?.file_id || 
+                   msg.video_note?.file_id || 
+                   msg.document?.file_id || 
+                   msg.animation?.file_id ||
+                   msg.photo?.[msg.photo?.length - 1]?.file_id; // Added photo support too
+
     if (fileId) {
       await bot.sendMessage({
         chatId,
-        text: `✅ FILE ID (${msg.video_note ? 'video_note' : 'file'}):\n<code>${fileId}</code>`,
+        text: `✅ FILE ID:\n<code>${fileId}</code>`,
       })
       return
     }
