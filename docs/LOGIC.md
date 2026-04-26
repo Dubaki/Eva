@@ -444,7 +444,8 @@
    - `bot_quiz_step = 4`, сохраняем `previous_experience`.
    - **Сразу** шлём финальное сообщение из `TEXTS.md` №8в («Есть 2 способа работы…») + 3 кнопки: `Жесткий быстрый` (`quiz_final_hard`), `Мягкий постепенный` (`quiz_final_soft`), `Пока не готова` (`quiz_final_not_ready`).
    - **Параллельно** ставим в `bot_tasks_queue` задачу `send_gift` с `run_at = NOW() + 60 секунд`.
-7. Через 1 минуту обработчик отправляет видео-подарок (`sendVideo` с `protect_content: true`, используя `GIFT_VIDEO_FILE_ID` из env). **Пока `file_id` не получен — отправляется текстовая заглушка** «🎁 Твой подарок готов!».
+7. Через 1 минуту обработчик отправляет видео-подарок (кружок).
+   - **GIFT_VIDEO_FILE_ID**: `BAACAgIAAxkBAAIEoGnuF1-F68BG_Q05x73uifP4ZvbBAAJWmQAC0HRwS5xnfPqlfyB6OwQ`
 
 **Кнопки финального сообщения:**
 

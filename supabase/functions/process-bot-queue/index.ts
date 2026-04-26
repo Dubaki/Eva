@@ -8,8 +8,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')
-const APP_URL = Deno.env.get('APP_URL') || Deno.env.get('NEXT_PUBLIC_APP_URL') || 'https://eva-app.vercel.app'
-const GIFT_VIDEO_FILE_ID = Deno.env.get('GIFT_VIDEO_FILE_ID')
+const APP_URL = Deno.env.get('APP_URL') || Deno.env.get('NEXT_PUBLIC_APP_URL') || 'https://eva-9udm.vercel.app'
+const GIFT_VIDEO_FILE_ID = Deno.env.get('GIFT_VIDEO_FILE_ID') || 'BAACAgIAAxkBAAIEoGnuF1-F68BG_Q05x73uifP4ZvbBAAJWmQAC0HRwS5xnfPqlfyB6OwQ'
 
 const dbHeaders = {
   'apikey': SUPABASE_KEY!,
@@ -38,6 +38,10 @@ async function sendMessage(chatId: number, text: string, replyMarkup?: any): Pro
 
 async function sendVideo(chatId: number, video: string, protectContent = true): Promise<boolean> {
   return tgApi('sendVideo', { chat_id: chatId, video, protect_content: protectContent })
+}
+
+async function sendVideoNote(chatId: number, videoNote: string): Promise<boolean> {
+  return tgApi('sendVideoNote', { chat_id: chatId, video_note: videoNote })
 }
 
 async function dbGet(path: string): Promise<any[]> {
@@ -107,7 +111,11 @@ serve(async (_req: Request) => {
         // ── send_gift ───────────────────────────────────────────────────
         else if (task.event_type === 'send_gift') {
           if (GIFT_VIDEO_FILE_ID) {
-            success = await sendVideo(task.tg_id, GIFT_VIDEO_FILE_ID)
+            // Пытаемся отправить как кружок (video_note), если не выйдет - как обычное видео
+            success = await sendVideoNote(task.tg_id, GIFT_VIDEO_FILE_ID)
+            if (!success) {
+              success = await sendVideo(task.tg_id, GIFT_VIDEO_FILE_ID)
+            }
           } else {
             success = await sendMessage(task.tg_id, '🎁 Твой подарок готов!')
           }
