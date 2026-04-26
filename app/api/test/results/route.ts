@@ -5,23 +5,21 @@ import { verifyJwt } from '@/lib/jwt'
 export const dynamic = 'force-dynamic'
 
 function getSupabaseAdmin() {
-  const supabaseAdminUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseAdminKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-  return createClient(supabaseAdminUrl, supabaseAdminKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  })
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
 }
 
 export async function GET(request: NextRequest) {
   try {
-    // 1. Ищем tgId в параметрах URL (?tgId=...) или в заголовках
     const { searchParams } = new URL(request.url)
     const rawTgId = searchParams.get('tgId') || request.headers.get('x-tg-id')
     const bodyTgId = rawTgId ? Number(rawTgId) : null
 
     let profileId: string | null = null
 
-    // 2. Сначала пробуем получить токен (классический путь)
     const authHeader = request.headers.get('authorization')
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.slice(7)
@@ -36,7 +34,6 @@ export async function GET(request: NextRequest) {
 
     const supabaseAdmin = getSupabaseAdmin()
 
-    // 3. БРОНЯ: Если токена нет, ищем профиль по tgId (с limit(1) от дубликатов)
     let tgIdToUse = bodyTgId
     if (!profileId && bodyTgId) {
       const { data: profiles } = await supabaseAdmin
@@ -44,7 +41,6 @@ export async function GET(request: NextRequest) {
         .select('id')
         .eq('tg_id', bodyTgId)
         .limit(1)
-
       if (profiles && profiles.length > 0) {
         profileId = profiles[0].id
       }
@@ -59,7 +55,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Если всё равно ничего нет — отбиваем
     if (!profileId || !tgIdToUse) {
       return NextResponse.json(
         { success: false, error: 'Missing or invalid authorization' },
@@ -67,7 +62,6 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // 4. Загружаем результаты (safely with maybeSingle)
     const { data: result, error } = await supabaseAdmin
       .from('test_results')
       .select('primary_support, secondary_support, score_s, score_u, score_p, score_r, score_k')
@@ -81,19 +75,18 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const data = result
-
     return NextResponse.json({
       success: true,
       data: {
-        primarySupport: data.primary_support,
-        secondarySupport: data.secondary_support,
+        // Client reads dominantTrait / secondaryTrait — map from DB column names
+        dominantTrait: result.primary_support,
+        secondaryTrait: result.secondary_support,
         scores: {
-          S: data.score_s,
-          U: data.score_u,
-          P: data.score_p,
-          R: data.score_r,
-          K: data.score_k,
+          S: result.score_s,
+          U: result.score_u,
+          P: result.score_p,
+          R: result.score_r,
+          K: result.score_k,
         },
       },
     })

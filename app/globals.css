@@ -2,55 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --bg-primary: #FFFFFF;
-  --bg-secondary: #F8F9FA;
-  --bg-tertiary: #F1F3F5;
-  --text-primary: #1A1A2E;
-  --text-secondary: #6C757D;
-  --text-muted: #ADB5BD;
-  --accent: #6C5CE7;
-  --accent-hover: #5A4BD1;
-  --accent-light: #E8E5FF;
-  --success: #00B894;
-  --warning: #FDCB6E;
-  --error: #E17055;
-  --border: #E9ECEF;
-  --shadow: rgba(0, 0, 0, 0.08);
-
-  /* Шкалы */
-  --scale-s: #6C5CE7;
-  --scale-u: #0984E3;
-  --scale-p: #E17055;
-  --scale-r: #00B894;
-  --scale-k: #FDCB6E;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-primary: #0D0D1A;
-    --bg-secondary: #1A1A2E;
-    --bg-tertiary: #252542;
-    --text-primary: #E8E8F0;
-    --text-secondary: #9A9AB0;
-    --text-muted: #5A5A7A;
-    --accent: #A29BFE;
-    --accent-hover: #B8B3FF;
-    --accent-light: #2D2B55;
-    --success: #55EFC4;
-    --warning: #FFEAA7;
-    --error: #FAB1A0;
-    --border: #2D2D4A;
-    --shadow: rgba(0, 0, 0, 0.3);
-
-    --scale-s: #A29BFE;
-    --scale-u: #74B9FF;
-    --scale-p: #FAB1A0;
-    --scale-r: #55EFC4;
-    --scale-k: #FFEAA7;
-  }
-}
-
 * {
   box-sizing: border-box;
   padding: 0;
@@ -64,14 +15,37 @@ body {
 }
 
 body {
-  font-family: var(--font-sans, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif);
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background-color: #0f141a;
+  color: #dee2ec;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  min-height: max(884px, 100dvh);
 }
 
 a {
   color: inherit;
   text-decoration: none;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.material-symbols-outlined.filled {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.glass-card {
+  background: rgba(48, 53, 61, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(194, 200, 192, 0.1);
+}
+
+.glass-card-dark {
+  background: rgba(27, 32, 39, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(194, 200, 192, 0.08);
 }

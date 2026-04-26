@@ -1,0 +1,1396 @@
+<!-- Design System -->
+<!DOCTYPE html><html class="dark" lang="ru"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&amp;family=Manrope:wght@200..800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "outline": "#8c928b",
+                    "inverse-primary": "#4a654e",
+                    "on-tertiary-fixed-variant": "#574500",
+                    "on-primary-fixed": "#07200f",
+                    "surface-bright": "#353941",
+                    "on-secondary-fixed": "#2a1617",
+                    "secondary": "#e2bebe",
+                    "surface-container-highest": "#30353d",
+                    "on-surface-variant": "#c2c8c0",
+                    "background": "#0f141a",
+                    "secondary-fixed": "#ffdada",
+                    "error": "#ffb4ab",
+                    "surface-tint": "#b0ceb2",
+                    "primary": "#b0ceb2",
+                    "primary-fixed": "#cceace",
+                    "secondary-fixed-dim": "#e2bebe",
+                    "on-surface": "#dee2ec",
+                    "surface-container-high": "#252a32",
+                    "on-primary": "#1c3622",
+                    "tertiary-fixed": "#ffe088",
+                    "on-error": "#690005",
+                    "tertiary-container": "#c09d25",
+                    "inverse-on-surface": "#2c3138",
+                    "on-tertiary-container": "#453600",
+                    "primary-fixed-dim": "#b0ceb2",
+                    "on-tertiary-fixed": "#241a00",
+                    "surface-container-low": "#171c23",
+                    "on-primary-container": "#233d29",
+                    "on-secondary-container": "#d0adad",
+                    "inverse-surface": "#dee2ec",
+                    "on-primary-fixed-variant": "#334d38",
+                    "surface-container-lowest": "#090f15",
+                    "on-tertiary": "#3c2f00",
+                    "primary-container": "#8ba88e",
+                    "surface": "#0f141a",
+                    "on-secondary-fixed-variant": "#5a4041",
+                    "surface-variant": "#30353d",
+                    "on-background": "#dee2ec",
+                    "secondary-container": "#5a4041",
+                    "surface-dim": "#0f141a",
+                    "error-container": "#93000a",
+                    "outline-variant": "#424842",
+                    "tertiary-fixed-dim": "#e9c349",
+                    "on-secondary": "#412a2b",
+                    "tertiary": "#e9c349",
+                    "surface-container": "#1b2027",
+                    "on-error-container": "#ffdad6"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "md": "16px",
+                    "lg": "24px",
+                    "sm": "8px",
+                    "unit": "4px",
+                    "container-padding": "20px",
+                    "gutter": "12px",
+                    "xs": "4px",
+                    "xl": "32px"
+            },
+            "fontFamily": {
+                    "headline-xl": ["Newsreader"],
+                    "body-md": ["Manrope"],
+                    "headline-md": ["Newsreader"],
+                    "body-lg": ["Manrope"],
+                    "headline-lg": ["Newsreader"],
+                    "label-md": ["Manrope"],
+                    "label-sm": ["Manrope"],
+                    "body-sm": ["Manrope"]
+            },
+            "fontSize": {
+                    "headline-xl": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "500"}],
+                    "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "500"}],
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "headline-lg": ["32px", {"lineHeight": "1.25", "fontWeight": "500"}],
+                    "label-md": ["12px", {"lineHeight": "1.4", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "label-sm": ["10px", {"lineHeight": "1.2", "letterSpacing": "0.08em", "fontWeight": "700"}],
+                    "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #0f141a;
+            color: #dee2ec;
+            -webkit-font-smoothing: antialiased;
+        }
+        .glass-card {
+            background: rgba(48, 53, 61, 0.4);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(194, 200, 192, 0.1);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="min-h-screen flex flex-col font-body-md">
+<!-- TopAppBar -->
+<header class="bg-slate-950/80 backdrop-blur-md border-b border-slate-800/50 shadow-[0_4px_20px_rgba(0,0,0,0.15)] flex justify-between items-center px-5 h-16 w-full docked full-width top-0 sticky z-50">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#8BA88E]" data-icon="spa" style="">spa</span>
+<span class="font-['Newsreader'] italic text-xl text-[#8BA88E]" style="">EvaTest</span>
+</div>
+<div class="flex items-center">
+<span class="material-symbols-outlined text-slate-400 hover:opacity-80 transition-opacity" data-icon="more_vert" style="">more_vert</span>
+</div>
+</header>
+<main class="flex-grow flex flex-col items-center justify-center px-container-padding py-xl">
+<!-- Main Content Area: Centered Elevation -->
+<div class="w-full max-w-sm flex flex-col items-center text-center space-y-xl">
+<!-- Locked Illustration -->
+<div class="relative">
+<div class="absolute inset-0 bg-primary/20 blur-3xl rounded-full"></div>
+<div class="relative glass-card w-32 h-32 rounded-full flex items-center justify-center shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
+<span class="material-symbols-outlined text-primary text-6xl" data-icon="lock" data-weight="fill" style="font-variation-settings: &quot;FILL&quot; 1;">lock</span>
+</div>
+</div>
+<!-- Access Message -->
+<div class="space-y-md">
+<h1 class="font-headline-lg text-headline-lg text-on-surface" style="">Доступ ограничен</h1>
+<p class="font-body-md text-body-md text-on-surface-variant px-2" style="">
+                    Подпишись на мой канал. Там я даю эксклюзивные практики и знания, которых нет в открытом доступе.
+                </p>
+</div>
+<!-- Action Cluster -->
+<div class="w-full space-y-md pt-md">
+<!-- Primary Action -->
+<button class="w-full h-[56px] bg-primary-container text-on-primary-container rounded-xl font-label-md flex items-center justify-center gap-2 active:scale-95 duration-200 shadow-lg" style="">
+<span class="" style="">Подписаться</span>
+<span class="material-symbols-outlined text-lg" data-icon="open_in_new" style="">open_in_new</span>
+</button>
+<!-- Secondary Action -->
+<button class="w-full h-[56px] border border-secondary text-secondary rounded-xl font-label-md active:scale-95 duration-200" style="">
+                    Я подписалась
+                </button>
+</div>
+<!-- Small Guidance Text -->
+<p class="font-label-sm text-label-sm text-outline px-4 leading-relaxed" style="">
+                Как только подпишешься — откроется доступ ко всему функционалу теста
+            </p>
+</div>
+</main>
+<!-- Visual Accent Element (Organic Shape) -->
+<div class="fixed -bottom-20 -left-20 w-64 h-64 bg-primary/5 rounded-full blur-[100px] pointer-events-none"></div>
+<div class="fixed -top-20 -right-20 w-64 h-64 bg-secondary/5 rounded-full blur-[100px] pointer-events-none"></div>
+<!-- BottomNavBar (Suppressed as per task: focused journey/access screen) -->
+<!-- Navigation shell is excluded as this is a focused transactional/gatekeeper screen -->
+</body></html>
+
+<!-- Access Denied -->
+<!DOCTYPE html>
+
+<html class="dark" lang="ru" style=""><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;family=Newsreader:ital,wght@0,400;0,500;1,400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#8c928b",
+                        "inverse-primary": "#4a654e",
+                        "on-tertiary-fixed-variant": "#574500",
+                        "on-primary-fixed": "#07200f",
+                        "surface-bright": "#353941",
+                        "on-secondary-fixed": "#2a1617",
+                        "secondary": "#e2bebe",
+                        "surface-container-highest": "#30353d",
+                        "on-surface-variant": "#c2c8c0",
+                        "background": "#0f141a",
+                        "secondary-fixed": "#ffdada",
+                        "error": "#ffb4ab",
+                        "surface-tint": "#b0ceb2",
+                        "primary": "#b0ceb2",
+                        "primary-fixed": "#cceace",
+                        "secondary-fixed-dim": "#e2bebe",
+                        "on-surface": "#dee2ec",
+                        "surface-container-high": "#252a32",
+                        "on-primary": "#1c3622",
+                        "tertiary-fixed": "#ffe088",
+                        "on-error": "#690005",
+                        "tertiary-container": "#c09d25",
+                        "inverse-on-surface": "#2c3138",
+                        "on-tertiary-container": "#453600",
+                        "primary-fixed-dim": "#b0ceb2",
+                        "on-tertiary-fixed": "#241a00",
+                        "surface-container-low": "#171c23",
+                        "on-primary-container": "#233d29",
+                        "on-secondary-container": "#d0adad",
+                        "inverse-surface": "#dee2ec",
+                        "on-primary-fixed-variant": "#334d38",
+                        "surface-container-lowest": "#090f15",
+                        "on-tertiary": "#3c2f00",
+                        "primary-container": "#8ba88e",
+                        "surface": "#0f141a",
+                        "on-secondary-fixed-variant": "#5a4041",
+                        "surface-variant": "#30353d",
+                        "on-background": "#dee2ec",
+                        "secondary-container": "#5a4041",
+                        "surface-dim": "#0f141a",
+                        "error-container": "#93000a",
+                        "outline-variant": "#424842",
+                        "tertiary-fixed-dim": "#e9c349",
+                        "on-secondary": "#412a2b",
+                        "tertiary": "#e9c349",
+                        "surface-container": "#1b2027",
+                        "on-error-container": "#ffdad6"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "lg": "24px",
+                        "sm": "8px",
+                        "unit": "4px",
+                        "container-padding": "20px",
+                        "gutter": "12px",
+                        "xs": "4px",
+                        "xl": "32px"
+                    },
+                    "fontFamily": {
+                        "headline-xl": ["Newsreader"],
+                        "body-md": ["Manrope"],
+                        "headline-md": ["Newsreader"],
+                        "body-lg": ["Manrope"],
+                        "headline-lg": ["Newsreader"],
+                        "label-md": ["Manrope"],
+                        "label-sm": ["Manrope"],
+                        "body-sm": ["Manrope"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(48, 53, 61, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col font-body-md overflow-x-hidden">
+<!-- TopAppBar -->
+<header class="bg-slate-950/80 backdrop-blur-md border-b border-slate-800/50 shadow-[0_4px_20px_rgba(0,0,0,0.15)] sticky top-0 z-50 flex justify-between items-center px-5 h-16 w-full">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#8BA88E]" data-icon="spa">spa</span>
+<h1 class="font-['Newsreader'] italic text-xl text-[#8BA88E]">EvaTest</h1>
+</div>
+<button class="text-slate-400 hover:opacity-80 transition-opacity active:scale-95 duration-200">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+</button>
+</header>
+<main class="flex-1 flex flex-col px-container-padding pt-0 max-w-lg mx-auto w-full pb-32">
+<!-- Main Narrative Card - Moved to top -->
+<section class="glass-card rounded-xl border border-outline-variant/30 p-lg shadow-[0_4px_20px_rgba(0,0,0,0.15)] relative overflow-hidden mt-md">
+<div class="absolute top-0 left-0 w-1 h-full bg-primary-container"></div>
+<div class="flex flex-col gap-md">
+<p class="font-headline-md italic text-on-surface/90 leading-relaxed">
+                    У каждого человека есть внутренняя «опора» — способ держать себя в жизни. Часто эта опора искажается.
+                </p>
+<div class="space-y-sm text-on-surface-variant font-body-md">
+<p>Снаружи это выглядит как характер или привычки, а на деле — устойчивый механизм, который:</p>
+<ul class="space-y-xs list-none pl-2 border-l border-outline-variant/50">
+<li class="flex gap-2 items-start italic">
+<span class="text-primary">—</span> повторяет одни и те же сценарии
+                        </li>
+<li class="flex gap-2 items-start italic">
+<span class="text-primary">—</span> создаёт одни и те же проблемы
+                        </li>
+<li class="flex gap-2 items-start italic">
+<span class="text-primary">—</span> не даёт выйти из замкнутого круга
+                        </li>
+</ul>
+</div>
+<p class="font-body-lg text-primary font-medium pt-sm">
+                    Сейчас ты увидишь, какая опора у тебя доминирует.
+                </p>
+</div>
+</section>
+<!-- Visual Anchor / Decorative Image -->
+<div class="w-full rounded-xl overflow-hidden relative grayscale opacity-60 h-24 my-md">
+<img alt="abstract" class="w-full h-full object-cover" data-alt="Minimalist abstract photograph of smooth sand ripples at sunset with soft shadows and calm tranquil mood" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBs6MWQ-rApnHJhVK9yhk7S7mNQUKCyQ4cf0KcvLnp54eUoxgybNpjivgwgCkemY1bfsk-yFjCW-QKAn2SyUnjGgJDoWL6xXadaKJ1fDzQJ3npP_gvO80_pDKx0SIeAVt9_YuX-jhDbLSqneeKRAoK48_wiDhBxLUKG9JxQ__RqO5raHi7Twrm8lf9VGJMdS1NVpbS-6bPbXbmEnuIirGzlGgfOghn_8TDSq-I3wUD-mao5BDfF_JLYI1B3cr72pgDgBnLD4HEokV4F"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background to-transparent"></div>
+</div>
+<!-- Stats Bento Grid - Reduced padding -->
+<section class="grid grid-cols-2 gap-md mt-md">
+<div class="bg-surface-container rounded-xl py-sm px-md flex flex-col gap-xs items-center text-center border border-outline-variant/20">
+<span class="material-symbols-outlined text-tertiary" data-icon="quiz">quiz</span>
+<div>
+<div class="text-on-surface font-bold text-lg leading-tight">25 вопросов</div>
+<div class="text-on-surface-variant font-label-md">Глубокий анализ</div>
+</div>
+</div>
+<div class="bg-surface-container rounded-xl py-sm px-md flex flex-col gap-xs items-center text-center border border-outline-variant/20">
+<span class="material-symbols-outlined text-secondary" data-icon="schedule">schedule</span>
+<div>
+<div class="text-on-surface font-bold text-lg leading-tight">5-7 минут</div>
+<div class="text-on-surface-variant font-label-md">Время прохождения</div>
+</div>
+</div>
+</section>
+<!-- Instructions Section - Reduced top spacing -->
+<section class="flex flex-col gap-sm mt-md">
+<h3 class="font-label-md text-primary-fixed uppercase tracking-widest flex items-center gap-2">
+<span class="w-8 h-px bg-primary-fixed"></span> Инструкция
+            </h3>
+<div class="bg-secondary-container/10 border-l-2 border-secondary rounded-r-lg p-md">
+<p class="text-on-surface-variant leading-relaxed italic text-[13px] text-justify px-2">
+                    Отвечай «Да», если откликается, узнаёшь себя или есть телесная реакция. «Нет» — если это не про тебя. Не думай слишком долго, доверяй ощущениям.
+                </p>
+</div>
+</section>
+<!-- Spacer for FAB or Bottom Bar -->
+</main>
+<!-- Bottom Action Container -->
+<div class="fixed bottom-0 left-0 w-full p-container-padding bg-gradient-to-t from-background via-background/90 to-transparent z-40 px-container-padding pb-container-padding pt-0 bg-background">
+<button class="w-full h-14 bg-primary text-on-primary font-bold text-lg rounded-full flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-transform duration-150">
+<span class="material-symbols-outlined" data-icon="play_arrow" data-weight="fill">play_arrow</span>
+            Начать тест
+        </button>
+</div>
+<!-- BottomNavBar (Suppressed) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-safe h-20 bg-slate-950/90 backdrop-blur-lg border-t border-slate-800 shadow-[0_-4px_20px_rgba(0,0,0,0.15)] opacity-0 pointer-events-none">
+<div class="flex flex-col items-center justify-center text-[#8BA88E] bg-[#8BA88E]/10 rounded-xl px-3 py-1">
+<span class="material-symbols-outlined" data-icon="auto_stories">auto_stories</span>
+<span class="font-['Manrope'] text-[10px] uppercase tracking-widest">Journey</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-500">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+<span class="font-['Manrope'] text-[10px] uppercase tracking-widest">Insights</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-500">
+<span class="material-symbols-outlined" data-icon="share">share</span>
+<span class="font-['Manrope'] text-[10px] uppercase tracking-widest">Referral</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-500">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-['Manrope'] text-[10px] uppercase tracking-widest">Profile</span>
+</div>
+</nav>
+</body></html>
+
+<!-- Стартовая страница (Обновленная) -->
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,400&amp;family=Manrope:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#8c928b",
+                        "inverse-primary": "#4a654e",
+                        "on-tertiary-fixed-variant": "#574500",
+                        "on-primary-fixed": "#07200f",
+                        "surface-bright": "#353941",
+                        "on-secondary-fixed": "#2a1617",
+                        "secondary": "#e2bebe",
+                        "surface-container-highest": "#30353d",
+                        "on-surface-variant": "#c2c8c0",
+                        "background": "#0f141a",
+                        "secondary-fixed": "#ffdada",
+                        "error": "#ffb4ab",
+                        "surface-tint": "#b0ceb2",
+                        "primary": "#b0ceb2",
+                        "primary-fixed": "#cceace",
+                        "secondary-fixed-dim": "#e2bebe",
+                        "on-surface": "#dee2ec",
+                        "surface-container-high": "#252a32",
+                        "on-primary": "#1c3622",
+                        "tertiary-fixed": "#ffe088",
+                        "on-error": "#690005",
+                        "tertiary-container": "#c09d25",
+                        "inverse-on-surface": "#2c3138",
+                        "on-tertiary-container": "#453600",
+                        "primary-fixed-dim": "#b0ceb2",
+                        "on-tertiary-fixed": "#241a00",
+                        "surface-container-low": "#171c23",
+                        "on-primary-container": "#233d29",
+                        "on-secondary-container": "#d0adad",
+                        "inverse-surface": "#dee2ec",
+                        "on-primary-fixed-variant": "#334d38",
+                        "surface-container-lowest": "#090f15",
+                        "on-tertiary": "#3c2f00",
+                        "primary-container": "#8ba88e",
+                        "surface": "#0f141a",
+                        "on-secondary-fixed-variant": "#5a4041",
+                        "surface-variant": "#30353d",
+                        "on-background": "#dee2ec",
+                        "secondary-container": "#5a4041",
+                        "surface-dim": "#0f141a",
+                        "error-container": "#93000a",
+                        "outline-variant": "#424842",
+                        "tertiary-fixed-dim": "#e9c349",
+                        "on-secondary": "#412a2b",
+                        "tertiary": "#e9c349",
+                        "surface-container": "#1b2027",
+                        "on-error-container": "#ffdad6"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "lg": "24px",
+                        "sm": "8px",
+                        "unit": "4px",
+                        "container-padding": "20px",
+                        "gutter": "12px",
+                        "xs": "4px",
+                        "xl": "32px"
+                    },
+                    "fontFamily": {
+                        "headline-xl": ["Newsreader"],
+                        "body-md": ["Manrope"],
+                        "headline-md": ["Newsreader"],
+                        "body-lg": ["Manrope"],
+                        "headline-lg": ["Newsreader"],
+                        "label-md": ["Manrope"],
+                        "label-sm": ["Manrope"],
+                        "body-sm": ["Manrope"]
+                    },
+                    "fontSize": {
+                        "headline-xl": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "500"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "500"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.25", "fontWeight": "500"}],
+                        "label-md": ["12px", {"lineHeight": "1.4", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "label-sm": ["10px", {"lineHeight": "1.2", "letterSpacing": "0.08em", "fontWeight": "700"}],
+                        "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #0f141a;
+            color: #dee2ec;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(27, 32, 39, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(140, 146, 139, 0.1);
+        }
+    </style>
+</head>
+<body class="font-body-md antialiased overflow-hidden min-h-[100dvh] flex flex-col">
+<!-- Top Navigation -->
+<header class="bg-slate-950/80 backdrop-blur-md border-b border-slate-800/50 shadow-[0_4px_20px_rgba(0,0,0,0.15)] sticky z-50 top-0 flex justify-between items-center px-5 h-16 w-full shrink-0">
+<button class="text-[#8BA88E] active:scale-95 duration-200 flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-['Newsreader'] italic text-xl text-[#8BA88E]">EvaTest</h1>
+<div class="font-label-md text-slate-400 tracking-widest">
+            3/25
+        </div>
+</header>
+<!-- Progress Bar -->
+<div class="w-full h-[2px] bg-surface-container-highest shrink-0">
+<div class="h-full bg-primary-container shadow-[0_0_8px_rgba(139,168,142,0.5)]" style="width: 12%;"></div>
+</div>
+<!-- Main Content Canvas -->
+<main class="relative flex-1 flex flex-col px-container-padding py-xl justify-between overflow-hidden">
+<!-- Background Aesthetic Element -->
+<div class="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+<div class="absolute top-1/4 -right-20 w-64 h-64 bg-primary/5 rounded-full blur-[80px]"></div>
+<div class="absolute bottom-1/4 -left-20 w-80 h-80 bg-secondary/5 rounded-full blur-[100px]"></div>
+</div>
+<!-- Question Area -->
+<section class="flex-1 flex flex-col justify-center items-center text-center space-y-lg">
+<h2 class="font-headline-lg text-on-surface leading-tight px-sm max-w-md">Чувствуете ли вы, что должны быть сильными всё время?</h2>
+</section>
+<!-- Response Actions -->
+<section class="pb-xl space-y-md shrink-0">
+<div class="grid grid-cols-2 gap-md h-24">
+<!-- Yes Button -->
+<button class="bg-primary-container text-on-primary-container rounded-xl font-label-md flex flex-col items-center justify-center transition-all active:scale-[0.97] hover:opacity-90 shadow-lg shadow-black/20 group relative overflow-hidden">
+<span class="relative z-10 text-lg font-bold">Да</span>
+</button>
+<!-- No Button -->
+<button class="glass-card text-on-surface rounded-xl font-label-md flex flex-col items-center justify-center transition-all active:scale-[0.97] border border-outline/20 hover:bg-surface-container-high group">
+<span class="text-lg font-bold">Нет</span>
+</button>
+</div>
+</section>
+</main>
+</body></html>
+
+<!-- Test Screen (No Nav) -->
+<!DOCTYPE html>
+
+<html class="dark" lang="ru"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&amp;family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline": "#8c928b",
+                        "inverse-primary": "#4a654e",
+                        "on-tertiary-fixed-variant": "#574500",
+                        "on-primary-fixed": "#07200f",
+                        "surface-bright": "#353941",
+                        "on-secondary-fixed": "#2a1617",
+                        "secondary": "#e2bebe",
+                        "surface-container-highest": "#30353d",
+                        "on-surface-variant": "#c2c8c0",
+                        "background": "#0f141a",
+                        "secondary-fixed": "#ffdada",
+                        "error": "#ffb4ab",
+                        "surface-tint": "#b0ceb2",
+                        "primary": "#b0ceb2",
+                        "primary-fixed": "#cceace",
+                        "secondary-fixed-dim": "#e2bebe",
+                        "on-surface": "#dee2ec",
+                        "surface-container-high": "#252a32",
+                        "on-primary": "#1c3622",
+                        "tertiary-fixed": "#ffe088",
+                        "on-error": "#690005",
+                        "tertiary-container": "#c09d25",
+                        "inverse-on-surface": "#2c3138",
+                        "on-tertiary-container": "#453600",
+                        "primary-fixed-dim": "#b0ceb2",
+                        "on-tertiary-fixed": "#241a00",
+                        "surface-container-low": "#171c23",
+                        "on-primary-container": "#233d29",
+                        "on-secondary-container": "#d0adad",
+                        "inverse-surface": "#dee2ec",
+                        "on-primary-fixed-variant": "#334d38",
+                        "surface-container-lowest": "#090f15",
+                        "on-tertiary": "#3c2f00",
+                        "primary-container": "#8ba88e",
+                        "surface": "#0f141a",
+                        "on-secondary-fixed-variant": "#5a4041",
+                        "surface-variant": "#30353d",
+                        "on-background": "#dee2ec",
+                        "secondary-container": "#5a4041",
+                        "surface-dim": "#0f141a",
+                        "error-container": "#93000a",
+                        "outline-variant": "#424842",
+                        "tertiary-fixed-dim": "#e9c349",
+                        "on-secondary": "#412a2b",
+                        "tertiary": "#e9c349",
+                        "surface-container": "#1b2027",
+                        "on-error-container": "#ffdad6"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "lg": "24px",
+                        "sm": "8px",
+                        "unit": "4px",
+                        "container-padding": "20px",
+                        "gutter": "12px",
+                        "xs": "4px",
+                        "xl": "32px"
+                    },
+                    "fontFamily": {
+                        "headline-xl": ["Newsreader"],
+                        "body-md": ["Manrope"],
+                        "headline-md": ["Newsreader"],
+                        "body-lg": ["Manrope"],
+                        "headline-lg": ["Newsreader"],
+                        "label-md": ["Manrope"],
+                        "label-sm": ["Manrope"],
+                        "body-sm": ["Manrope"]
+                    },
+                    "fontSize": {
+                        "headline-xl": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "500"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "500"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.25", "fontWeight": "500"}],
+                        "label-md": ["12px", {"lineHeight": "1.4", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "label-sm": ["10px", {"lineHeight": "1.2", "letterSpacing": "0.08em", "fontWeight": "700"}],
+                        "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #0f141a;
+            color: #dee2ec;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .glass-card {
+            background: rgba(27, 32, 39, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(140, 146, 139, 0.1);
+        }
+        .hero-gradient {
+            background: linear-gradient(to bottom, transparent 0%, #0f141a 100%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="font-body-md">
+<!-- TopAppBar -->
+<header class="bg-slate-950/80 backdrop-blur-md border-b border-slate-800/50 shadow-[0_4px_20px_rgba(0,0,0,0.15)] sticky top-0 z-50 flex justify-between items-center px-5 h-16 w-full">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#8BA88E]" style="">spa</span>
+<h1 class="font-['Newsreader'] italic text-xl text-[#8BA88E]" style="">EvaTest</h1>
+</div>
+<button class="text-slate-400 hover:opacity-80 transition-opacity active:scale-95 duration-200" style="">
+<span class="material-symbols-outlined" style="">more_vert</span>
+</button>
+</header>
+<main class="pb-8">
+<!-- Hero Section -->
+<section class="relative w-full h-[397px] overflow-hidden">
+<img alt="Atmospheric support representation" class="w-full h-full object-cover" data-alt="Dreamy atmospheric shot of a calm dark lake at twilight with soft morning mist and a single glowing orb of light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCks1_aD2KJp933nJXn7mmkaaNJBVRfd13PmtrMwe9JNM9_mskwfPGpxWzAk-0qmiViBMBGh82l3RR_s_tEIG7-hDTYbZLMW6kvpTser3jqvdVR6tchw7O49LpKmHdJbNMDAxdrlRYNpkLLge1HRoP0V01txHYEiKmna6cAnrSqU_S5PnczQlZsWnD-lgwwVMR3SsmMdkZ7GshShrco8AK5MquGl7H49fADcUc_iuJ07fEabhoGqnEUVB41MGAvVdoHFyddC0vls4IO" style=""/>
+<div class="absolute inset-0 hero-gradient"></div>
+<div class="absolute bottom-0 left-0 p-container-padding">
+<span class="inline-block px-3 py-1 bg-primary/20 text-primary rounded-full text-label-sm mb-sm backdrop-blur-sm border border-primary/20" style="">
+                    РЕЗУЛЬТАТ ТЕСТА
+                </span>
+<h2 class="font-headline-lg text-headline-lg text-on-surface leading-tight" style="">Ваша доминирующая опора: Контроль</h2>
+</div>
+</section>
+<div class="px-container-padding space-y-xl">
+<!-- Description Block -->
+<article class="glass-card p-lg rounded-xl">
+<p class="font-body-md text-on-surface-variant leading-relaxed" style="">
+                    Вы стремитесь структурировать окружающий мир, чтобы чувствовать безопасность. Контроль для вас — это не способ доминировать, а способ справиться с неопределенностью. Ваша внутренняя опора строится на предсказуемости и четких правилах, которые вы создаете для себя и окружающих.
+                </p>
+</article>
+<!-- Interaction Block 1 -->
+<section class="space-y-md">
+<h3 class="font-headline-md text-headline-md text-center" style="">Удивил ли тебя результат?</h3>
+<div class="flex gap-md">
+<button class="flex-1 py-md bg-primary text-on-primary font-label-md rounded-xl active:scale-95 transition-transform" style="">
+                        Да
+                    </button>
+<button class="flex-1 py-md border border-secondary text-secondary font-label-md rounded-xl active:scale-95 transition-transform" style="">
+                        Нет
+                    </button>
+</div>
+<!-- Conditional Text Block (Visible by default for design layout) -->
+<div class="relative pl-lg py-sm mt-md">
+<div class="absolute left-0 top-0 bottom-0 w-[2px] bg-primary"></div>
+<p class="font-body-sm text-on-surface-variant italic" style="">
+                        Это нормально. Более того — это и есть часть механизма. Искажённая опора устроена так, что ты не видишь её напрямую. И именно поэтому снова и снова оказываешься в одних и тех же ситуациях. Базовая опора — это только часть картины. Есть ещё смешанные конфигурации, которые активируются в стрессе.
+                    </p>
+</div>
+</section>
+<!-- Interaction Block 2 -->
+<section class="p-lg rounded-xl border border-outline-variant bg-surface-container-low space-y-md">
+<h3 class="font-body-lg text-center text-on-surface" style="">Хочешь увидеть свою вторую искаженную опору?</h3>
+<div class="flex flex-col gap-sm">
+<button class="w-full py-md bg-primary text-on-primary font-label-md rounded-xl active:scale-95 transition-transform shadow-lg shadow-primary/10" style="">
+                        Да, мне интересно
+                    </button>
+<button class="w-full py-md text-outline font-label-md rounded-xl active:scale-95 transition-transform" style="">
+                        Не уверена
+                    </button>
+</div>
+</section>
+</div>
+</main>
+<!-- BottomNavBar -->
+</body></html>
+
+<!-- Result Screen -->
+<!DOCTYPE html>
+
+<html class="dark" lang="ru"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&amp;family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "outline": "#8c928b",
+                    "inverse-primary": "#4a654e",
+                    "on-tertiary-fixed-variant": "#574500",
+                    "on-primary-fixed": "#07200f",
+                    "surface-bright": "#353941",
+                    "on-secondary-fixed": "#2a1617",
+                    "secondary": "#e2bebe",
+                    "surface-container-highest": "#30353d",
+                    "on-surface-variant": "#c2c8c0",
+                    "background": "#0f141a",
+                    "secondary-fixed": "#ffdada",
+                    "error": "#ffb4ab",
+                    "surface-tint": "#b0ceb2",
+                    "primary": "#b0ceb2",
+                    "primary-fixed": "#cceace",
+                    "secondary-fixed-dim": "#e2bebe",
+                    "on-surface": "#dee2ec",
+                    "surface-container-high": "#252a32",
+                    "on-primary": "#1c3622",
+                    "tertiary-fixed": "#ffe088",
+                    "on-error": "#690005",
+                    "tertiary-container": "#c09d25",
+                    "inverse-on-surface": "#2c3138",
+                    "on-tertiary-container": "#453600",
+                    "primary-fixed-dim": "#b0ceb2",
+                    "on-tertiary-fixed": "#241a00",
+                    "surface-container-low": "#171c23",
+                    "on-primary-container": "#233d29",
+                    "on-secondary-container": "#d0adad",
+                    "inverse-surface": "#dee2ec",
+                    "on-primary-fixed-variant": "#334d38",
+                    "surface-container-lowest": "#090f15",
+                    "on-tertiary": "#3c2f00",
+                    "primary-container": "#8ba88e",
+                    "surface": "#0f141a",
+                    "on-secondary-fixed-variant": "#5a4041",
+                    "surface-variant": "#30353d",
+                    "on-background": "#dee2ec",
+                    "secondary-container": "#5a4041",
+                    "surface-dim": "#0f141a",
+                    "error-container": "#93000a",
+                    "outline-variant": "#424842",
+                    "tertiary-fixed-dim": "#e9c349",
+                    "on-secondary": "#412a2b",
+                    "tertiary": "#e9c349",
+                    "surface-container": "#1b2027",
+                    "on-error-container": "#ffdad6"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "md": "16px",
+                    "lg": "24px",
+                    "sm": "8px",
+                    "unit": "4px",
+                    "container-padding": "20px",
+                    "gutter": "12px",
+                    "xs": "4px",
+                    "xl": "32px"
+            },
+            "fontFamily": {
+                    "headline-xl": ["Newsreader"],
+                    "body-md": ["Manrope"],
+                    "headline-md": ["Newsreader"],
+                    "body-lg": ["Manrope"],
+                    "headline-lg": ["Newsreader"],
+                    "label-md": ["Manrope"],
+                    "label-sm": ["Manrope"],
+                    "body-sm": ["Manrope"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #0f141a;
+            color: #dee2ec;
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="font-body-md selection:bg-primary/30">
+<!-- TopAppBar -->
+<header class="bg-slate-950/80 backdrop-blur-md border-b border-slate-800/50 shadow-[0_4px_20px_rgba(0,0,0,0.15)] flex justify-between items-center px-5 h-16 w-full docked full-width top-0 sticky z-50">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#8BA88E]" style='font-variation-settings: "FILL" 1;'>spa</span>
+<h1 class="font-['Newsreader'] italic text-xl text-[#8BA88E]" style="">EvaTest</h1>
+</div>
+<button class="text-slate-400 hover:opacity-80 transition-opacity active:scale-95 duration-200" style="">
+<span class="material-symbols-outlined" style="">more_vert</span>
+</button>
+</header>
+<main class="px-container-padding pb-32 max-w-md mx-auto pt-4">
+<!-- Hero Visual Section -->
+<div class="relative w-full aspect-square rounded-xl overflow-hidden shadow-2xl border border-outline-variant/20 mb-4">
+<img alt="Inner Space" class="w-full h-full object-cover opacity-60" data-alt="Ethereal abstract glowing spheres floating in a deep dark navy void with soft golden light and subtle mist" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBv7SvefTbyalcsZEZGzUwd-BULgTeZYwuFQFe8fi9gVwJ9Pr1ej_xmdcANSVA4QHHBCu3m-Jt3an2KOjysuE0H62k8GSRKm_NddoUS00OW4MbFRGphHet2XQzyBPOb4l7j6L0KO-s_i2SKfP7hJpHti_siAHMi6JPsl3nSjKpUJhJPmFKChXtoyI8FbzOthTOQ5d6irEwaWnZuo2iy8Clrpl-jH75hIUiDej_ZnyOc7Bnbs7mgMfLWM9hlNUiP4kgfZQwA1D5dF7LW" style=""/>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
+<div class="absolute bottom-md left-md right-md">
+<span class="font-label-sm text-primary uppercase mb-xs block" style="">Доступ ко второй опоре</span>
+<h2 class="font-headline-lg text-on-surface leading-tight" style="">вторая смешенная искаженная опора</h2>
+</div>
+</div>
+<!-- Personal Note Section -->
+<section class="space-y-md">
+<div class="p-lg bg-surface-container-low rounded-xl border-l-2 border-primary-container">
+<p class="font-headline-md italic text-on-surface-variant leading-relaxed" style="">
+                    «Я обычно открываю этот слой только тем, кто идёт в работу. Потому что важно не просто увидеть, а понять, как это устроено и что с этим делать.»
+                </p>
+</div>
+<p class="font-body-md text-on-surface-variant/80 px-xs italic" style="">
+                Сейчас ты можешь получить разбор своей второй опоры, если пригласишь 2 друзей в бота и они пройдут тест. Я даю этот доступ в обмен на расширение проекта.
+            </p>
+<button class="w-full py-md bg-primary text-on-primary font-label-md rounded-xl shadow-lg hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-sm" style="">
+                Получить ссылку
+                <span class="material-symbols-outlined text-[18px]" style="">arrow_forward</span>
+</button>
+</section>
+</main>
+<!-- BottomNavBar -->
+</body></html>
+
+<!-- Страница «Доступ» -->
+<!DOCTYPE html>
+
+<html class="dark" lang="ru"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&amp;family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "outline": "#8c928b",
+                    "inverse-primary": "#4a654e",
+                    "on-tertiary-fixed-variant": "#574500",
+                    "on-primary-fixed": "#07200f",
+                    "surface-bright": "#353941",
+                    "on-secondary-fixed": "#2a1617",
+                    "secondary": "#e2bebe",
+                    "surface-container-highest": "#30353d",
+                    "on-surface-variant": "#c2c8c0",
+                    "background": "#0f141a",
+                    "secondary-fixed": "#ffdada",
+                    "error": "#ffb4ab",
+                    "surface-tint": "#b0ceb2",
+                    "primary": "#b0ceb2",
+                    "primary-fixed": "#cceace",
+                    "secondary-fixed-dim": "#e2bebe",
+                    "on-surface": "#dee2ec",
+                    "surface-container-high": "#252a32",
+                    "on-primary": "#1c3622",
+                    "tertiary-fixed": "#ffe088",
+                    "on-error": "#690005",
+                    "tertiary-container": "#c09d25",
+                    "inverse-on-surface": "#2c3138",
+                    "on-tertiary-container": "#453600",
+                    "primary-fixed-dim": "#b0ceb2",
+                    "on-tertiary-fixed": "#241a00",
+                    "surface-container-low": "#171c23",
+                    "on-primary-container": "#233d29",
+                    "on-secondary-container": "#d0adad",
+                    "inverse-surface": "#dee2ec",
+                    "on-primary-fixed-variant": "#334d38",
+                    "surface-container-lowest": "#090f15",
+                    "on-tertiary": "#3c2f00",
+                    "primary-container": "#8ba88e",
+                    "surface": "#0f141a",
+                    "on-secondary-fixed-variant": "#5a4041",
+                    "surface-variant": "#30353d",
+                    "on-background": "#dee2ec",
+                    "secondary-container": "#5a4041",
+                    "surface-dim": "#0f141a",
+                    "error-container": "#93000a",
+                    "outline-variant": "#424842",
+                    "tertiary-fixed-dim": "#e9c349",
+                    "on-secondary": "#412a2b",
+                    "tertiary": "#e9c349",
+                    "surface-container": "#1b2027",
+                    "on-error-container": "#ffdad6"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "md": "16px",
+                    "lg": "24px",
+                    "sm": "8px",
+                    "unit": "4px",
+                    "container-padding": "20px",
+                    "gutter": "12px",
+                    "xs": "4px",
+                    "xl": "32px"
+            },
+            "fontFamily": {
+                    "headline-xl": ["Newsreader"],
+                    "body-md": ["Manrope"],
+                    "headline-md": ["Newsreader"],
+                    "body-lg": ["Manrope"],
+                    "headline-lg": ["Newsreader"],
+                    "label-md": ["Manrope"],
+                    "label-sm": ["Manrope"],
+                    "body-sm": ["Manrope"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #0f141a;
+            color: #dee2ec;
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="font-body-md selection:bg-primary/30 flex flex-col min-h-screen">
+<!-- TopAppBar -->
+<header class="bg-slate-950/80 backdrop-blur-md border-b border-slate-800/50 shadow-[0_4px_20px_rgba(0,0,0,0.15)] flex justify-between items-center px-5 h-16 w-full docked full-width top-0 sticky z-50">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#8BA88E]" style='font-variation-settings: "FILL" 1;'>spa</span>
+<h1 class="font-['Newsreader'] italic text-xl text-[#8BA88E]" style="">EvaTest</h1>
+</div>
+<button class="text-slate-400 hover:opacity-80 transition-opacity active:scale-95 duration-200" style="">
+<span class="material-symbols-outlined" style="">more_vert</span>
+</button>
+</header>
+<main class="flex-1 flex flex-col justify-center px-container-padding max-w-md mx-auto w-full"><div class="flex justify-center mb-xl">
+<img alt="Abstract psychological symbol" class="h-[150px] w-auto object-contain rounded-full shadow-2xl shadow-primary/20" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCAuCqLSt9HxqGZnIVWDcYLYKJZUoUuKgj10FWJpiyoxn4qZBl2pAJoC0-aMHanIhzZRm2l6yMgrq7Xm8Z_XjBeu9Ae2jhOMgX9Qh4LkwybA9EMkrvVH3gEXoNL-TWG8NpILlUdi4U_e2qb3hB9IMDymkWMDHlAl7Wbqm75rQ_FZijNC5aZ6fKkOF3_o-zFdl6_Ou7PTllUNVXtgSLvQrFf0oTuuXHrJkVMP_e33BKxxZHSs6dp11O1LDRS7RuQIGaRLSLRGkmT7xiL"/>
+</div>
+<!-- Referral Link Section -->
+<section class="p-lg bg-surface-container rounded-xl border border-outline-variant/30 space-y-md shadow-xl">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-sm" style='font-variation-settings: "FILL" 1; color: #8BA88E;'>stars</span>
+<span class="font-label-md" style="color: #8BA88E;">Вот твоя персональная ссылка:</span>
+</div>
+<div class="relative group">
+<div class="w-full p-md bg-surface-container-highest rounded-lg border border-outline/20 font-body-sm text-on-surface-variant truncate pr-12" style="">
+                    t.me/inner_support_bot?start=ref123
+                </div>
+<button class="absolute right-sm top-1/2 -translate-y-1/2 p-sm text-primary hover:bg-primary/10 rounded-md transition-colors active:scale-90" style="">
+<span class="material-symbols-outlined" style="">content_copy</span>
+</button>
+</div>
+<button class="w-full py-md bg-transparent border border-secondary text-secondary font-label-md rounded-xl hover:bg-secondary/10 active:scale-[0.98] transition-all flex items-center justify-center gap-sm" style="">
+
+                Поделиться
+            </button>
+<div class="pt-sm border-t border-outline-variant/20">
+<div class="flex items-start gap-sm">
+<span class="material-symbols-outlined text-outline text-[20px] mt-0.5" style="">info</span>
+<p class="font-body-sm text-outline leading-tight" style="">
+                        Когда 2 человека перейдут по ней и пройдут тест, я вышлю тебе твою вторую искаженную опору
+                    </p>
+</div>
+</div>
+</section>
+<!-- Progress Indicator -->
+</main>
+<!-- BottomNavBar -->
+</body></html>
+
+<!-- Реферальная ссылка -->
+<!DOCTYPE html>
+
+<html class="dark" lang="ru"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&amp;family=Newsreader:ital,wght@0,400;0,500;1,400;1,500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-surface-variant": "#c2c8c0",
+                      "tertiary": "#e9c349",
+                      "on-secondary": "#412a2b",
+                      "tertiary-fixed-dim": "#e9c349",
+                      "surface-bright": "#353941",
+                      "surface": "#0f141a",
+                      "on-surface": "#dee2ec",
+                      "on-tertiary": "#3c2f00",
+                      "on-secondary-fixed": "#2a1617",
+                      "on-background": "#dee2ec",
+                      "on-primary-fixed-variant": "#334d38",
+                      "secondary": "#e2bebe",
+                      "outline": "#8c928b",
+                      "on-primary-fixed": "#07200f",
+                      "error": "#ffb4ab",
+                      "surface-variant": "#30353d",
+                      "on-tertiary-container": "#453600",
+                      "error-container": "#93000a",
+                      "on-secondary-container": "#d0adad",
+                      "secondary-container": "#5a4041",
+                      "inverse-surface": "#dee2ec",
+                      "inverse-on-surface": "#2c3138",
+                      "surface-container-lowest": "#090f15",
+                      "surface-tint": "#b0ceb2",
+                      "on-tertiary-fixed-variant": "#574500",
+                      "surface-container-highest": "#30353d",
+                      "tertiary-container": "#c09d25",
+                      "surface-dim": "#0f141a",
+                      "secondary-fixed": "#ffdada",
+                      "surface-container": "#1b2027",
+                      "tertiary-fixed": "#ffe088",
+                      "primary-fixed": "#cceace",
+                      "on-error-container": "#ffdad6",
+                      "on-error": "#690005",
+                      "inverse-primary": "#4a654e",
+                      "primary-fixed-dim": "#b0ceb2",
+                      "on-primary-container": "#233d29",
+                      "surface-container-low": "#171c23",
+                      "background": "#0f141a",
+                      "on-tertiary-fixed": "#241a00",
+                      "on-secondary-fixed-variant": "#5a4041",
+                      "secondary-fixed-dim": "#e2bebe",
+                      "surface-container-high": "#252a32",
+                      "primary-container": "#8ba88e",
+                      "primary": "#b0ceb2",
+                      "outline-variant": "#424842",
+                      "on-primary": "#1c3622"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "xs": "4px",
+                      "sm": "8px",
+                      "xl": "32px",
+                      "unit": "4px",
+                      "container-padding": "20px",
+                      "md": "16px",
+                      "lg": "24px",
+                      "gutter": "12px"
+              },
+              "fontFamily": {
+                      "label-sm": ["Manrope"],
+                      "headline-md": ["Newsreader"],
+                      "headline-xl": ["Newsreader"],
+                      "label-md": ["Manrope"],
+                      "headline-lg": ["Newsreader"],
+                      "body-md": ["Manrope"],
+                      "body-sm": ["Manrope"],
+                      "body-lg": ["Manrope"]
+              },
+              "fontSize": {
+                      "label-sm": ["10px", {"lineHeight": "1.2", "letterSpacing": "0.08em", "fontWeight": "700"}],
+                      "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "500"}],
+                      "headline-xl": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "500"}],
+                      "label-md": ["12px", {"lineHeight": "1.4", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "headline-lg": ["32px", {"lineHeight": "1.25", "fontWeight": "500"}],
+                      "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                      "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                      "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+        body {
+            background-color: #0f141a;
+            color: #dee2ec;
+            -webkit-font-smoothing: antialiased;
+        }
+        .glass-card {
+            background: rgba(27, 32, 39, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(140, 146, 139, 0.1);
+        }
+        .organic-glow {
+            background: radial-gradient(circle at center, rgba(139, 168, 142, 0.08) 0%, transparent 70%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="font-body-md text-body-md overflow-x-hidden">
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 w-full z-50 flex items-center px-5 h-16 bg-zinc-950/80 backdrop-blur-md shadow-sm shadow-zinc-900/50 border-b border-zinc-800/50 justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#8BA88E]" style='font-variation-settings: "FILL" 1;'>spa</span>
+<h1 class="font-['Newsreader'] italic text-xl text-[#8BA88E]" style="">EvaTest</h1>
+</div>
+<button class="text-slate-400 hover:opacity-80 transition-opacity active:scale-95 duration-200"><span class="material-symbols-outlined">more_vert</span></button>
+</header>
+<!-- Main Content Canvas -->
+<main class="relative min-h-screen pt-24 pb-12 px-container-padding flex flex-col items-center justify-center text-center organic-glow">
+<!-- Decoration Element -->
+<div class="absolute top-1/4 left-1/2 -translate-x-1/2 -z-10 opacity-20">
+<div class="w-64 h-64 rounded-full border border-primary/20 animate-pulse"></div>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-6xl" data-icon="settings_accessibility" style="">settings_accessibility</span>
+</div>
+</div>
+<!-- Content Section -->
+<div class="max-w-xl w-full flex flex-col items-center space-y-xl">
+<div class="space-y-md">
+</div>
+<!-- Primary Insight Card -->
+<div class="glass-card p-lg rounded-xl text-center space-y-md border-l-4 border-primary">
+<p class="font-headline-md text-headline-md italic leading-relaxed text-on-surface-variant" style="">
+                    «Ты сейчас увидела механизм. И, скорее всего, это не первый раз, когда ты что-то про себя понимаешь. Вопрос в другом: почему это до сих пор не меняет твою жизнь? Потому что понимание не демонтирует паттерн. Это делается только через работу.»
+                </p>
+</div>
+<!-- Secondary Context -->
+<div class="px-2">
+<p class="font-body-md text-body-md text-on-surface-variant max-w-md mx-auto" style="">
+                    Сейчас нет смысла проходить тест повторно. У тебя есть 2 месяца, чтобы демонтировать доминирующую опору. Через 2 месяца ты сможешь снова пройти тест и увидеть динамику.
+                </p>
+<!-- Progress Indicator -->
+</div>
+<!-- Action Buttons -->
+<div class="w-full flex flex-col items-center space-y-md">
+<button class="w-full max-w-sm h-14 bg-primary-container text-on-primary-container font-label-md text-label-md rounded-xl shadow-lg shadow-primary/10 active:scale-95 transition-transform duration-200 uppercase tracking-wider flex items-center justify-center" style="">
+                    Узнать вторую опору сейчас
+                </button>
+<button class="w-full max-w-sm h-14 border border-secondary text-secondary font-label-md text-label-md rounded-xl hover:bg-secondary/5 active:scale-95 transition-transform duration-200 uppercase tracking-wider flex items-center justify-center" style="">
+                    Узнаю через 2 месяца
+                </button>
+</div>
+<!-- Subtle Bottom Detail -->
+</div>
+</main>
+<!-- Visual Texture Overlay -->
+<div class="fixed inset-0 pointer-events-none opacity-[0.03] mix-blend-overlay">
+<svg viewbox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+<filter id="noiseFilter">
+<feturbulence basefrequency="0.65" numoctaves="3" stitchtiles="stitch" type="fractalNoise"></feturbulence>
+</filter>
+<rect filter="url(#noiseFilter)" height="100%" width="100%"></rect>
+</svg>
+</div>
+</body></html>
+
+<!-- Страница «Механизм» -->
+<!DOCTYPE html><html class="dark" lang="ru"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&amp;family=Manrope:wght@200..800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "outline": "#8c928b",
+                    "inverse-primary": "#4a654e",
+                    "on-tertiary-fixed-variant": "#574500",
+                    "on-primary-fixed": "#07200f",
+                    "surface-bright": "#353941",
+                    "on-secondary-fixed": "#2a1617",
+                    "secondary": "#e2bebe",
+                    "surface-container-highest": "#30353d",
+                    "on-surface-variant": "#c2c8c0",
+                    "background": "#0f141a",
+                    "secondary-fixed": "#ffdada",
+                    "error": "#ffb4ab",
+                    "surface-tint": "#b0ceb2",
+                    "primary": "#b0ceb2",
+                    "primary-fixed": "#cceace",
+                    "secondary-fixed-dim": "#e2bebe",
+                    "on-surface": "#dee2ec",
+                    "surface-container-high": "#252a32",
+                    "on-primary": "#1c3622",
+                    "tertiary-fixed": "#ffe088",
+                    "on-error": "#690005",
+                    "tertiary-container": "#c09d25",
+                    "inverse-on-surface": "#2c3138",
+                    "on-tertiary-container": "#453600",
+                    "primary-fixed-dim": "#b0ceb2",
+                    "on-tertiary-fixed": "#241a00",
+                    "surface-container-low": "#171c23",
+                    "on-primary-container": "#233d29",
+                    "on-secondary-container": "#d0adad",
+                    "inverse-surface": "#dee2ec",
+                    "on-primary-fixed-variant": "#334d38",
+                    "surface-container-lowest": "#090f15",
+                    "on-tertiary": "#3c2f00",
+                    "primary-container": "#8ba88e",
+                    "surface": "#0f141a",
+                    "on-secondary-fixed-variant": "#5a4041",
+                    "surface-variant": "#30353d",
+                    "on-background": "#dee2ec",
+                    "secondary-container": "#5a4041",
+                    "surface-dim": "#0f141a",
+                    "error-container": "#93000a",
+                    "outline-variant": "#424842",
+                    "tertiary-fixed-dim": "#e9c349",
+                    "on-secondary": "#412a2b",
+                    "tertiary": "#e9c349",
+                    "surface-container": "#1b2027",
+                    "on-error-container": "#ffdad6"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "md": "16px",
+                    "lg": "24px",
+                    "sm": "8px",
+                    "unit": "4px",
+                    "container-padding": "20px",
+                    "gutter": "12px",
+                    "xs": "4px",
+                    "xl": "32px"
+            },
+            "fontFamily": {
+                    "headline-xl": ["Newsreader"],
+                    "body-md": ["Manrope"],
+                    "headline-md": ["Newsreader"],
+                    "body-lg": ["Manrope"],
+                    "headline-lg": ["Newsreader"],
+                    "label-md": ["Manrope"],
+                    "label-sm": ["Manrope"],
+                    "body-sm": ["Manrope"]
+            },
+            "fontSize": {
+                    "headline-xl": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "500"}],
+                    "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "500"}],
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "headline-lg": ["32px", {"lineHeight": "1.25", "fontWeight": "500"}],
+                    "label-md": ["12px", {"lineHeight": "1.4", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "label-sm": ["10px", {"lineHeight": "1.2", "letterSpacing": "0.08em", "fontWeight": "700"}],
+                    "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #0f141a;
+            color: #dee2ec;
+            -webkit-font-smoothing: antialiased;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(27, 32, 39, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(140, 146, 139, 0.1);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col font-body-md overflow-x-hidden">
+<header class="bg-slate-950/80 backdrop-blur-md border-b border-slate-800/50 shadow-[0_4px_20px_rgba(0,0,0,0.15)] sticky top-0 z-50 flex justify-between items-center px-5 h-16 w-full">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#8BA88E]" data-icon="spa" style="">spa</span>
+<h1 class="font-['Newsreader'] italic text-xl text-[#8BA88E]" style="">EvaTest</h1>
+</div>
+<button class="text-slate-400 hover:opacity-80 transition-opacity active:scale-95 duration-200" style="">
+<span class="material-symbols-outlined" data-icon="settings" style="">settings</span>
+</button>
+</header>
+<main class="flex-1 flex flex-col items-center px-container-padding pt-xl pb-32">
+<div class="w-full max-w-md flex flex-col items-center text-center space-y-xl">
+<div class="relative w-full aspect-square flex items-center justify-center max-w-[140px]">
+<div class="absolute inset-0 rounded-full border border-primary/20 animate-pulse"></div>
+<div class="absolute inset-3 rounded-full border border-primary/10"></div>
+<div class="absolute inset-6 rounded-full border border-primary/5"></div>
+<div class="relative z-10 flex flex-col items-center">
+<div class="bg-primary/10 rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(139,168,142,0.2)] w-10 h-10"><span class="material-symbols-outlined text-primary text-2xl" data-icon="hourglass_empty" style="">hourglass_empty</span></div>
+</div>
+</div>
+<div class="space-y-md">
+<h2 class="font-headline-lg text-on-surface" style="">Время для действий</h2>
+<p class="font-body-lg text-on-surface-variant leading-relaxed font-['Newsreader'] italic" style="">
+                    «Сейчас нет смысла проходить тест повторно. У тебя есть время, чтобы демонтировать доминирующую опору. Позже ты сможешь снова пройти тест и увидеть динамику.»
+                </p>
+</div>
+<div class="w-full glass-card p-lg rounded-xl space-y-sm flex flex-col items-center">
+<div class="flex items-center justify-center gap-2 text-primary mb-2">
+<span class="material-symbols-outlined text-[20px]" data-icon="calendar_today" style="">calendar_today</span>
+</div>
+<div class="text-headline-md font-headline-md text-on-surface" style="">
+                    Тест будет доступен снова через <span class="text-primary" style="">45 дней</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1 rounded-full overflow-hidden mt-md">
+<div class="bg-primary h-full w-1/4 rounded-full"></div>
+</div>
+</div>
+<div class="w-full pt-lg">
+<button class="w-full bg-primary-container text-on-primary-container font-label-md py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-transform" style="">
+<span class="material-symbols-outlined" data-icon="chat_bubble" style="">chat_bubble</span>
+                    Написать Еве
+                </button>
+</div>
+</div>
+</main>
+<div class="fixed inset-0 pointer-events-none z-[-1] opacity-20">
+<div class="absolute top-[-10%] right-[-10%] w-80 h-80 bg-primary/20 blur-[120px] rounded-full"></div>
+<div class="absolute bottom-[20%] left-[-10%] w-64 h-64 bg-secondary/10 blur-[100px] rounded-full"></div>
+</div>
+</body></html>

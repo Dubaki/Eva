@@ -1,87 +1,26 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { QUESTIONS, type Scale } from '@/lib/questions'
+import { QUESTIONS } from '@/lib/questions'
 import type { Answer } from '@/lib/scoring'
+import EvaHeader from '@/components/EvaHeader'
+import { TEXTS } from '@/lib/constants/texts'
 
-const SCALE_COLOR: Record<Scale, string> = {
-  performance: 'var(--scale-s)',
-  perfection: 'var(--scale-u)',
-  pleasing: 'var(--scale-p)',
-  control: 'var(--scale-r)',
-  'hyper-vigilance': 'var(--scale-k)',
-}
-
-function ProgressBar({
-  current,
-  total,
-  color,
-  canGoBack,
-  onBack,
-}: {
-  current: number
-  total: number
-  color: string
-  canGoBack: boolean
-  onBack: () => void
-}) {
-  const progress = ((current + 1) / total) * 100
+/** Progress Bar Component */
+function ProgressBar({ current, total }: { current: number; total: number }) {
+  const progress = ((current) / total) * 100
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        {canGoBack ? (
-          <button
-            type="button"
-            onClick={onBack}
-            className="flex items-center gap-1 bg-white/10 p-2 rounded-lg text-[14px] font-medium text-text-primary hover:bg-white/20 transition-colors select-none"
-            aria-label="Previous question"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-              <path d="M10 3L5 8L10 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Назад
-          </button>
-        ) : (
-          <span className="w-16" />
-        )}
-        <span className="text-[13px] font-medium text-text-muted tabular-nums">
-          {current + 1}/{total}
-        </span>
-      </div>
-      <div className="h-1.5 bg-bg-tertiary rounded-full overflow-hidden">
-        <motion.div
-          className="h-full rounded-full"
-          style={{ background: color }}
-          animate={{ width: progress + '%' }}
-          transition={{ duration: 0.3, ease: 'easeOut' }}
-        />
-      </div>
+    <div className="w-full h-[2px] bg-surface-container-highest shrink-0">
+      <motion.div
+        className="h-full bg-primary-container shadow-[0_0_8px_rgba(139,168,142,0.5)]"
+        initial={{ width: 0 }}
+        animate={{ width: `${progress}%` }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+      />
     </div>
   )
-}
-
-/** Debounce helper: saves step to DB only after the user stops navigating for a short delay */
-function useStepSave(tgId: number | null) {
-  const saveStep = useCallback(
-    async (step: number) => {
-      if (!tgId) return
-      try {
-        await fetch('/api/test/progress', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ step, tgId }),
-          keepalive: true, // Гарантирует отправку даже при закрытии приложения
-        })
-      } catch (e) {
-        console.error('[test] Failed to save progress:', e)
-      }
-    },
-    [tgId],
-  )
-
-  return saveStep
 }
 
 export default function TestPage() {
@@ -91,34 +30,22 @@ export default function TestPage() {
   const [loading, setLoading] = useState(true)
   const [questionOrder, setQuestionOrder] = useState<number[] | null>(null)
   const [answersMap, setAnswersMap] = useState<Record<number, number>>({})
-  const [cooldownEnd, setCooldownEnd] = useState<string | null>(null)
   const router = useRouter()
-
-  // Extract tgId from Telegram WebApp
   const [tgId, setTgId] = useState<number | null>(null)
 
+  // 1. Get tgId from WebApp
   useEffect(() => {
-    const WebApp = typeof window !== 'undefined'
-      ? (window as unknown as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { id?: number } } } } }).Telegram?.WebApp
-      : null
-    const id = WebApp?.initDataUnsafe?.user?.id ?? null
+    const WebApp = (window as any).Telegram?.WebApp
+    const id = WebApp?.initDataUnsafe?.user?.id
     if (id) {
       setTgId(id)
     } else {
-      console.warn('[test] No tgId available from Telegram SDK')
-      // Small delay to allow SDK to initialize
-      const timer = setTimeout(() => {
-        const retryId = WebApp?.initDataUnsafe?.user?.id ?? null
-        if (retryId) setTgId(retryId)
-        else setLoading(false)
-      }, 1000)
-      return () => clearTimeout(timer)
+      // For development/testing
+      setTgId(999999999)
     }
   }, [])
 
-  const saveStep = useStepSave(tgId)
-
-  // Restore saved progress on mount (or when tgId becomes available)
+  // 2. Restore progress
   useEffect(() => {
     if (!tgId) return
     let cancelled = false
@@ -128,25 +55,15 @@ export default function TestPage() {
         const json = await res.json()
         if (!cancelled && json.success && json.data) {
           if (json.data.isCooldown) {
-            setCooldownEnd(json.data.availableAt)
-            setLoading(false)
+            router.push('/')
             return
           }
-
-          const { currentStep, answers, question_order } = json.data as { 
-            currentStep: number; 
-            answers: Record<number, number> | null;
-            question_order: number[] | null;
-          }
+          const { currentStep, answers, question_order } = json.data
           if (currentStep > 0 && currentStep < QUESTIONS.length) {
             setCurrentIndex(currentStep)
-            if (answers) {
-              setAnswersMap(answers)
-            }
+            if (answers) setAnswersMap(answers)
           }
-          if (question_order) {
-            setQuestionOrder(question_order)
-          }
+          if (question_order) setQuestionOrder(question_order)
         }
       } catch (e) {
         console.error('[test] Failed to load progress:', e)
@@ -155,9 +72,23 @@ export default function TestPage() {
       }
     })()
     return () => { cancelled = true }
+  }, [tgId, router])
+
+  // 3. Save progress
+  const saveStep = useCallback(async (step: number) => {
+    if (!tgId) return
+    try {
+      await fetch('/api/test/progress', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ step, tgId }),
+        keepalive: true,
+      })
+    } catch (e) {
+      console.error('[test] Failed to save progress:', e)
+    }
   }, [tgId])
 
-  // Save step when currentIndex changes (after loading is done)
   useEffect(() => {
     if (loading || submitting) return
     saveStep(currentIndex)
@@ -165,269 +96,170 @@ export default function TestPage() {
 
   const actualQuestionIndex = questionOrder?.[currentIndex] ?? currentIndex
   const question = QUESTIONS[actualQuestionIndex]
-  const accentColor = SCALE_COLOR[question.scale]
-  const canGoBack = currentIndex > 0
-  const currentAnswer = answersMap[question.id] ?? null
 
   const submitAnswers = useCallback(async (answers: Answer[]) => {
-    // ── Protection against broken state ──
-    if (answers.length !== QUESTIONS.length) {
-      console.error('[test/submit] State mismatch detected:', answers.length, 'vs', QUESTIONS.length)
-      setAnswersMap({})
-      setCurrentIndex(0)
-      setSubmitting(false)
-      alert('Данные рассинхронизированы. Тест запущен заново для корректного сохранения.')
-      return
-    }
-
+    setSubmitting(true)
     const startTime = Date.now()
     try {
-      console.log('=== ТЕСТ ЗАВЕРШЕН (client) ===')
       const stored = localStorage.getItem('eva_token')
-      const token = stored || ''
-
-      console.log('[test/submit] Using tgId from state:', tgId)
-
       const res = await fetch('/api/test/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + token,
+          Authorization: 'Bearer ' + (stored || ''),
         },
         body: JSON.stringify({ answers, tgId }),
       })
       const result = await res.json()
-      console.log('Server response:', result)
 
-      // Ensure minimum 2.5s delay for UX
       const elapsed = Date.now() - startTime
-      const remaining = Math.max(0, 2500 - elapsed)
-      if (remaining > 0) {
-        console.log(`[test] Waiting ${remaining}ms for minimum delay`)
-        await new Promise((r) => setTimeout(r, remaining))
-      }
+      const wait = Math.max(0, 2000 - elapsed)
+      if (wait > 0) await new Promise(r => setTimeout(r, wait))
 
-      if (!result.success) {
-        console.error('[test/submit] Submit failed:', result.error)
-        // Show RPC error to the user (for debugging)
-        if (result.error && result.error !== 'cooldown') {
-          alert(`⚠️ Ошибка сохранения: ${result.error}`)
-        }
-        // Even on failure, go to result — user sees the computed result from sessionStorage fallback
+      if (result.success) {
+        sessionStorage.setItem('eva_result', JSON.stringify(result.data))
         router.push('/result')
-        return
+      } else {
+        router.push('/result')
       }
-      console.log('Saving result to sessionStorage:', result.data)
-      // sessionStorage — только для мгновенной отрисовки сразу после прохождения теста. Источник истины — API.
-      sessionStorage.setItem('eva_result', JSON.stringify(result.data))
-      router.push('/result')    } catch (err) {
+    } catch (err) {
       console.error('Submit error:', err)
       router.push('/result')
     }
   }, [router, tgId])
 
-  const handleAnswer = useCallback(
-    (value: 'yes' | 'no') => {
-      if (selected !== null || submitting) return
-      setSelected(value)
-      const score = value === 'yes' ? 1 : 0
-      
-      // 1. Сначала считаем актуальный словарь
-      const newMap = { ...answersMap, [question.id]: score }
-      
-      // 2. Обновляем состояние
-      setAnswersMap(newMap)
-      
-      setTimeout(() => {
-        if (currentIndex >= QUESTIONS.length - 1) {
-          // 3. Строим массив ответов из Object.entries(newMap) без .push
-          const answers: Answer[] = Object.entries(newMap).map(
-            ([qId, s]) => ({ questionId: Number(qId), score: s as number })
-          )
+  const handleAnswer = useCallback((value: 'yes' | 'no') => {
+    if (selected !== null || submitting) return
+    setSelected(value)
+    const score = value === 'yes' ? 1 : 0
+    const newMap = { ...answersMap, [question.id]: score }
+    setAnswersMap(newMap)
 
-          // 4. Валидация полноты ответов
-          if (answers.length !== QUESTIONS.length) {
-            console.error('[test] Incomplete answers detected:', answers.length)
-            // Ищем первый пропущенный вопрос
-            const firstMissingIndex = QUESTIONS.findIndex(q => newMap[q.id] === undefined)
-            if (firstMissingIndex !== -1) {
-              setCurrentIndex(firstMissingIndex)
-              setSelected(null)
-              return
-            }
-          }
-
-          setSubmitting(true)
-          submitAnswers(answers)
-        } else {
-          setSelected(null)
-          setCurrentIndex((i) => i + 1)
-        }
-      }, 200)
-    },
-    [selected, submitting, currentIndex, question.id, answersMap, submitAnswers],
-  )
+    setTimeout(() => {
+      if (currentIndex >= QUESTIONS.length - 1) {
+        const answers: Answer[] = Object.entries(newMap).map(
+          ([qId, s]) => ({ questionId: Number(qId), score: s as number })
+        )
+        submitAnswers(answers)
+      } else {
+        setSelected(null)
+        setCurrentIndex(i => i + 1)
+      }
+    }, 250)
+  }, [selected, submitting, currentIndex, question.id, answersMap, submitAnswers])
 
   const handleBack = useCallback(() => {
-    if (!canGoBack) return
-    setCurrentIndex((i) => i - 1)
-    setSelected(null)
-  }, [canGoBack])
+    if (currentIndex > 0) {
+      setCurrentIndex(i => i - 1)
+      setSelected(null)
+    } else {
+      router.push('/')
+    }
+  }, [currentIndex, router])
 
-  // Show loading while restoring progress
-  if (loading) {
+  if (loading || !question) {
     return (
-      <main className="flex flex-col min-h-screen bg-bg-primary overflow-hidden items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <motion.div
-            className="w-12 h-12 border-2 border-accent border-t-transparent rounded-full"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          />
-          <p className="text-text-secondary text-sm">Загружаю прогресс...</p>
-        </div>
-      </main>
-    )
-  }
-
-  // Cooldown screen
-  if (cooldownEnd) {
-    const date = new Date(cooldownEnd).toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    })
-
-    return (
-      <main className="flex flex-col min-h-screen bg-bg-primary items-center justify-center px-6">
-        <div className="flex flex-col items-center gap-6 max-w-sm w-full text-center">
-          <div className="w-16 h-16 bg-bg-tertiary rounded-2xl flex items-center justify-center text-3xl">
-            ⏳
-          </div>
-          <div className="flex flex-col gap-3">
-            <h1 className="text-xl font-bold text-text-primary">
-              Тест пока недоступен
-            </h1>
-            <p className="text-text-secondary leading-relaxed">
-              Повторное прохождение теста будет доступно через 60 дней после предыдущего.
-            </p>
-            <div className="bg-bg-tertiary/50 p-4 rounded-xl mt-2 border border-border">
-              <p className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-1">
-                Следующая попытка
-              </p>
-              <p className="text-lg font-bold text-accent">
-                {date}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => router.push('/')}
-            className="w-full py-4 bg-bg-secondary border border-border rounded-xl font-semibold text-text-primary mt-4"
-          >
-            На главную
-          </button>
-        </div>
-      </main>
-    )
-  }
-
-  // Initializing order screen
-  if (!questionOrder && tgId) {
-    return (
-      <main className="flex flex-col min-h-screen bg-bg-primary overflow-hidden items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <motion.div
-            className="w-12 h-12 border-2 border-accent border-t-transparent rounded-full"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          />
-          <p className="text-text-secondary text-sm">Инициализирую порядок вопросов...</p>
-        </div>
-      </main>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <motion.div
+          className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+        />
+      </div>
     )
   }
 
   return (
-    <main className="flex flex-col min-h-screen bg-bg-primary overflow-hidden">
+    <div className="font-body-md antialiased overflow-hidden min-h-[100dvh] flex flex-col bg-background">
+      {/* Header */}
+      <header className="bg-slate-950/80 backdrop-blur-md border-b border-slate-800/50 shadow-[0_4px_20px_rgba(0,0,0,0.15)] sticky z-50 top-0 flex justify-between items-center px-5 h-16 w-full shrink-0">
+        <button 
+          onClick={handleBack}
+          className="text-[#8BA88E] active:scale-95 duration-200 flex items-center justify-center w-10 h-10"
+        >
+          <span className="material-symbols-outlined">arrow_back</span>
+        </button>
+        <h1 className="font-headline-md italic text-xl text-[#8BA88E]">EVA</h1>
+        <div className="font-label-md text-slate-400 tracking-widest w-10 text-right">
+          {currentIndex + 1}/{QUESTIONS.length}
+        </div>
+      </header>
+
+      {/* Progress Bar */}
+      <ProgressBar current={currentIndex + 1} total={QUESTIONS.length} />
+
+      {/* Main Content Canvas */}
+      <main className="relative flex-1 flex flex-col px-container-padding py-xl justify-between overflow-hidden">
+        {/* Background Aesthetic Element */}
+        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 -right-20 w-64 h-64 bg-primary/5 rounded-full blur-[80px]"></div>
+          <div className="absolute bottom-1/4 -left-20 w-80 h-80 bg-secondary/5 rounded-full blur-[100px]"></div>
+        </div>
+
+        {/* Question Area */}
+        <section className="flex-1 flex flex-col justify-center items-center text-center space-y-lg">
+          <AnimatePresence mode="wait">
+            <motion.h2
+              key={question.id}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="font-headline-lg text-headline-lg text-on-surface leading-tight px-sm max-w-md"
+            >
+              {question.text}
+            </motion.h2>
+          </AnimatePresence>
+        </section>
+
+        {/* Response Actions */}
+        <section className="pb-xl space-y-md shrink-0">
+          <div className="grid grid-cols-2 gap-md h-24">
+            {/* Yes Button */}
+            <button 
+              onClick={() => handleAnswer('yes')}
+              disabled={selected !== null || submitting}
+              className={`rounded-xl font-label-md flex flex-col items-center justify-center transition-all active:scale-[0.97] shadow-lg shadow-black/20 group relative overflow-hidden ${
+                selected === 'yes' ? 'bg-primary text-on-primary' : 'bg-primary-container text-on-primary-container'
+              }`}
+            >
+              <span className="relative z-10 text-lg font-bold">{TEXTS.test.btnYes}</span>
+            </button>
+            {/* No Button */}
+            <button 
+              onClick={() => handleAnswer('no')}
+              disabled={selected !== null || submitting}
+              className={`glass-card text-on-surface rounded-xl font-label-md flex flex-col items-center justify-center transition-all active:scale-[0.97] border border-outline/20 group ${
+                selected === 'no' ? 'bg-surface-variant' : ''
+              }`}
+            >
+              <span className="text-lg font-bold">{TEXTS.test.btnNo}</span>
+            </button>
+          </div>
+        </section>
+      </main>
+
+      {/* Submitting Overlay */}
       <AnimatePresence>
         {submitting && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-bg-primary/95 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-background/90 backdrop-blur-md"
           >
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex flex-col items-center gap-4 text-center px-10">
               <motion.div
-                className="w-12 h-12 border-2 border-accent border-t-transparent rounded-full"
+                className="w-12 h-12 border-2 border-primary border-t-transparent rounded-full mb-2"
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
               />
-              <p className="text-text-secondary text-sm">Сейчас посчитаю.</p>
-              <p className="text-text-muted text-xs mt-1">Это не совсем то, что ты думаешь.</p>
+              <p className="font-headline-md italic text-on-surface">{TEXTS.test.overlay1}</p>
+              <p className="font-body-sm text-on-surface-variant">{TEXTS.test.overlay2}</p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-
-      <div className="flex flex-col flex-1 px-5 pt-6 pb-8 gap-5 max-w-sm mx-auto w-full">
-        <ProgressBar
-          current={currentIndex}
-          total={QUESTIONS.length}
-          color={accentColor}
-          canGoBack={canGoBack}
-          onBack={handleBack}
-        />
-
-        {/* Question — centered in remaining space */}
-        <div className="flex flex-col flex-1 justify-center gap-4">
-          <AnimatePresence mode="wait">
-            <motion.p
-              key={question.id}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
-              className="text-[17px] font-medium leading-[1.55] tracking-[-0.01em] text-text-primary text-center"
-            >
-              {question.text}
-            </motion.p>
-          </AnimatePresence>
-        </div>
-
-        {/* Yes / No buttons */}
-        <div className="flex gap-3">
-          <motion.button
-            type="button"
-            whileTap={{ scale: 0.95 }}
-            transition={{ duration: 0.1 }}
-            onClick={() => handleAnswer('yes')}
-            className="flex-1 py-4 rounded-xl font-semibold text-[16px] text-white select-none focus:outline-none"
-            style={{
-              background:
-                selected === 'yes' || currentAnswer === 1
-                  ? accentColor
-                  : 'color-mix(in srgb, ' + accentColor + ' 20%, var(--bg-secondary))',
-              border: `1.5px solid ${selected === 'yes' || currentAnswer === 1 ? accentColor : 'var(--border)'}`,
-            }}
-          >
-            Да
-          </motion.button>
-          <motion.button
-            type="button"
-            whileTap={{ scale: 0.95 }}
-            transition={{ duration: 0.1 }}
-            onClick={() => handleAnswer('no')}
-            className="flex-1 py-4 rounded-xl font-semibold text-[16px] text-text-primary select-none focus:outline-none"
-            style={{
-              background: 'var(--bg-secondary)',
-              border: `1.5px solid ${selected === 'no' || currentAnswer === 0 ? accentColor : 'var(--border)'}`,
-            }}
-          >
-            Нет
-          </motion.button>
-        </div>
-      </div>
-    </main>
+    </div>
   )
 }

@@ -32,6 +32,8 @@ export interface Database {
           id: string
           tg_id: number
           username: string | null
+          first_name: string | null
+          last_name: string | null
           avatar_url: string | null
           referred_by: number | null
           referrer_id: string | null
@@ -39,23 +41,26 @@ export interface Database {
           subscription_checked_at: string | null
           subscribed_at: string | null
           last_test_date: string | null
-          selected_sphere: string | null
           reminded_at: string | null
+          mixed_trait_sent: boolean
+          mixed_trait_sent_at: string | null
           invites_count: number
           referral_confirmed: boolean
           referral_confirmed_at: string | null
           current_step: number | null
+          question_order: number[] | null
           shared_at: string | null
           contact_author_clicked: boolean
           bot_quiz_step: number | null
           last_bot_interaction: string | null
           created_at: string
-          updated_at: string
         }
         Insert: {
           id?: string
           tg_id: number
           username?: string | null
+          first_name?: string | null
+          last_name?: string | null
           avatar_url?: string | null
           referred_by?: number | null
           referrer_id?: string | null
@@ -63,23 +68,26 @@ export interface Database {
           subscription_checked_at?: string | null
           subscribed_at?: string | null
           last_test_date?: string | null
-          selected_sphere?: string | null
           reminded_at?: string | null
+          mixed_trait_sent?: boolean
+          mixed_trait_sent_at?: string | null
           invites_count?: number
           referral_confirmed?: boolean
           referral_confirmed_at?: string | null
           current_step?: number | null
+          question_order?: number[] | null
           shared_at?: string | null
           contact_author_clicked?: boolean
           bot_quiz_step?: number | null
           last_bot_interaction?: string | null
           created_at?: string
-          updated_at?: string
         }
         Update: {
           id?: string
           tg_id?: number
           username?: string | null
+          first_name?: string | null
+          last_name?: string | null
           avatar_url?: string | null
           referred_by?: number | null
           referrer_id?: string | null
@@ -87,18 +95,19 @@ export interface Database {
           subscription_checked_at?: string | null
           subscribed_at?: string | null
           last_test_date?: string | null
-          selected_sphere?: string | null
           reminded_at?: string | null
+          mixed_trait_sent?: boolean
+          mixed_trait_sent_at?: string | null
           invites_count?: number
           referral_confirmed?: boolean
           referral_confirmed_at?: string | null
           current_step?: number | null
+          question_order?: number[] | null
           shared_at?: string | null
           contact_author_clicked?: boolean
           bot_quiz_step?: number | null
           last_bot_interaction?: string | null
           created_at?: string
-          updated_at?: string
         }
         Relationships: []
       }
@@ -110,7 +119,6 @@ export interface Database {
           tension_severity: string
           previous_experience: string
           created_at: string
-          updated_at: string
         }
         Insert: {
           id?: string
@@ -119,7 +127,6 @@ export interface Database {
           tension_severity: string
           previous_experience: string
           created_at?: string
-          updated_at?: string
         }
         Update: {
           id?: string
@@ -128,7 +135,6 @@ export interface Database {
           tension_severity?: string
           previous_experience?: string
           created_at?: string
-          updated_at?: string
         }
         Relationships: []
       }
@@ -146,7 +152,6 @@ export interface Database {
           secondary_support: string
           answers: Json
           created_at: string
-          updated_at: string
         }
         Insert: {
           id?: string
@@ -161,7 +166,6 @@ export interface Database {
           secondary_support: string
           answers?: Json
           created_at?: string
-          updated_at?: string
         }
         Update: {
           id?: string
@@ -176,32 +180,40 @@ export interface Database {
           secondary_support?: string
           answers?: Json
           created_at?: string
-          updated_at?: string
         }
         Relationships: []
       }
-      referrals: {
+      bot_tasks_queue: {
         Row: {
           id: string
-          owner_id: string
-          invited_id: string
+          profile_id: string
+          tg_id: number
+          event_type: string
+          run_at: string
           status: string
+          error_message: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
-          owner_id: string
-          invited_id: string
+          profile_id: string
+          tg_id: number
+          event_type: string
+          run_at: string
           status?: string
+          error_message?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
-          owner_id?: string
-          invited_id?: string
+          profile_id?: string
+          tg_id?: number
+          event_type?: string
+          run_at?: string
           status?: string
+          error_message?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -236,13 +248,20 @@ export interface Database {
       [_ in never]: never
     }
     Functions: {
-      save_test_result: {
+      submit_test_result_v2: {
         Args: {
           p_tg_id: number
-          p_primary_support: string
-          p_secondary_support: string
+          p_profile_id: string
+          p_primary: string
+          p_secondary: string
+          p_answers: Json
+          p_score_s: number
+          p_score_u: number
+          p_score_p: number
+          p_score_r: number
+          p_score_k: number
         }
-        Returns: void
+        Returns: Json
       }
     }
     Enums: {

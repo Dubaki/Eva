@@ -14,13 +14,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const answers: Answer[] = body.answers
     const bodyTgId = body.tgId
-    
+
     if (!Array.isArray(answers) || answers.length !== QUESTIONS.length) {
       return NextResponse.json({ success: false, error: 'Invalid answers count' }, { status: 400 })
     }
 
     let profileId: string | null = null
-    let tgId: number | null = null
 
     const authHeader = request.headers.get('authorization')
     if (authHeader?.startsWith('Bearer ')) {
@@ -33,18 +32,16 @@ export async function POST(request: NextRequest) {
 
     const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
-    // Получаем tgId из профиля
     const { data: profile } = await supabaseAdmin.from('profiles').select('tg_id').eq('id', profileId).maybeSingle()
     if (!profile) return NextResponse.json({ success: false, error: 'Profile not found' }, { status: 404 })
-    
-    tgId = profile.tg_id
+
+    const tgId = profile.tg_id
 
     const scores = calculateScores(answers)
     const primary = scores.dominantTrait.toUpperCase()
     const secondary = scores.secondaryTrait.toUpperCase()
 
-    // Используем атомарную RPC-функцию для сохранения результатов и обработки рефералов
-    // Это гарантирует целостность данных и высокую скорость ответа
+    // RPC handles: test_results upsert, profiles update, referral, cooldown_reminder +60d, start_qualification +24h
     const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('submit_test_result_v2', {
       p_tg_id: tgId,
       p_profile_id: profileId,
@@ -63,23 +60,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: rpcError.message }, { status: 500 })
     }
 
-    console.log(`[API] Test submitted atomicaly for ${tgId}. Result:`, rpcData)
+    console.log(`[API] Test submitted for ${tgId}. Result:`, rpcData)
 
-    // Добавляем фоновую задачу (не ждем завершения)
-    void Promise.resolve(supabaseAdmin.from('bot_tasks_queue').insert({
-      profile_id: profileId,
-      tg_id: tgId,
-      event_type: 'start_mini_quiz',
-      run_at: new Date(Date.now() + 86400000).toISOString(),
-      status: 'pending'
-    }))
-
-    return NextResponse.json({ 
-      success: true, 
-      data: { 
+    return NextResponse.json({
+      success: true,
+      data: {
         dominantTrait: scores.dominantTrait,
-        referralProcessed: rpcData?.referral_processed
-      } 
+        referralProcessed: (rpcData as any)?.referral_processed
+      }
     })
   } catch (err) {
     console.error('[API] Submit error:', err)

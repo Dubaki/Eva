@@ -1,15 +1,23 @@
 import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
-import { Inter } from 'next/font/google'
+import { Newsreader, Manrope } from 'next/font/google'
 import { AuthProvider } from '@/components/providers/AuthProvider'
 import Gatekeeper from '@/components/Gatekeeper'
 import { QUESTIONS } from '@/lib/questions'
 import './globals.css'
 
-const inter = Inter({
+const newsreader = Newsreader({
+  subsets: ['latin'],
+  weight: ['400', '500'],
+  style: ['normal', 'italic'],
+  variable: '--font-newsreader',
+  display: 'swap',
+})
+
+const manrope = Manrope({
   subsets: ['latin', 'cyrillic'],
-  weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-inter',
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-manrope',
   display: 'swap',
 })
 
@@ -37,8 +45,14 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="ru" className={inter.variable} suppressHydrationWarning>
-      <body className={inter.className}>
+    <html lang="ru" className={`dark ${newsreader.variable} ${manrope.variable}`} suppressHydrationWarning>
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        />
+      </head>
+      <body className="bg-background text-on-surface font-body-md min-h-screen">
         <AuthProvider>
           <Script
             src="https://telegram.org/js/telegram-web-app.js"

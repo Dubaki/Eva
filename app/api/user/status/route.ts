@@ -1,116 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyJwt } from '@/lib/jwt'
 import { getSupabaseServer } from '@/lib/supabase/server'
+import { getChatMember } from '@/lib/telegram-bot'
 
-// ── Kill ALL caching: no server cache, no CDN cache, no browser cache ──
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export async function GET(req: NextRequest) {
   const supabase = getSupabaseServer()
-
-  // ── Mode 1: Direct tg_id via query param (used by home page subscription/cooldown check) ──
   const url = new URL(req.url)
   const tgIdParam = url.searchParams.get('tg_id')
 
-  if (tgIdParam) {
-    const numericTgId = Number(tgIdParam)
-    if (isNaN(numericTgId)) {
-      return NextResponse.json({ success: false, error: 'Invalid tg_id' }, { status: 400 })
-    }
-
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('is_subscribed, last_test_date')
-      .eq('tg_id', numericTgId)
-      .maybeSingle()
-
-    if (error) {
-      console.error('[api/user/status] DB error:', error)
-      return NextResponse.json({ success: false, error: 'Database error' }, { status: 500 })
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        isSubscribed: profile?.is_subscribed ?? false,
-        lastTestDate: profile?.last_test_date ?? null,
-        referralCount: 0,
-        hasTestResult: false,
-        primarySupport: null,
-        secondarySupport: null,
-        hasQualification: false,
-      },
-    }, {
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-      },
-    })
+  if (!tgIdParam) {
+    return NextResponse.json({ success: false, error: 'Missing tg_id' }, { status: 400 })
   }
 
-  // ── Mode 2: JWT-based auth (legacy / used by Gatekeeper) ──
-  const jwtSecret = process.env.SUPABASE_JWT_SECRET
+  const numericTgId = Number(tgIdParam)
+  if (isNaN(numericTgId)) {
+    return NextResponse.json({ success: false, error: 'Invalid tg_id' }, { status: 400 })
+  }
 
-  if (!jwtSecret) {
+  const channelId = process.env.TELEGRAM_CHANNEL_ID
+  if (!channelId) {
     return NextResponse.json({ success: false, error: 'Server misconfiguration' }, { status: 500 })
   }
 
-  const auth = req.headers.get('authorization')
-  if (!auth?.startsWith('Bearer ')) {
-    return NextResponse.json({ success: false, error: 'Missing token' }, { status: 401 })
-  }
+  // Always verify subscription fresh against Telegram API
+  const status = await getChatMember(channelId, numericTgId)
+  const isSubscribed = ['member', 'administrator', 'creator'].includes(status ?? '')
 
-  const token = auth.slice(7)
-  const payload = verifyJwt(token, jwtSecret)
+  // Update cached value in DB (non-blocking)
+  void supabase
+    .from('profiles')
+    .update({ is_subscribed: isSubscribed } as any)
+    .eq('tg_id', numericTgId)
 
-  if (!payload || !payload.sub) {
-    return NextResponse.json({ success: false, error: 'Invalid or expired token' }, { status: 401 })
-  }
-
-  const profileId = payload.sub
-
-  // Fetch profile
+  // Fetch last_test_date
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, tg_id, is_subscribed, last_test_date, invites_count')
-    .eq('id', profileId)
+    .select('last_test_date')
+    .eq('tg_id', numericTgId)
     .maybeSingle()
 
-  if (!profile) {
-    return NextResponse.json({ success: false, error: 'Profile not found' }, { status: 404 })
+  const cooldownMs = 60 * 24 * 60 * 60 * 1000
+  let cooldownDays = 0
+  if (profile?.last_test_date) {
+    const elapsed = Date.now() - new Date(profile.last_test_date).getTime()
+    if (elapsed < cooldownMs) {
+      cooldownDays = Math.ceil((cooldownMs - elapsed) / (24 * 60 * 60 * 1000))
+    }
   }
-
-  // Referral count is stored directly in profiles.invites_count
-  const refCount = (profile as any).invites_count ?? 0
-
-  // Fetch existing test results
-  const { data: testResult } = await supabase
-    .from('test_results')
-    .select('primary_support, secondary_support')
-    .eq('tg_id', profile.tg_id)
-    .maybeSingle()
-
-  // Check if qualification was completed
-  const { data: qual } = await supabase
-    .from('qualifications')
-    .select('id')
-    .eq('profile_id', profileId)
-    .maybeSingle()
 
   return NextResponse.json(
     {
-      success: true,
-      data: {
-        isSubscribed: profile?.is_subscribed ?? false,
-        lastTestDate: profile?.last_test_date ?? null,
-        referralCount: refCount ?? 0,
-        hasTestResult: !!testResult,
-        primarySupport: testResult?.primary_support ?? null,
-        secondarySupport: testResult?.secondary_support ?? null,
-        hasQualification: !!qual,
-      },
+      isSubscribed,
+      lastTestDate: profile?.last_test_date ?? null,
+      cooldownDays,
     },
     {
       headers: {

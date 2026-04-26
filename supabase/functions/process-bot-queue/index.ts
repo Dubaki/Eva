@@ -8,99 +8,177 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')
+const APP_URL = Deno.env.get('APP_URL') || Deno.env.get('NEXT_PUBLIC_APP_URL') || 'https://eva-app.vercel.app'
+const GIFT_VIDEO_FILE_ID = Deno.env.get('GIFT_VIDEO_FILE_ID')
 
-const headers = {
+const dbHeaders = {
   'apikey': SUPABASE_KEY!,
   'Authorization': `Bearer ${SUPABASE_KEY}`,
   'Content-Type': 'application/json',
 }
 
-async function sendTelegramMessage(chatId: number, text: string, replyMarkup?: any) {
-  const body: any = {
-    chat_id: chatId,
-    text: text,
-    parse_mode: 'HTML'
-  }
-  if (replyMarkup) {
-    body.reply_markup = replyMarkup
-  }
-
-  const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+async function tgApi(method: string, body: any): Promise<boolean> {
+  const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/${method}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   })
-  
   if (!res.ok) {
     const err = await res.text()
-    console.error(`[Telegram Error] sendMessage to ${chatId}:`, err)
+    console.error(`[Telegram Error] ${method} to ${body.chat_id}:`, err)
   }
-  
   return res.ok
 }
 
-serve(async (req: Request) => {
+async function sendMessage(chatId: number, text: string, replyMarkup?: any): Promise<boolean> {
+  const body: any = { chat_id: chatId, text, parse_mode: 'HTML' }
+  if (replyMarkup) body.reply_markup = replyMarkup
+  return tgApi('sendMessage', body)
+}
+
+async function sendVideo(chatId: number, video: string, protectContent = true): Promise<boolean> {
+  return tgApi('sendVideo', { chat_id: chatId, video, protect_content: protectContent })
+}
+
+async function dbGet(path: string): Promise<any[]> {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: dbHeaders })
+  return res.json()
+}
+
+async function dbPatch(path: string, body: any): Promise<void> {
+  await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    method: 'PATCH',
+    headers: dbHeaders,
+    body: JSON.stringify(body)
+  })
+}
+
+serve(async (_req: Request) => {
   try {
     console.log(`[bot-queue] Checking for pending tasks at ${new Date().toISOString()}`)
 
-    // 1. Получаем pending задачи, время выполнения которых наступило
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/bot_tasks_queue?status=eq.pending&run_at=lte.${new Date().toISOString()}&order=run_at.asc&limit=50`,
-      { method: 'GET', headers }
+    const tasks = await dbGet(
+      `bot_tasks_queue?status=eq.pending&run_at=lte.${new Date().toISOString()}&order=run_at.asc&limit=50`
     )
-    
-    if (!res.ok) {
-      const err = await res.text()
-      throw new Error(`Failed to fetch tasks: ${err}`)
-    }
-
-    const tasks = await res.json()
     console.log(`[bot-queue] Found ${tasks.length} tasks to process.`)
-    
+
     let processed = 0
 
     for (const task of tasks) {
       try {
         console.log(`[bot-queue] Processing task ${task.id} (type: ${task.event_type}, tg_id: ${task.tg_id})`)
 
-        // 2. Обновляем статус на processing (чтобы другие инстансы не подхватили)
-        await fetch(
-          `${SUPABASE_URL}/rest/v1/bot_tasks_queue?id=eq.${task.id}`,
-          {
-            method: 'PATCH',
-            headers,
-            body: JSON.stringify({ status: 'processing', updated_at: new Date().toISOString() })
-          }
-        )
+        await dbPatch(`bot_tasks_queue?id=eq.${task.id}`, { status: 'processing', updated_at: new Date().toISOString() })
 
-        // 3. Обрабатываем по типу события
         let success = false
 
-        if (task.event_type === 'start_mini_quiz') {
-          const text = '🎯 <b>Мини-квиз:</b>\n\nДавай еще немного пообщаемся? Мне важно узнать чуть больше о твоем запросе.'
-          const replyMarkup = {
-            inline_keyboard: [[{ text: 'Ответить на вопросы', callback_data: 'quiz_step_1' }]]
-          }
-          success = await sendTelegramMessage(task.tg_id, text, replyMarkup)
+        // ── start_qualification ─────────────────────────────────────────
+        if (task.event_type === 'start_qualification') {
+          const profiles = await dbGet(`profiles?id=eq.${task.profile_id}&select=bot_quiz_step`)
+          const quizStep = profiles?.[0]?.bot_quiz_step ?? 0
 
-        } else if (task.event_type === 'send_gift') {
-          const text = '🎁 <b>Твой подарок готов!</b>\n\nСпасибо за рекомендации. Твоя вторая опора разблокирована.'
-          success = await sendTelegramMessage(task.tg_id, text)
-        } else {
-            console.warn(`[bot-queue] Unknown event type: ${task.event_type}`)
-            success = true // Mark as success to remove from queue
+          if (quizStep >= 1) {
+            console.log(`[bot-queue] start_qualification: quiz already started (step=${quizStep}), skipping`)
+            success = true
+          } else {
+            const intro1 = 'Ты уже заметила, как искажённая опора влияет на твою жизнь?\n\nДавай ещё немного пообщаемся! Ответь на три простых вопроса и получи подарок.'
+            const intro2 = 'Ты увидела механизм. И, скорее всего, это не первый раз, когда ты что-то про себя понимаешь.\n\nВопрос в другом: почему это до сих пор не меняет твою жизнь?\n\nПотому что понимание не демонтирует паттерн. Это делается только через работу.'
+            const q1Text = '<b>В какой сфере сильнее чувствуется напряжение?</b>'
+            const q1Keyboard = {
+              inline_keyboard: [
+                [{ text: 'Деньги', callback_data: 'quiz_q1_money' }],
+                [{ text: 'Отношения', callback_data: 'quiz_q1_relations' }],
+                [{ text: 'Здоровье', callback_data: 'quiz_q1_health' }],
+                [{ text: 'Другое', callback_data: 'quiz_q1_other' }],
+                [{ text: 'Везде', callback_data: 'quiz_q1_everywhere' }],
+              ]
+            }
+
+            await sendMessage(task.tg_id, intro1)
+            await sendMessage(task.tg_id, intro2)
+            const sent = await sendMessage(task.tg_id, q1Text, q1Keyboard)
+
+            if (sent) {
+              await dbPatch(`profiles?id=eq.${task.profile_id}`, { bot_quiz_step: 1 })
+            }
+            success = sent
+          }
         }
 
-        // 4. Обновляем статус на итоговый
-        if (success) {
-          await fetch(
-            `${SUPABASE_URL}/rest/v1/bot_tasks_queue?id=eq.${task.id}`,
-            {
-              method: 'PATCH',
-              headers,
-              body: JSON.stringify({ status: 'processed', updated_at: new Date().toISOString() })
+        // ── send_gift ───────────────────────────────────────────────────
+        else if (task.event_type === 'send_gift') {
+          if (GIFT_VIDEO_FILE_ID) {
+            success = await sendVideo(task.tg_id, GIFT_VIDEO_FILE_ID)
+          } else {
+            success = await sendMessage(task.tg_id, '🎁 Твой подарок готов!')
+          }
+        }
+
+        // ── check_referral_12h ──────────────────────────────────────────
+        else if (task.event_type === 'check_referral_12h') {
+          const profiles = await dbGet(`profiles?id=eq.${task.profile_id}&select=invites_count,mixed_trait_sent,tg_id`)
+          const profile = profiles?.[0]
+
+          if (!profile) {
+            success = true
+          } else if ((profile.invites_count ?? 0) >= 2 && !profile.mixed_trait_sent) {
+            // Условие выполнено — шлём вторую опору
+            const results = await dbGet(`test_results?tg_id=eq.${profile.tg_id}&select=primary_support,secondary_support`)
+            const tr = results?.[0]
+            if (tr?.primary_support && tr?.secondary_support) {
+              const mixedKey = [tr.primary_support.toUpperCase(), tr.secondary_support.toUpperCase()].sort().join('')
+              const mixedTexts = getMixedTraitTexts()
+              const mixedText = mixedTexts[mixedKey]
+              if (mixedText) {
+                const sent = await sendMessage(task.tg_id, mixedText)
+                if (sent) {
+                  await dbPatch(`profiles?id=eq.${task.profile_id}`, {
+                    mixed_trait_sent: true,
+                    mixed_trait_sent_at: new Date().toISOString()
+                  })
+                }
+                success = sent
+              } else {
+                success = true
+              }
+            } else {
+              success = true
             }
-          )
+          } else if ((profile.invites_count ?? 0) < 2) {
+            success = await sendMessage(task.tg_id, 'Вижу, твои друзья ещё не прошли тест. Попробуем им напомнить?')
+          } else {
+            success = true
+          }
+        }
+
+        // ── cooldown_reminder ───────────────────────────────────────────
+        else if (task.event_type === 'cooldown_reminder') {
+          const profiles = await dbGet(`profiles?id=eq.${task.profile_id}&select=reminded_at`)
+          const profile = profiles?.[0]
+
+          if (profile?.reminded_at) {
+            console.log(`[bot-queue] cooldown_reminder: already sent, skipping`)
+            success = true
+          } else {
+            const tmaUrl = `${APP_URL}`
+            const keyboard = {
+              inline_keyboard: [[{ text: '✨ Пройти тест', web_app: { url: tmaUrl } }]]
+            }
+            const sent = await sendMessage(task.tg_id, 'Хорошая новость!\n\nДоступ к тесту снова открыт. Заходи и проверь динамику своих изменений.', keyboard)
+            if (sent) {
+              await dbPatch(`profiles?id=eq.${task.profile_id}`, { reminded_at: new Date().toISOString() })
+            }
+            success = sent
+          }
+        }
+
+        else {
+          console.warn(`[bot-queue] Unknown event type: ${task.event_type}`)
+          success = true
+        }
+
+        if (success) {
+          await dbPatch(`bot_tasks_queue?id=eq.${task.id}`, { status: 'processed', updated_at: new Date().toISOString() })
           processed++
         } else {
           throw new Error('Telegram send failed')
@@ -108,30 +186,38 @@ serve(async (req: Request) => {
 
       } catch (err) {
         console.error(`[bot-queue] Task ${task.id} failed:`, err)
-        await fetch(
-          `${SUPABASE_URL}/rest/v1/bot_tasks_queue?id=eq.${task.id}`,
-          {
-            method: 'PATCH',
-            headers,
-            body: JSON.stringify({ 
-              status: 'failed',
-              error_message: String(err),
-              updated_at: new Date().toISOString()
-            })
-          }
-        )
+        await dbPatch(`bot_tasks_queue?id=eq.${task.id}`, {
+          status: 'failed',
+          error_message: String(err),
+          updated_at: new Date().toISOString()
+        })
       }
     }
 
-    return new Response(JSON.stringify({ success: true, processed }), { 
+    return new Response(JSON.stringify({ success: true, processed }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
     })
   } catch (err) {
     console.error('[bot-queue] Global Error:', err)
-    return new Response(JSON.stringify({ error: String(err) }), { 
+    return new Response(JSON.stringify({ error: String(err) }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     })
   }
 })
+
+function getMixedTraitTexts(): Record<string, string> {
+  return {
+    SU: `<b>«Тихий тащитель»</b>\n\nТы тащишь.\nИ делаешь это тихо.\nТы справляешься.\nНе просишь помощи.\nИ при этом стараешься быть удобной.\n\nНо внутри:\n— усталость\n— одиночество\n— ощущение, что тебя не видят\n\nТы отдаёшь много.\nНо это не возвращается.\n\nЦена:\nТы исчезаешь из своей же жизни.\n\n⚡️ Внутри звучит:\n«Я всё делаю правильно… почему меня не выбирают?»`,
+    PS: `<b>«Машина результата»</b>\n\nТы работаешь на максимум.\nСильная. Эффективная. Идеальная.\nТы не позволяешь себе слабость.\nИ не позволяешь ошибаться.\n\nНо внутри:\n— выгорание\n— пустота\n— отрезанность от себя\n\nТы как система.\nНо не как живая.\n\nЦена:\nТы теряешь себя ради результата.\n\n⚡️ Внутри звучит:\n«Я должна быть сверхчеловеком»`,
+    RS: `<b>«Опора для всех»</b>\n\nТы держишь не только себя — ты держишь всех.\nТы чувствуешь других.\nРегулируешь. Поддерживаешь.\n\nНо внутри:\n— перегруз\n— усталость\n— ощущение «слишком много на мне»\n\nТы несёшь больше, чем можешь.\n\nЦена:\nТы живёшь чужими жизнями вместо своей.\n\n⚡️ Внутри звучит:\n«Без меня всё развалится»`,
+    KS: `<b>«Железная система»</b>\n\nТы сильная и всё контролируешь.\nТы держишь. Просчитываешь.\nНе даёшь себе расслабиться.\n\nНо внутри:\n— жёсткость\n— тревога\n— напряжение\n\nТы как будто всегда «на посту».\n\nЦена:\nТы не живёшь — ты управляешь выживанием.\n\n⚡️ Внутри звучит:\n«Я должна удержать всё любой ценой»`,
+    PU: `<b>«Идеальная для всех»</b>\n\nТы стараешься быть идеальной, чтобы тебя любили.\nТы подстраиваешься.\nСоответствуешь. Стараешься.\n\nНо внутри:\n— стыд\n— страх «недостаточности»\n— зависимость от оценки\n\nТы не можешь быть собой.\n\nЦена:\nТы живёшь чужими ожиданиями.\n\n⚡️ Внутри звучит:\n«Если я не идеальна — меня не выберут»`,
+    RU: `<b>«Спасатель»</b>\n\nТы живёшь через помощь другим.\nТы включаешься.\nСпасаешь. Поддерживаешь.\n\nНо внутри:\n— истощение\n— пустота\n— ощущение, что тебя нет\n\nТы отдаёшь себя, чтобы быть нужной.\n\nЦена:\nТы теряешь контакт с собой.\n\n⚡️ Внутри звучит:\n«Я нужна, только если я полезна»`,
+    KU: `<b>«Тревожный угодник»</b>\n\nТы стараешься угадать, как правильно.\nТы анализируешь реакции.\nПодстраиваешься. Контролируешь.\n\nНо внутри:\n— тревога\n— напряжение\n— страх ошибиться\n\nТы живёшь в режиме «не так сделать нельзя».\n\nЦена:\nТы теряешь свободу и спонтанность.\n\n⚡️ Внутри звучит:\n«Если я ошибусь — меня отвергнут»`,
+    PR: `<b>«Социальный идеал»</b>\n\nТы пытаешься быть идеальной для всех.\nТы чувствуешь ожидания.\nИ стараешься им соответствовать.\n\nНо внутри:\n— перегруз\n— потеря себя\n— тревога\n\nТы разрываешься между «как надо».\n\nЦена:\nТы не знаешь, какая ты настоящая.\n\n⚡️ Внутри звучит:\n«Я должна соответствовать всем»`,
+    KP: `<b>«Тревожный достигатор»</b>\n\nТы живёшь через контроль и идеальность.\nТы стараешься предусмотреть всё.\nНе ошибаться. Быть на высоте.\n\nНо внутри:\n— напряжение\n— тревога\n— страх провала\n\nТы не можешь выдохнуть.\n\nЦена:\nТы живёшь в постоянном напряжении «а вдруг что-то не так».\n\n⚡️ Внутри звучит:\n«Ошибка — это катастрофа»`,
+    KR: `<b>«Сканер угроз»</b>\n\nТы постоянно на чеку.\nТы чувствуешь всё.\nИ пытаешься предотвратить плохое.\n\nНо внутри:\n— перегруз\n— тревога\n— усталость\n\nТы не расслабляешься вообще.\n\nЦена:\nТы живёшь в режиме постоянной опасности.\n\n⚡️ Внутри звучит:\n«Я должна всё предусмотреть, иначе будет плохо»`,
+  }
+}
