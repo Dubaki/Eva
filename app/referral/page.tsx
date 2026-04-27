@@ -10,6 +10,7 @@ const fadeUp = (delay: number = 0) => ({
   transition: { duration: 0.5, ease: 'easeOut', delay },
 })
 
+// New design applied from ref.md
 export default function ReferralPage() {
   const [tgId, setTgId] = useState<number | null>(null)
   const [isSharing, setIsSharing] = useState(false)

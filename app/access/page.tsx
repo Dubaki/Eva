@@ -10,6 +10,7 @@ const fadeUp = (delay: number = 0) => ({
   transition: { duration: 0.5, ease: 'easeOut', delay },
 })
 
+// New design applied from dostup.md
 export default function AccessPage() {
   const router = useRouter()
 
