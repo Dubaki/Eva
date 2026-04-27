@@ -84,6 +84,7 @@ function ResultContent() {
     if (!token) {
       if (!hasLocalData) setLoading(false)
     } else {
+      // Even if we have local data, we FETCH FRESH data from API to avoid showing stale results
       fetch('/api/test/results', {
         headers: { Authorization: `Bearer ${token}` }
       })

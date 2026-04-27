@@ -23,14 +23,16 @@ export default function AccessPage() {
           {...fadeUp(0.1)}
           className="relative w-full aspect-square rounded-xl overflow-hidden shadow-2xl border border-[#424842]/20 mb-4"
         >
-          <Image 
-            alt="Вторая опора" 
-            className="w-full h-full object-cover opacity-60" 
-            src="/dostup.png"
-            fill
-            sizes="100vw"
-            priority
-          />
+          <div className="relative w-full h-full">
+            <Image 
+              alt="Вторая опора" 
+              className="object-cover opacity-60" 
+              src="/dostup.png"
+              fill
+              sizes="(max-width: 768px) 100vw, 400px"
+              priority
+            />
+          </div>
           <div className="absolute inset-0 bg-gradient-to-t from-[#0f141a] via-transparent to-transparent"></div>
           <div className="absolute bottom-md left-md right-md">
             <span className="font-label-sm text-[#b0ceb2] uppercase mb-xs block">

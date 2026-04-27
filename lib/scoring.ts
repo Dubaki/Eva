@@ -16,8 +16,8 @@ export type ScoreResult = {
 /** Приоритет шкал при равенстве баллов (на основе имен картинок) */
 const SCALE_PRIORITY: Scale[] = [
   'hero',
-  'perfectionist',
   'pleaser',
+  'perfectionist',
   'stayer',
   'controller',
 ]
@@ -25,8 +25,8 @@ const SCALE_PRIORITY: Scale[] = [
 /** Маппинг Scale → буква шкалы (как в БД) */
 const SCALE_LETTER: Record<Scale, string> = {
   hero: 'S',
-  perfectionist: 'P',
   pleaser: 'U',
+  perfectionist: 'P',
   stayer: 'R',
   controller: 'K',
 }
