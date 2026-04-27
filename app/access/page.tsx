@@ -17,22 +17,24 @@ export default function AccessPage() {
 
   return (
     <div className="font-body-md bg-[#0f141a] text-[#dee2ec] min-h-screen flex flex-col selection:bg-[#b0ceb2]/30">
-      <main className="px-container-padding pb-32 max-w-md mx-auto pt-4">
+      <main className="px-container-padding pb-32 max-w-md mx-auto pt-4 w-full">
         {/* Hero Visual Section */}
         <motion.div 
           {...fadeUp(0.1)}
-          className="relative w-full aspect-square rounded-xl overflow-hidden shadow-2xl border border-[#424842]/20 mb-4 flex items-center justify-center bg-[#171c23]"
+          className="relative w-full aspect-square rounded-xl overflow-hidden shadow-2xl border border-[#424842]/20 mb-4"
         >
-          <Image 
-            alt="Вторая опора" 
-            className="object-cover opacity-60" 
-            src="/dostup.png"
-            width={400}
-            height={400}
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0f141a] via-transparent to-transparent"></div>
-          <div className="absolute bottom-md left-md right-md">
+          <div className="absolute inset-0 z-0">
+            <Image 
+              src="/dostup.png"
+              alt="Вторая опора"
+              fill
+              className="object-cover opacity-60"
+              priority
+              sizes="(max-width: 768px) 100vw, 448px"
+            />
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0f141a] via-transparent to-transparent z-10"></div>
+          <div className="absolute bottom-md left-md right-md z-20">
             <span className="font-label-sm text-[#b0ceb2] uppercase mb-xs block">
               {TEXTS.accessPage.badge}
             </span>

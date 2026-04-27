@@ -11,7 +11,6 @@ const fadeUp = (delay: number = 0) => ({
   transition: { duration: 0.5, ease: 'easeOut', delay },
 })
 
-// New design applied from ref.md
 export default function ReferralPage() {
   const [tgId, setTgId] = useState<number | null>(null)
   const [isSharing, setIsSharing] = useState(false)
@@ -48,17 +47,17 @@ export default function ReferralPage() {
 
   return (
     <div className="font-body-md bg-[#0f141a] text-[#dee2ec] min-h-screen flex flex-col selection:bg-[#b0ceb2]/30">
-      <main className="flex-1 flex flex-col justify-center px-container-padding max-w-md mx-auto w-full">
+      <main className="flex-1 flex flex-col justify-center px-container-padding max-w-md mx-auto w-full pb-10">
         {/* Decorative Visual */}
         <motion.div {...fadeUp(0.1)} className="flex justify-center mb-xl">
-          <div className="relative h-[150px] w-[150px]">
+          <div className="relative h-[150px] w-[150px] rounded-full overflow-hidden shadow-2xl shadow-[#b0ceb2]/20">
             <Image 
-              alt="Реферальная программа" 
-              className="object-contain rounded-full shadow-2xl shadow-[#b0ceb2]/20" 
               src="/ref.png"
-              width={150}
-              height={150}
+              alt="Реферальная программа"
+              fill
+              className="object-contain"
               priority
+              sizes="150px"
             />
           </div>
         </motion.div>
@@ -66,7 +65,7 @@ export default function ReferralPage() {
         {/* Referral Link Card */}
         <motion.section 
           {...fadeUp(0.2)}
-          className="p-lg bg-[#1b2027] rounded-xl border border-[#424842]/30 space-y-md shadow-xl"
+          className="p-lg bg-[#1b2027] rounded-xl border border-[#424842]/30 space-y-md shadow-xl w-full"
         >
           <div className="flex items-center gap-sm">
             <span className="font-label-md text-[#8BA88E] font-bold">
@@ -74,16 +73,15 @@ export default function ReferralPage() {
             </span>
           </div>
 
-          <div className="relative group">
+          <div className="relative group w-full">
             <div 
               onClick={() => {
                 navigator.clipboard.writeText(referralLink)
               }}
-              className="w-full p-md bg-[#30353d] rounded-lg border border-[#8c928b]/20 font-body-sm text-[#c2c8c0] truncate pr-12 cursor-pointer active:bg-[#353941] transition-colors"
+              className="w-full p-md bg-[#30353d] rounded-lg border border-[#8c928b]/20 font-body-sm text-[#c2c8c0] truncate pr-4 cursor-pointer active:bg-[#353941] transition-colors"
             >
               {tgId ? referralLink : 'Загрузка ссылки...'}
             </div>
-            {/* Copy Icon Removed per rule */}
           </div>
 
           <button 
