@@ -16,7 +16,25 @@ type AdminStats = {
     invites_count: number
     last_test_date: string | null
     contact_author_clicked: boolean
+    qualifications?: Array<{
+      current_tension_sphere: string | null
+      tension_severity: string | null
+    }>
   }>
+}
+
+const SPHERE_LABELS: Record<string, string> = {
+  money: 'Деньги',
+  relations: 'Отношения',
+  health: 'Здоровье',
+  other: 'Другое',
+  everywhere: 'Везде'
+}
+
+const SEVERITY_LABELS: Record<string, string> = {
+  hard: 'Сильно',
+  medium: 'Терпимо',
+  light: 'Фоново'
 }
 
 type Tab = 'stats' | 'crm' | 'broadcast'
@@ -287,49 +305,60 @@ export default function AdminPanel() {
                     </th>
                     <th className="p-5 font-bold text-white/30 text-[10px] uppercase tracking-widest">Юзернейм</th>
                     <th className="p-5 font-bold text-white/30 text-[10px] uppercase tracking-widest text-center">Друзья</th>
+                    <th className="p-5 font-bold text-white/30 text-[10px] uppercase tracking-widest text-center">Проблема</th>
                     <th className="p-5 font-bold text-white/30 text-[10px] uppercase tracking-widest text-center">Связь</th>
                     <th className="p-5 font-bold text-white/30 text-[10px] uppercase tracking-widest text-right">Почта</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {stats.recentUsers.map(user => (
-                    <tr key={user.tg_id} className={`transition-colors ${selectedUsers.has(user.tg_id) ? 'bg-[#8BA88E]/5' : 'hover:bg-white/[0.02]'}`}>
-                      <td className="p-5">
-                        <input 
-                          type="checkbox" 
-                          checked={selectedUsers.has(user.tg_id)} 
-                          onChange={() => toggleUserSelection(user.tg_id)}
-                          className="w-4 h-4 rounded border-white/10 bg-[#0f141a] text-[#8BA88E] accent-[#8BA88E]"
-                        />
-                      </td>
-                      <td className="p-5">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-white text-[15px]">{user.username || `@${user.tg_id}`}</span>
-                          <span className="text-[10px] text-white/20">{new Date(user.created_at).toLocaleDateString()}</span>
-                        </div>
-                      </td>
-                      <td className="p-5 text-center font-bold text-[#8BA88E]">{user.invites_count}</td>
-                      <td className="p-5 text-center">
-                        {user.contact_author_clicked ? (
-                          <span className="px-2 py-1 rounded-full bg-orange-500/20 text-orange-400 text-[10px] font-bold border border-orange-500/20">🔥 Запрос</span>
-                        ) : (
-                          <span className="text-white/10">—</span>
-                        )}
-                      </td>
-                      <td className="p-5 text-right">
-                        <button
-                          onClick={() => {
-                            setMsgTargetTgId(user.tg_id)
-                            setMsgTargetUsername(user.username || String(user.tg_id))
-                            setMsgModalOpen(true)
-                          }}
-                          className="px-4 py-2 rounded-xl bg-white/5 text-[#8BA88E] hover:bg-[#8BA88E] hover:text-white transition-all font-bold text-xs"
-                        >
-                          Написать
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {stats.recentUsers.map(user => {
+                    const q = user.qualifications?.[0]
+                    const problemText = q 
+                      ? `${SPHERE_LABELS[q.current_tension_sphere || ''] || q.current_tension_sphere || '—'} / ${SEVERITY_LABELS[q.tension_severity || ''] || q.tension_severity || '—'}`
+                      : '—'
+
+                    return (
+                      <tr key={user.tg_id} className={`transition-colors ${selectedUsers.has(user.tg_id) ? 'bg-[#8BA88E]/5' : 'hover:bg-white/[0.02]'}`}>
+                        <td className="p-5">
+                          <input 
+                            type="checkbox" 
+                            checked={selectedUsers.has(user.tg_id)} 
+                            onChange={() => toggleUserSelection(user.tg_id)}
+                            className="w-4 h-4 rounded border-white/10 bg-[#0f141a] text-[#8BA88E] accent-[#8BA88E]"
+                          />
+                        </td>
+                        <td className="p-5">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-white text-[15px]">{user.username || `@${user.tg_id}`}</span>
+                            <span className="text-[10px] text-white/20">{new Date(user.created_at).toLocaleDateString()}</span>
+                          </div>
+                        </td>
+                        <td className="p-5 text-center font-bold text-[#8BA88E]">{user.invites_count}</td>
+                        <td className="p-5 text-center">
+                          <span className="text-[11px] font-medium text-white/60">{problemText}</span>
+                        </td>
+                        <td className="p-5 text-center">
+                          {user.contact_author_clicked ? (
+                            <span className="px-2 py-1 rounded-full bg-orange-500/20 text-orange-400 text-[10px] font-bold border border-orange-500/20">🔥 Запрос</span>
+                          ) : (
+                            <span className="text-white/10">—</span>
+                          )}
+                        </td>
+                        <td className="p-5 text-right">
+                          <button
+                            onClick={() => {
+                              setMsgTargetTgId(user.tg_id)
+                              setMsgTargetUsername(user.username || String(user.tg_id))
+                              setMsgModalOpen(true)
+                            }}
+                            className="px-4 py-2 rounded-xl bg-white/5 text-[#8BA88E] hover:bg-[#8BA88E] hover:text-white transition-all font-bold text-xs"
+                          >
+                            Написать
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

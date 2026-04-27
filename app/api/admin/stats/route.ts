@@ -31,7 +31,19 @@ export async function GET(req: NextRequest) {
   // 4. Список пользователей
   const { data: recentUsers, error: usersError } = await supabase
     .from('profiles')
-    .select('tg_id, username, created_at, invites_count, last_test_date, contact_author_clicked')
+    .select(`
+      tg_id, 
+      username, 
+      created_at, 
+      invites_count, 
+      last_test_date, 
+      contact_author_clicked,
+      qualifications (
+        current_tension_sphere,
+        tension_severity,
+        previous_experience
+      )
+    `)
     .order('created_at', { ascending: false })
     .limit(200)
 

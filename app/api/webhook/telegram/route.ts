@@ -191,7 +191,13 @@ async function handleCallbackQuery(cb: any) {
         return
       }
       const val = data.replace('quiz_q1_', '')
-      await supabase.from('qualifications').upsert({ profile_id: profile.id, current_tension_sphere: val })
+      // Use UPSERT for the first question to create the record
+      await supabase.from('qualifications').upsert({ 
+        profile_id: profile.id, 
+        current_tension_sphere: val,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'profile_id' })
+      
       await supabase.from('profiles').update({ bot_quiz_step: 2 }).eq('id', profile.id)
       
       await bot.editMessageReplyMarkup({ chatId, messageId: cb.message.message_id })
@@ -209,7 +215,11 @@ async function handleCallbackQuery(cb: any) {
         return
       }
       const val = data.replace('quiz_q2_', '')
-      await supabase.from('qualifications').update({ tension_severity: val }).eq('profile_id', profile.id)
+      await supabase.from('qualifications').update({ 
+        tension_severity: val,
+        updated_at: new Date().toISOString() 
+      }).eq('profile_id', profile.id)
+      
       await supabase.from('profiles').update({ bot_quiz_step: 3 }).eq('id', profile.id)
 
       await bot.editMessageReplyMarkup({ chatId, messageId: cb.message.message_id })
@@ -227,7 +237,11 @@ async function handleCallbackQuery(cb: any) {
         return
       }
       const val = data.replace('quiz_q3_', '')
-      await supabase.from('qualifications').update({ previous_experience: val }).eq('profile_id', profile.id)
+      await supabase.from('qualifications').update({ 
+        previous_experience: val,
+        updated_at: new Date().toISOString()
+      }).eq('profile_id', profile.id)
+      
       await supabase.from('profiles').update({ bot_quiz_step: 4 }).eq('id', profile.id)
 
       await bot.editMessageReplyMarkup({ chatId, messageId: cb.message.message_id })
