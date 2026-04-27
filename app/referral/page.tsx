@@ -59,14 +59,15 @@ export default function ReferralPage() {
 
         {/* Картинка */}
         <motion.div {...fadeUp(0.1)} className="flex justify-center mb-xl">
-          <Image
-            src="/ref.png"
-            alt="Реферальная программа"
-            width={150}
-            height={150}
-            className="h-[150px] w-auto object-contain rounded-full shadow-2xl shadow-[#b0ceb2]/20"
-            priority
-          />
+          <div className="relative h-[150px] w-[150px] rounded-full overflow-hidden shadow-2xl shadow-[#b0ceb2]/20">
+            <Image
+              src="/ref.png"
+              alt="Реферальная программа"
+              fill
+              className="object-cover"
+              priority
+            />
+          </div>
         </motion.div>
 
         {/* Секция со ссылкой */}
