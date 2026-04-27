@@ -8,8 +8,8 @@ export type ScoreResult = {
   scoreP: number
   scoreR: number
   scoreK: number
-  dominantTrait: string
-  secondaryTrait: string
+  primary_support: string
+  secondary_support: string
   answers: Answer[]
 }
 
@@ -35,8 +35,7 @@ const SCALE_LETTER: Record<Scale, string> = {
  * Рассчитывает баллы по 5 шкалам на основе массива ответов.
  *
  * Алгоритм:
- * - Для каждой шкалы суммируем баллы ответов (1-5) по её вопросам.
- * - Максимум на шкалу: 5 вопросов × 5 баллов = 25.
+ * - Для каждой шкалы суммируем баллы ответов (0-1) по её вопросам.
  * - Доминантная опора = шкала с максимальным суммарным баллом.
  * - Вторичная опора = шкала со вторым по величине баллом.
  * - При равенстве: приоритет определяется порядком SCALE_PRIORITY.
@@ -74,8 +73,8 @@ export function calculateScores(answers: Answer[]): ScoreResult {
     scoreU: totals['pleaser'],
     scoreR: totals['stayer'],
     scoreK: totals['controller'],
-    dominantTrait: SCALE_LETTER[dominant],
-    secondaryTrait: SCALE_LETTER[secondary],
+    primary_support: SCALE_LETTER[dominant],
+    secondary_support: SCALE_LETTER[secondary],
     answers,
   }
 }

@@ -48,8 +48,8 @@ export async function POST(request: NextRequest) {
     const tgId = profile.tg_id
 
     const scores = calculateScores(answers)
-    const primary = scores.dominantTrait.toUpperCase()
-    const secondary = scores.secondaryTrait.toUpperCase()
+    const primary = scores.primary_support.toUpperCase()
+    const secondary = scores.secondary_support.toUpperCase()
 
     console.log(`[API] Submitting test for tgId: ${tgId}, profileId: ${profileId}`);
     console.log(`[API] Scores:`, scores);
