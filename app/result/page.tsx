@@ -84,7 +84,13 @@ function ResultContent() {
     if (!token) {
       if (!hasLocalData) setLoading(false)
     } else {
-      // Even if we have local data, we FETCH FRESH data from API to avoid showing stale results
+      // CRITICAL: We only fetch if we DON'T have local data yet.
+      // This prevents the "flicker" and overwriting of fresh results with old API cache.
+      if (hasLocalData) {
+        setLoading(false)
+        return
+      }
+
       fetch('/api/test/results', {
         headers: { Authorization: `Bearer ${token}` }
       })

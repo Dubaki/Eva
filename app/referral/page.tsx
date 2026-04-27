@@ -56,7 +56,8 @@ export default function ReferralPage() {
               alt="Реферальная программа" 
               className="object-contain rounded-full shadow-2xl shadow-[#b0ceb2]/20" 
               src="/ref.png"
-              fill
+              width={150}
+              height={150}
               priority
             />
           </div>
