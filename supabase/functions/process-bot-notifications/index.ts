@@ -90,9 +90,15 @@ serve(async (req: Request) => {
       const record = payload.record
       const oldRecord = payload.old_record
 
-      // Проверяем условие: инвайтов стало 2, и мы еще не отправляли смешанную опору
-      if (record.invites_count >= 2 && (oldRecord?.invites_count ?? 0) < 2 && !record.mixed_trait_sent) {
-        console.log(`[Notification Engine] Invites reached 2 for ${record.tg_id}. Fetching results...`)
+      console.log(`[Notification Engine] Profile update for ${record.tg_id}: invites=${record.invites_count}, sent=${record.mixed_trait_sent}`)
+
+      // Условие: инвайтов >= 2, еще не отправляли, и ЛИБО старое значение было < 2, ЛИБО это ручная правка (oldRecord нет)
+      const shouldSend = record.invites_count >= 2 && 
+                         !record.mixed_trait_sent && 
+                         (!oldRecord || oldRecord.invites_count < 2)
+
+      if (shouldSend) {
+        console.log(`[Notification Engine] Triggering mixed trait for ${record.tg_id}...`)
         
         const fetchRes = await fetch(
           `${SUPABASE_URL}/rest/v1/test_results?tg_id=eq.${record.tg_id}&select=primary_support,secondary_support`,
@@ -114,7 +120,6 @@ serve(async (req: Request) => {
             console.log(`[Notification Engine] Sending mixed trait ${mixedKey} to ${record.tg_id}`)
             const sent = await sendMessage(record.tg_id, mixedText)
             if (sent) {
-              // Помечаем как отправленное
               await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${record.id}`, {
                 method: 'PATCH',
                 headers: {
@@ -128,7 +133,11 @@ serve(async (req: Request) => {
                 })
               })
             }
+          } else {
+            console.error(`[Notification Engine] No text found for mixed key: ${mixedKey}`)
           }
+        } else {
+          console.warn(`[Notification Engine] No test results found for user ${record.tg_id} to send mixed trait.`)
         }
       }
       return new Response(JSON.stringify({ ok: true }), { status: 200 })

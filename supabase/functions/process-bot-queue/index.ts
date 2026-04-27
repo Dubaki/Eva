@@ -1,6 +1,7 @@
 /**
  * Supabase Edge Function: process-bot-queue
  * Обрабатывает очередь отложенных задач для Telegram бота.
+ * СТРОГО ПО TEXTS.md и LOGIC.md
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
@@ -8,13 +9,26 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')
-const APP_URL = Deno.env.get('APP_URL') || Deno.env.get('NEXT_PUBLIC_APP_URL') || 'https://eva-9udm.vercel.app'
+const APP_URL = Deno.env.get('APP_URL') || Deno.env.get('NEXT_PUBLIC_APP_URL') || 'https://eva-app.vercel.app'
 const GIFT_VIDEO_FILE_ID = Deno.env.get('GIFT_VIDEO_FILE_ID') || 'BAACAgIAAxkBAAIEoGnuF1-F68BG_Q05x73uifP4ZvbBAAJWmQAC0HRwS5xnfPqlfyB6OwQ'
 
 const dbHeaders = {
   'apikey': SUPABASE_KEY!,
   'Authorization': `Bearer ${SUPABASE_KEY}`,
   'Content-Type': 'application/json',
+}
+
+const MIXED_TRAIT_TEXTS: Record<string, string> = {
+  SU: `<b>«Тихий тащитель»</b>\n\nТы тащишь.\nИ делаешь это тихо.\nТы справляешься.\nНе просишь помощи.\nИ при этом стараешься быть удобной.\n\nНо внутри:\n— усталость\n— одиночество\n— ощущение, что тебя не видят\n\nТы отдаёшь много.\nНо это не возвращается.\n\nЦена:\nТы исчезаешь из своей же жизни.\n\n⚡️ Внутри звучит:\n«Я всё делаю правильно… почему меня не выбирают?»`,
+  PS: `<b>«Машина результата»</b>\n\nТы работаешь на максимум.\nСильная. Эффективная. Идеальная.\nТы не позволяешь себе слабость.\nИ не позволяешь ошибаться.\n\nНо внутри:\n— выгорание\n— пустота\n— отрезанность от себя\n\nТы как система.\nНо не как живая.\n\nЦена:\nТы теряешь себя ради результата.\n\n⚡️ Внутри звучит:\n«Я должна быть сверхчеловеком»`,
+  RS: `<b>«Опора для всех»</b>\n\nТы держишь не только себя — ты держишь всех.\nТы чувствуешь других.\nРегулируешь. Поддерживаешь.\n\nНо внутри:\n— перегруз\n— усталость\n— ощущение «слишком много на мне»\n\nТы несёшь больше, чем можешь.\n\nЦена:\nТы живёшь чужими жизнями вместо своей.\n\n⚡️ Внутри звучит:\n«Без меня всё развалится»`,
+  KS: `<b>«Железная система»</b>\n\nТы сильная и всё контролируешь.\nТы держишь. Просчитываешь.\nНе даёшь себе расслабиться.\n\nНо внутри:\n— жёсткость\n— тревога\n— напряжение\n\nТы как будто всегда «на посту».\n\nЦена:\nТы не живёшь — ты управляешь выживанием.\n\n⚡️ Внутри звучит:\n«Я должна удержать всё любой ценой»`,
+  PU: `<b>«Идеальная для всех»</b>\n\nТы стараешься быть идеальной, чтобы тебя любили.\nТы подстраиваешься.\nСоответствуешь. Стараешься.\n\nНо внутри:\n— стыд\n— страх «недостаточности»\n— зависимость от оценки\n\nТы не можешь быть собой.\n\nЦена:\nТы живёшь чужими ожиданиями.\n\n⚡️ Внутри звучит:\n«Если я не идеальна — меня не выберут»`,
+  RU: `<b>«Спасатель»</b>\n\nТы живёшь через помощь другим.\nТы включаешься.\nСпасаешь. Поддерживаешь.\n\nНо внутри:\n— истощение\n— пустота\n— ощущение, что тебя нет\n\nТы отдаёшь себя, чтобы быть нужной.\n\nЦена:\nТы теряешь контакт с собой.\n\n⚡️ Внутри звучит:\n«Я нужна, только если я полезна»`,
+  KU: `<b>«Тревожный угодник»</b>\n\nТы стараешься угадать, как правильно.\nТы анализируешь реакции.\nПодстраиваешься. Контролируешь.\n\nНо внутри:\n— тревога\n— напряжение\n— страх ошибиться\n\nТы живёшь в режиме «не так сделать нельзя».\n\nЦена:\nТы теряешь свободу и спонтанность.\n\n⚡️ Внутри звучит:\n«Если я ошибусь — меня отвергнут»`,
+  PR: `<b>«Социальный идеал»</b>\n\nТы пытаешься быть идеальной для всех.\nТы чувствуешь ожидания.\nИ стараешься им соответствовать.\n\nНо внутри:\n— перегруз\n— потеря себя\n— тревога\n\nТы разрываешься между «как надо».\n\nЦена:\nТы не знаешь, какая ты настоящая.\n\n⚡️ Внутри звучит:\n«Я должна соответствовать всем»`,
+  KP: `<b>«Тревожный достигатор»</b>\n\nТы живёшь через контроль и идеальность.\nТы стараешься предусмотреть всё.\nНе ошибаться. Быть на высоте.\n\nНо внутри:\n— напряжение\n— тревога\n— страх провала\n\nТы не можешь выдохнуть.\n\nЦена:\nТы живёшь в постоянной готовности к опасности.\n\n⚡️ Внутри звучит: «Ошибка — это катастрофа»`,
+  KR: `<b>«Сканер угроз»</b>\n\nТы постоянно на чеку.\nТы чувствуешь всё.\nИ пытаешься предотвратить плохое.\n\nНо внутри:\n— перегруз\n— тревога\n— усталость\n\nТы не расслабляешься вообще.\n\nЦена:\nТы живёшь в режиме постоянной опасности.\n\n⚡️ Внутри звучит:\n«Я должна всё предусмотреть, иначе будет плохо»`,
 }
 
 async function tgApi(method: string, body: any): Promise<boolean> {
@@ -57,33 +71,28 @@ async function dbPatch(path: string, body: any): Promise<void> {
   })
 }
 
-serve(async (_req: Request) => {
+serve(async (req: Request) => {
   try {
     const now = new Date().toISOString()
-    console.log(`[bot-queue] Checking for pending tasks at ${now}`)
-
     const tasks = await dbGet(
       `bot_tasks_queue?status=eq.pending&run_at=lte.${now}&order=run_at.asc&limit=50`
     )
-    console.log(`[bot-queue] Found ${tasks.length} tasks to process.`)
+    console.log(`[bot-queue] Processing ${tasks.length} tasks at ${now}`)
 
     let processed = 0
 
     for (const task of tasks) {
       try {
-        console.log(`[bot-queue] Processing task ${task.id} (type: ${task.event_type})`)
-
         await dbPatch(`bot_tasks_queue?id=eq.${task.id}`, { status: 'processing', updated_at: now })
 
         let success = false
 
-        // ── start_qualification ─────────────────────────────────────────
+        // ── start_qualification (Message #8) ──────────────────────────
         if (task.event_type === 'start_qualification') {
           const profiles = await dbGet(`profiles?id=eq.${task.profile_id}&select=bot_quiz_step`)
-          const quizStep = profiles?.[0]?.bot_quiz_step ?? 0
+          const profile = profiles?.[0]
 
-          if (quizStep >= 1) {
-            console.log(`[bot-queue] start_qualification: skipping, step already ${quizStep}`)
+          if (profile?.bot_quiz_step >= 1) {
             success = true
           } else {
             const intro1 = 'Ты уже заметила, как искажённая опора влияет на твою жизнь?\n\nДавай ещё немного пообщаемся! Ответь на три простых вопроса и получи подарок.'
@@ -111,7 +120,6 @@ serve(async (_req: Request) => {
         // ── send_gift ───────────────────────────────────────────────────
         else if (task.event_type === 'send_gift') {
           if (GIFT_VIDEO_FILE_ID) {
-            // Пытаемся отправить как кружок (video_note), если не выйдет - как обычное видео
             success = await sendVideoNote(task.tg_id, GIFT_VIDEO_FILE_ID)
             if (!success) {
               success = await sendVideo(task.tg_id, GIFT_VIDEO_FILE_ID)
@@ -121,41 +129,39 @@ serve(async (_req: Request) => {
           }
         }
 
-        // ── check_referral_12h ──────────────────────────────────────────
+        // ── check_referral_12h (Message #5 / #6) ──────────────────────────
         else if (task.event_type === 'check_referral_12h') {
           const profiles = await dbGet(`profiles?id=eq.${task.profile_id}&select=invites_count,mixed_trait_sent,tg_id`)
           const profile = profiles?.[0]
 
           if (!profile) {
             success = true
-          } else if ((profile.invites_count ?? 0) >= 2 && !profile.mixed_trait_sent) {
-            const results = await dbGet(`test_results?tg_id=eq.${profile.tg_id}&select=primary_support,secondary_support`)
-            const tr = results?.[0]
-            if (tr?.primary_support && tr?.secondary_support) {
-              const mixedKey = [tr.primary_support.toUpperCase(), tr.secondary_support.toUpperCase()].sort().join('')
-              const mixedText = getMixedTraitTexts()[mixedKey]
-              if (mixedText) {
-                success = await sendMessage(task.tg_id, mixedText)
-                if (success) {
-                  await dbPatch(`profiles?id=eq.${task.profile_id}`, {
-                    mixed_trait_sent: true,
-                    mixed_trait_sent_at: now
-                  })
-                }
-              } else {
-                success = true
-              }
-            } else {
-              success = true
-            }
-          } else if ((profile.invites_count ?? 0) < 2) {
-            success = await sendMessage(task.tg_id, 'Вижу, твои друзья ещё не прошли тест. Попробуем им напомнить?')
+          } else if ((profile.invites_count ?? 0) >= 2) {
+             // Если уже 2+, и еще не слали - шлем вторую опору
+             if (!profile.mixed_trait_sent) {
+                const results = await dbGet(`test_results?tg_id=eq.${profile.tg_id}&select=primary_support,secondary_support`)
+                const tr = results?.[0]
+                if (tr?.primary_support && tr?.secondary_support) {
+                  const mixedKey = [tr.primary_support.toUpperCase(), tr.secondary_support.toUpperCase()].sort().join('')
+                  const mixedText = MIXED_TRAIT_TEXTS[mixedKey]
+                  if (mixedText) {
+                    success = await sendMessage(task.tg_id, mixedText)
+                    if (success) {
+                      await dbPatch(`profiles?id=eq.${task.profile_id}`, {
+                        mixed_trait_sent: true,
+                        mixed_trait_sent_at: now
+                      })
+                    }
+                  } else { success = true }
+                } else { success = true }
+             } else { success = true }
           } else {
-            success = true
+            // Если меньше 2 - шлем напоминание (Message #5)
+            success = await sendMessage(task.tg_id, 'Вижу, твои друзья ещё не прошли тест. Попробуем им напомнить?')
           }
         }
 
-        // ── cooldown_reminder ───────────────────────────────────────────
+        // ── cooldown_reminder (Message #7) ─────────────────────────────
         else if (task.event_type === 'cooldown_reminder') {
           const profiles = await dbGet(`profiles?id=eq.${task.profile_id}&select=reminded_at`)
           const profile = profiles?.[0]
@@ -192,22 +198,6 @@ serve(async (_req: Request) => {
 
     return new Response(JSON.stringify({ success: true, processed }), { headers: { 'Content-Type': 'application/json' } })
   } catch (err) {
-    console.error('[bot-queue] Global Error:', err)
-    return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify({ error: String(err) }), { status: 500 })
   }
 })
-
-function getMixedTraitTexts(): Record<string, string> {
-  return {
-    SU: `<b>«Тихий тащитель»</b>\n\nТы тащишь.\nИ делаешь это тихо.\nТы справляешься.\nНе просишь помощи.\nИ при этом стараешься быть удобной.\n\nНо внутри:\n— усталость\n— одиночество\n— ощущение, что тебя не видят\n\nТы отдаёшь много.\nНо это не возвращается.\n\nЦена:\nТы исчезаешь из своей же жизни.\n\n⚡️ Внутри звучит:\n«Я всё делаю правильно… почему меня не выбирают?»`,
-    PS: `<b>«Машина результата»</b>\n\nТы работаешь на максимум.\nСильная. Эффективная. Идеальная.\nТы не позволяешь себе слабость.\nИ не позволяешь ошибаться.\n\nНо внутри:\n— выгорание\n— пустота\n— отрезанность от себя\n\nТы как система.\nНо не как живая.\n\nЦена:\nТы теряешь себя ради результата.\n\n⚡️ Внутри звучит:\n«Я должна быть сверхчеловеком»`,
-    RS: `<b>«Опора для всех»</b>\n\nТы держишь не только себя — ты держишь всех.\nТы чувствуешь других.\nРегулируешь. Поддерживаешь.\n\nНо внутри:\n— перегруз\n— усталость\n— ощущение «слишком много на мне»\n\nТы несёшь больше, чем можешь.\n\nЦена:\nТы живёшь чужими жизнями вместо своей.\n\n⚡️ Внутри звучит:\n«Без меня всё развалится»`,
-    KS: `<b>«Железная система»</b>\n\nТы сильная и всё контролируешь.\nТы держишь. Просчитываешь.\nНе даёшь себе расслабиться.\n\nНо внутри:\n— жёсткость\n— тревога\n— напряжение\n\nТы как будто всегда «на посту».\n\nЦена:\nТы не живёшь — ты управляешь выживанием.\n\n⚡️ Внутри звучит:\n«Я должна удержать всё любой ценой»`,
-    PU: `<b>«Идеальная для всех»</b>\n\nТы стараешься быть идеальной, чтобы тебя любили.\nТы подстраиваешься.\nСоответствуешь. Стараешься.\n\nНо внутри:\n— стыд\n— страх «недостаточности»\n— зависимость от оценки\n\nТы не можешь быть собой.\n\nЦена:\nТы живёшь чужими ожиданиями.\n\n⚡️ Внутри звучит:\n«Если я не идеальна — меня не выберут»`,
-    RU: `<b>«Спасатель»</b>\n\nТы живёшь через помощь другим.\nТы включаешься.\nСпасаешь. Поддерживаешь.\n\nНо внутри:\n— истощение\n— пустота\n— ощущение, что тебя нет\n\nТы отдаёшь себя, чтобы быть нужной.\n\nЦена:\nТы теряешь контакт с собой.\n\n⚡️ Внутри звучит:\n«Я нужна, только если я полезна»`,
-    KU: `<b>«Тревожный угодник»</b>\n\nТы стараешься угадать, как правильно.\nТы анализируешь реакции.\nПодстраиваешься. Контролируешь.\n\nНо внутри:\n— тревога\n— напряжение\n— страх ошибиться\n\nТы живёшь в режиме «не так сделать нельзя».\n\nЦена:\nТы теряешь свободу и спонтанность.\n\n⚡️ Внутри звучит:\n«Если я ошибусь — меня отвергнут»`,
-    PR: `<b>«Социальный идеал»</b>\n\nТы пытаешься быть идеальной для всех.\nТы чувствуешь ожидания.\nИ стараешься им соответствовать.\n\nНо внутри:\n— перегруз\n— потеря себя\n— тревога\n\nТы разрываешься между «как надо».\n\nЦена:\nТы не знаешь, какая ты настоящая.\n\n⚡️ Внутри звучит:\n«Я должна соответствовать всем»`,
-    KP: `<b>«Тревожный достигатор»</b>\n\nТы живёшь через контроль и идеальность.\nТы стараешься предусмотреть всё.\nНе ошибаться. Быть на высоте.\n\nНо внутри:\n— напряжение\n— тревога\n— страх провала\n\nТы не можешь выдохнуть.\n\nЦена:\nТы живёшь в постоянном напряжении «а вдруг что-то не так».\n\n⚡️ Внутри звучит:\n«Ошибка — это катастрофа»`,
-    KR: `<b>«Сканер угроз»</b>\n\nТы постоянно на чеку.\nТы чувствуешь всё.\nИ пытаешься предотвратить плохое.\n\nНо внутри:\n— перегруз\n— тревога\n— усталость\n\nТы не расслабляешься вообще.\n\nЦена:\nТы живёшь в режиме постоянной опасности.\n\n⚡️ Внутри звучит:\n«Я должна всё предусмотреть, иначе будет плохо»`,
-  }
-}
