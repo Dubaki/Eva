@@ -14,39 +14,47 @@ export default function AccessPage() {
   const router = useRouter()
 
   return (
-    <div className="font-body-md bg-[#0f141a] text-[#dee2ec] min-h-screen flex flex-col">
-      <main className="flex-1 flex flex-col px-container-padding pt-10 pb-32 max-w-lg mx-auto w-full">
-        <motion.section {...fadeUp()} className="space-y-xl">
-          {/* Decorative Illustration (Sphere) - based on Result Screen block in design */}
-          <div className="flex justify-center py-md">
-            <div className="relative w-48 h-48">
-              <div className="absolute inset-0 bg-[#8BA88E]/20 blur-[60px] rounded-full"></div>
-              <div className="relative w-full h-full glass-card rounded-full border border-white/10 flex items-center justify-center overflow-hidden bg-white/5 backdrop-blur-md">
-                <div className="w-32 h-32 bg-gradient-to-br from-[#8BA88E]/40 to-[#e2bebe]/40 rounded-full blur-xl opacity-60"></div>
-              </div>
-            </div>
+    <div className="font-body-md bg-[#0f141a] text-[#dee2ec] min-h-screen flex flex-col selection:bg-[#b0ceb2]/30">
+      <main className="px-container-padding pb-32 max-w-md mx-auto pt-4">
+        {/* Hero Visual Section */}
+        <motion.div 
+          {...fadeUp(0.1)}
+          className="relative w-full aspect-square rounded-xl overflow-hidden shadow-2xl border border-[#424842]/20 mb-4"
+        >
+          <img 
+            alt="Вторая опора" 
+            className="w-full h-full object-cover opacity-60" 
+            src="/dostup.png"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0f141a] via-transparent to-transparent"></div>
+          <div className="absolute bottom-md left-md right-md">
+            <span className="font-label-sm text-[#b0ceb2] uppercase mb-xs block">
+              {TEXTS.accessPage.badge || 'Доступ ко второй опоре'}
+            </span>
+            <h2 className="font-['Newsreader'] italic text-[32px] text-[#dee2ec] leading-tight">
+              {TEXTS.accessPage.title || 'вторая смешенная искаженная опора'}
+            </h2>
           </div>
+        </motion.div>
 
-          <div className="space-y-lg">
-            <div className="p-lg bg-white/5 rounded-xl border border-white/10 backdrop-blur-md italic">
-              <p className="font-body-md text-[#dee2ec]/80 leading-relaxed">
-                {TEXTS.accessPage.quote}
-              </p>
-            </div>
-
-            <p className="font-body-md text-[#dee2ec]/70 px-xs leading-relaxed text-justify">
-              {TEXTS.accessPage.body}
+        {/* Personal Note Section */}
+        <motion.section {...fadeUp(0.2)} className="space-y-md">
+          <div className="p-lg bg-[#171c23] rounded-xl border-l-2 border-[#8ba88e]">
+            <p className="font-['Newsreader'] italic text-lg text-[#c2c8c0] leading-relaxed">
+              {TEXTS.accessPage.quote}
             </p>
           </div>
+          
+          <p className="font-body-md text-[#c2c8c0]/80 px-xs italic leading-relaxed">
+            {TEXTS.accessPage.body}
+          </p>
 
-          <div className="pt-md">
-            <button 
-              onClick={() => router.push('/referral')}
-              className="w-full py-md bg-[#8BA88E] text-[#1c3622] font-bold rounded-xl active:scale-95 transition-transform shadow-lg shadow-[#8BA88E]/10"
-            >
-              {TEXTS.accessPage.btnGet}
-            </button>
-          </div>
+          <button 
+            onClick={() => router.push('/referral')}
+            className="w-full py-md bg-[#b0ceb2] text-[#1c3622] font-bold rounded-xl shadow-lg active:scale-[0.98] transition-all flex items-center justify-center h-14"
+          >
+            {TEXTS.accessPage.btnGet}
+          </button>
         </motion.section>
       </main>
     </div>
