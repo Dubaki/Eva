@@ -252,6 +252,12 @@ async function handleCallbackQuery(cb: any) {
       await supabase.from('profiles').update({ bot_quiz_step: 5 }).eq('id', profile.id)
       await bot.editMessageReplyMarkup({ chatId, messageId: cb.message.message_id })
 
+      // Immediate Thank You message
+      await bot.sendMessage({
+        chatId,
+        text: TEXTS.bot.afterFinalThankYou
+      })
+
       if (type === 'hard' || type === 'soft') {
         const url = type === 'hard' 
           ? 'https://t.me/evapatrakhina?text=Пробой!'
