@@ -43,6 +43,26 @@ function ResultContent() {
   const [step, setStep] = useState<FunnelStep>('result')
   const [surpriseAnswer, setSurpriseAnswer] = useState<'yes' | 'no' | null>(null)
 
+  // Robust scroll to insight block
+  useEffect(() => {
+    if (step === 'insight') {
+      let attempts = 0
+      const scroll = () => {
+        const element = document.getElementById('insight-block')
+        if (element) {
+          // Small delay to let the animation start and layout settle
+          setTimeout(() => {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }, 100)
+        } else if (attempts < 50) { // Max ~0.8s of polling
+          attempts++
+          requestAnimationFrame(scroll)
+        }
+      }
+      scroll()
+    }
+  }, [step])
+
   useEffect(() => {
     const stored = sessionStorage.getItem('eva_result')
     let hasLocalData = false
@@ -88,13 +108,6 @@ function ResultContent() {
   const handleSurprise = (val: 'yes' | 'no') => {
     setSurpriseAnswer(val)
     setStep('insight')
-    
-    setTimeout(() => {
-      const element = document.getElementById('insight-block')
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }
-    }, 200)
   }
 
   if (loading) return <ResultLoading />
@@ -183,7 +196,7 @@ function ResultContent() {
                 key="insight-step" 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="space-y-lg scroll-mt-24"
+                className="space-y-lg scroll-mt-[20vh]"
                 id="insight-block"
               >
                 {/* Insight Block with Vertical Line */}
