@@ -17,7 +17,7 @@ export default function TestPage() {
   const router = useRouter()
   const [tgId, setTgId] = useState<number | null>(null)
 
-  // 1. Get tgId from WebApp
+  // 1. Get tgId from WebApp and clear old results
   useEffect(() => {
     const WebApp = (window as any).Telegram?.WebApp
     const id = WebApp?.initDataUnsafe?.user?.id
@@ -26,6 +26,9 @@ export default function TestPage() {
     } else {
       setTgId(999999999)
     }
+
+    // Clear cached results from previous runs
+    sessionStorage.removeItem('eva_result')
   }, [])
 
   // 2. Restore progress

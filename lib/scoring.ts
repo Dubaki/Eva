@@ -13,31 +13,22 @@ export type ScoreResult = {
   answers: Answer[]
 }
 
-/** Приоритет шкал при равенстве баллов */
+/** Приоритет шкал при равенстве баллов (на основе имен картинок) */
 const SCALE_PRIORITY: Scale[] = [
-  'performance',
-  'perfection',
-  'pleasing',
-  'control',
-  'hyper-vigilance',
+  'hero',
+  'perfectionist',
+  'pleaser',
+  'stayer',
+  'controller',
 ]
 
 /** Маппинг Scale → буква шкалы (как в БД) */
 const SCALE_LETTER: Record<Scale, string> = {
-  performance: 'S',
-  perfection: 'P',
-  pleasing: 'U',
-  control: 'R',
-  'hyper-vigilance': 'K',
-}
-
-/** Маппинг буквы шкалы → поле в ScoreResult */
-const SCORE_FIELD: Record<string, keyof Omit<ScoreResult, 'dominantTrait' | 'secondaryTrait' | 'answers'>> = {
-  S: 'scoreS',
-  U: 'scoreU',
-  P: 'scoreP',
-  R: 'scoreR',
-  K: 'scoreK',
+  hero: 'S',
+  perfectionist: 'P',
+  pleaser: 'U',
+  stayer: 'R',
+  controller: 'K',
 }
 
 /**
@@ -52,11 +43,11 @@ const SCORE_FIELD: Record<string, keyof Omit<ScoreResult, 'dominantTrait' | 'sec
  */
 export function calculateScores(answers: Answer[]): ScoreResult {
   const totals: Record<Scale, number> = {
-    performance: 0,
-    perfection: 0,
-    pleasing: 0,
-    control: 0,
-    'hyper-vigilance': 0,
+    hero: 0,
+    perfectionist: 0,
+    pleaser: 0,
+    stayer: 0,
+    controller: 0,
   }
 
   // Суммируем баллы по шкалам
@@ -78,11 +69,11 @@ export function calculateScores(answers: Answer[]): ScoreResult {
   const secondary = ranked[1]
 
   return {
-    scoreS: totals['performance'],
-    scoreP: totals['perfection'],
-    scoreU: totals['pleasing'],
-    scoreR: totals['control'],
-    scoreK: totals['hyper-vigilance'],
+    scoreS: totals['hero'],
+    scoreP: totals['perfectionist'],
+    scoreU: totals['pleaser'],
+    scoreR: totals['stayer'],
+    scoreK: totals['controller'],
     dominantTrait: SCALE_LETTER[dominant],
     secondaryTrait: SCALE_LETTER[secondary],
     answers,
