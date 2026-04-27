@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
+import Image from 'next/image'
 import { TEXTS } from '@/lib/constants/texts'
 import { TRAIT_NAMES, TRAIT_DESCRIPTIONS } from '@/lib/constants/results'
 
@@ -133,13 +134,19 @@ function ResultContent() {
       <main className="flex-1 pb-32">
         {/* Hero Section */}
         <section className="relative w-full h-[397px] overflow-hidden">
-          <motion.img 
+          <motion.div
             initial={{ scale: 1.1, opacity: 0 }}
             animate={{ scale: 1, opacity: 0.6 }}
-            src={traitImg} 
-            className="w-full h-full object-cover"
-            alt="результат"
-          />
+            className="w-full h-full relative"
+          >
+            <Image 
+              src={traitImg} 
+              className="object-cover"
+              alt="результат"
+              fill
+              priority
+            />
+          </motion.div>
           <div className="absolute inset-0 bg-gradient-to-t from-[#0f141a] via-[#0f141a]/20 to-transparent"></div>
           <div className="absolute bottom-0 left-0 p-container-padding">
             <span className="inline-block px-3 py-1 bg-[#8BA88E]/20 text-[#8BA88E] rounded-full text-label-sm mb-sm backdrop-blur-sm border border-[#8BA88E]/20">

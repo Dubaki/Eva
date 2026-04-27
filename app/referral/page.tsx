@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import Image from 'next/image'
 import { TEXTS } from '@/lib/constants/texts'
 
 const fadeUp = (delay: number = 0) => ({
@@ -50,11 +51,15 @@ export default function ReferralPage() {
       <main className="flex-1 flex flex-col justify-center px-container-padding max-w-md mx-auto w-full">
         {/* Decorative Visual */}
         <motion.div {...fadeUp(0.1)} className="flex justify-center mb-xl">
-          <img 
-            alt="Реферальная программа" 
-            className="h-[150px] w-auto object-contain rounded-full shadow-2xl shadow-[#b0ceb2]/20" 
-            src="/ref.png"
-          />
+          <div className="relative h-[150px] w-[150px]">
+            <Image 
+              alt="Реферальная программа" 
+              className="object-contain rounded-full shadow-2xl shadow-[#b0ceb2]/20" 
+              src="/ref.png"
+              fill
+              priority
+            />
+          </div>
         </motion.div>
 
         {/* Referral Link Card */}

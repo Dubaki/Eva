@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { TEXTS } from '@/lib/constants/texts'
 
 const fadeUp = (delay: number = 0) => ({
@@ -22,18 +23,21 @@ export default function AccessPage() {
           {...fadeUp(0.1)}
           className="relative w-full aspect-square rounded-xl overflow-hidden shadow-2xl border border-[#424842]/20 mb-4"
         >
-          <img 
+          <Image 
             alt="Вторая опора" 
             className="w-full h-full object-cover opacity-60" 
             src="/dostup.png"
+            fill
+            sizes="100vw"
+            priority
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0f141a] via-transparent to-transparent"></div>
           <div className="absolute bottom-md left-md right-md">
             <span className="font-label-sm text-[#b0ceb2] uppercase mb-xs block">
-              {TEXTS.accessPage.badge || 'Доступ ко второй опоре'}
+              {TEXTS.accessPage.badge}
             </span>
             <h2 className="font-['Newsreader'] italic text-[32px] text-[#dee2ec] leading-tight">
-              {TEXTS.accessPage.title || 'вторая смешенная искаженная опора'}
+              {TEXTS.accessPage.title}
             </h2>
           </div>
         </motion.div>
