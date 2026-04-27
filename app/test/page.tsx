@@ -167,9 +167,9 @@ export default function TestPage() {
       <header className="bg-slate-950/80 backdrop-blur-md border-b border-slate-800/50 shadow-[0_4px_20px_rgba(0,0,0,0.15)] sticky z-50 top-0 flex justify-between items-center px-5 h-16 w-full shrink-0">
         <button 
           onClick={handleBack}
-          className="text-[#8BA88E] active:scale-95 duration-200 flex items-center justify-center"
+          className="text-[#8BA88E] active:scale-95 duration-200 flex items-center justify-center font-bold text-sm"
         >
-          <span className="material-symbols-outlined">arrow_back</span>
+          Назад
         </button>
         <h1 className="font-['Newsreader'] italic text-xl text-[#8BA88E]">EvaTest</h1>
         <div className="font-label-md text-slate-400 tracking-widest uppercase text-[12px]">
