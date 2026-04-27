@@ -30,12 +30,7 @@ export default function Home() {
 
   return (
     <div className="bg-[#0f141a] text-[#dee2ec] min-h-screen flex flex-col font-body-md overflow-x-hidden">
-      {/* Header Spacer */}
-      <header className="flex justify-center items-center h-16 w-full shrink-0">
-        <h1 className="font-['Newsreader'] italic text-xl text-[#8BA88E]">EvaTest</h1>
-      </header>
-
-      <main className="flex-1 flex flex-col px-container-padding max-w-lg mx-auto w-full pb-32 pt-2">
+      <main className="flex-1 flex flex-col px-container-padding max-w-lg mx-auto w-full pb-32 pt-10">
         {/* Main Narrative Card */}
         <motion.section 
           {...fadeUp(0.1)}
@@ -61,7 +56,7 @@ export default function Home() {
           className="w-full rounded-xl overflow-hidden relative grayscale opacity-80 h-24 my-md"
         >
           <Image 
-            alt="abstract" 
+            alt="абстракция" 
             className="object-cover" 
             src="/115.png" 
             fill
@@ -77,7 +72,6 @@ export default function Home() {
             {...fadeUp(0.3)}
             className="bg-[#1b2027] rounded-xl py-sm px-md flex flex-col gap-xs items-center text-center border border-[#424842]/20"
           >
-            <span className="material-symbols-outlined text-[#e9c349]">quiz</span>
             <div>
               <div className="text-[#dee2ec] font-bold text-lg leading-tight">{TEXTS.start.stat1}</div>
               <div className="text-[#c2c8c0] font-label-md uppercase tracking-wider text-[10px]">{TEXTS.start.stat1Sub}</div>
@@ -87,7 +81,6 @@ export default function Home() {
             {...fadeUp(0.4)}
             className="bg-[#1b2027] rounded-xl py-sm px-md flex flex-col gap-xs items-center text-center border border-[#424842]/20"
           >
-            <span className="material-symbols-outlined text-[#e2bebe]">schedule</span>
             <div>
               <div className="text-[#dee2ec] font-bold text-lg leading-tight">{TEXTS.start.stat2}</div>
               <div className="text-[#c2c8c0] font-label-md uppercase tracking-wider text-[10px]">{TEXTS.start.stat2Sub}</div>
@@ -120,7 +113,6 @@ export default function Home() {
       >
         <Link href="/test" className="block w-full">
           <button className="w-full h-14 bg-[#b0ceb2] text-[#1c3622] font-bold text-lg rounded-full flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-transform duration-150">
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: '"FILL" 1' }}>play_arrow</span>
             {TEXTS.start.btnStart}
           </button>
         </Link>

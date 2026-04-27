@@ -141,11 +141,6 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
     if (state.reason === 'not_subscribed') {
       return (
         <div className="min-h-screen flex flex-col font-body-md bg-[#0f141a] text-[#dee2ec]">
-          {/* Header Spacer */}
-          <header className="flex justify-center items-center h-16 w-full shrink-0">
-            <h1 className="font-['Newsreader'] italic text-xl text-[#8BA88E]">EvaTest</h1>
-          </header>
-
           <main className="flex-grow flex flex-col items-center justify-center px-container-padding py-xl">
             <motion.div 
               initial={{ opacity: 0, scale: 0.9 }}
@@ -155,7 +150,6 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
               <div className="relative">
                 <div className="absolute inset-0 bg-[#8BA88E]/20 blur-3xl rounded-full"></div>
                 <div className="relative glass-card w-32 h-32 rounded-full flex items-center justify-center shadow-[0_4px_20px_rgba(0,0,0,0.15)] border border-white/10 backdrop-blur-md">
-                  <span className="material-symbols-outlined text-[#8BA88E] text-6xl" style={{ fontVariationSettings: '"FILL" 1' }}>lock</span>
                 </div>
               </div>
 
@@ -201,7 +195,6 @@ export default function Gatekeeper({ children }: { children: React.ReactNode }) 
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#0f141a] px-6 text-[#dee2ec]">
         <div className="text-center max-w-sm space-y-4">
-          <span className="material-symbols-outlined text-6xl text-[#8BA88E]">cloud_off</span>
           <h1 className="font-['Newsreader'] italic text-2xl">Откройте через Telegram</h1>
           <p className="text-[#dee2ec]/60">Приложение работает только внутри Telegram-бота.</p>
         </div>

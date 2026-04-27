@@ -201,9 +201,8 @@ export default function AdminPanel() {
     return (
       <div className="min-h-screen bg-[#0f141a] flex flex-col items-center justify-center p-6 text-center text-white">
         <div className="w-20 h-20 bg-[#8BA88E]/20 rounded-full flex items-center justify-center mb-6 border border-[#8BA88E]/40">
-          <span className="material-symbols-outlined text-[#8BA88E] text-4xl">lock</span>
         </div>
-        <h1 className="text-3xl font-bold mb-8">Admin Access</h1>
+        <h1 className="text-3xl font-bold mb-8">Доступ в админ-панель</h1>
         <button
           onClick={handleLogin}
           className="w-full max-w-xs py-4 bg-[#8BA88E] text-white font-bold rounded-2xl active:scale-95 transition-all"
@@ -220,10 +219,10 @@ export default function AdminPanel() {
       <header className="sticky top-0 z-40 bg-[#1c2229] border-b border-white/10 px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-[#8BA88E] rounded-lg flex items-center justify-center text-white font-bold">E</div>
-          <h1 className="font-['Newsreader'] italic text-xl">EvaAdmin</h1>
+          <h1 className="font-['Newsreader'] italic text-xl">Админ-панель</h1>
         </div>
-        <button onClick={() => { localStorage.removeItem('admin_token'); setUnauthorized(true); }} className="text-white/40 hover:text-red-400">
-          <span className="material-symbols-outlined">logout</span>
+        <button onClick={() => { localStorage.removeItem('admin_token'); setUnauthorized(true); }} className="text-white/40 hover:text-red-400 font-bold">
+          Выйти
         </button>
       </header>
 
@@ -231,9 +230,9 @@ export default function AdminPanel() {
         {/* Navigation */}
         <nav className="flex p-1.5 bg-[#1c2229] rounded-2xl border border-white/5">
           {[
-            { id: 'stats', label: 'Статистика', icon: 'query_stats' },
-            { id: 'crm', label: 'Пользователи', icon: 'group' },
-            { id: 'broadcast', label: 'Рассылка', icon: 'campaign' }
+            { id: 'stats', label: 'Статистика' },
+            { id: 'crm', label: 'Пользователи' },
+            { id: 'broadcast', label: 'Рассылка' }
           ].map(tab => (
             <button
               key={tab.id}
@@ -242,7 +241,6 @@ export default function AdminPanel() {
                 activeTab === tab.id ? 'bg-[#8BA88E] text-white' : 'text-white/40 hover:bg-white/5'
               }`}
             >
-              <span className="material-symbols-outlined text-lg">{tab.icon}</span>
               <span>{tab.label}</span>
             </button>
           ))}
@@ -252,14 +250,11 @@ export default function AdminPanel() {
         {activeTab === 'stats' && stats && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { label: 'Пользователей', value: stats.totalUsers, icon: 'person' },
-              { label: 'Пройдено тестов', value: stats.completedTests, icon: 'assignment_turned_in' },
-              { label: 'Обратились к Еве', value: stats.contactAuthorCount, icon: 'forum' }
+              { label: 'Пользователей', value: stats.totalUsers },
+              { label: 'Пройдено тестов', value: stats.completedTests },
+              { label: 'Обратились к Еве', value: stats.contactAuthorCount }
             ].map((s, i) => (
               <div key={i} className="p-8 rounded-3xl bg-[#1c2229] border border-white/10 shadow-xl flex items-center gap-6">
-                <div className="w-14 h-14 bg-[#8BA88E]/10 rounded-2xl flex items-center justify-center border border-[#8BA88E]/20">
-                  <span className="material-symbols-outlined text-[#8BA88E] text-2xl">{s.icon}</span>
-                </div>
                 <div>
                   <p className="text-white/40 text-xs font-bold uppercase tracking-wider">{s.label}</p>
                   <p className="text-4xl font-['Newsreader'] italic text-[#8BA88E]">{s.value}</p>
@@ -328,9 +323,9 @@ export default function AdminPanel() {
                             setMsgTargetUsername(user.username || String(user.tg_id))
                             setMsgModalOpen(true)
                           }}
-                          className="w-10 h-10 rounded-xl bg-white/5 text-[#8BA88E] hover:bg-[#8BA88E] hover:text-white transition-all flex items-center justify-center mx-auto ml-auto"
+                          className="px-4 py-2 rounded-xl bg-white/5 text-[#8BA88E] hover:bg-[#8BA88E] hover:text-white transition-all font-bold text-xs"
                         >
-                          <span className="material-symbols-outlined text-[20px]">send</span>
+                          Написать
                         </button>
                       </td>
                     </tr>
@@ -344,7 +339,6 @@ export default function AdminPanel() {
                   onClick={() => setActiveTab('broadcast')}
                   className="bg-[#8BA88E] text-white px-8 py-4 rounded-full font-bold shadow-2xl flex items-center gap-3 active:scale-95"
                 >
-                  <span className="material-symbols-outlined">campaign</span>
                   Рассылка выбранным ({selectedUsers.size})
                 </button>
               </motion.div>
@@ -371,12 +365,11 @@ export default function AdminPanel() {
                   <label htmlFor="broadcast-file" className="block w-full cursor-pointer p-10 border-2 border-dashed border-white/10 rounded-[32px] hover:border-[#8BA88E]/50 hover:bg-white/[0.02] transition-all text-center">
                     {broadcastPhotoPreview ? (
                       <div className="relative inline-block">
-                        <NextImage src={broadcastPhotoPreview} alt="Preview" width={240} height={160} className="rounded-2xl object-cover" />
+                        <NextImage src={broadcastPhotoPreview} alt="Превью" width={240} height={160} className="rounded-2xl object-cover" />
                         <button onClick={(e) => { e.preventDefault(); setBroadcastPhoto(null); setBroadcastPhotoPreview(null); }} className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white">✕</button>
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        <span className="material-symbols-outlined text-4xl text-white/20">add_photo_alternate</span>
                         <p className="text-sm text-white/30">Нажмите для выбора файла</p>
                       </div>
                     )}
@@ -430,7 +423,8 @@ export default function AdminPanel() {
               {msgSent ? (
                 <div className="py-10 text-center space-y-4">
                   <div className="w-16 h-16 bg-[#8BA88E] rounded-full flex items-center justify-center mx-auto">
-                    <span className="material-symbols-outlined text-white text-3xl font-bold">check</span>
+                    {/* Icon removed */}
+                    <span className="text-white text-3xl font-bold">✓</span>
                   </div>
                   <p className="font-bold text-[#8BA88E]">Сообщение доставлено!</p>
                 </div>

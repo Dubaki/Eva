@@ -128,7 +128,7 @@ function ResultContent() {
             animate={{ scale: 1, opacity: 0.6 }}
             src={traitImg} 
             className="w-full h-full object-cover"
-            alt={traitName}
+            alt="результат"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0f141a] via-[#0f141a]/20 to-transparent"></div>
           <div className="absolute bottom-0 left-0 p-container-padding">

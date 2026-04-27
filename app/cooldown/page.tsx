@@ -17,12 +17,7 @@ export default function CooldownPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#0f141a] text-[#dee2ec] font-body-md overflow-x-hidden">
-      {/* Header Spacer */}
-      <header className="flex justify-center items-center h-16 w-full shrink-0">
-        <h1 className="font-['Newsreader'] italic text-xl text-[#8BA88E]">EvaTest</h1>
-      </header>
-
-      <main className="flex-1 flex flex-col items-center px-container-padding pt-6 pb-32">
+      <main className="flex-1 flex flex-col items-center px-container-padding pt-10 pb-32">
         <div className="w-full max-w-md flex flex-col items-center text-center space-y-xl">
           {/* Decorative Animation */}
           <motion.div {...fadeUp(0.1)} className="relative w-full aspect-square flex items-center justify-center max-w-[140px]">
@@ -31,7 +26,7 @@ export default function CooldownPage() {
             <div className="absolute inset-6 rounded-full border border-[#8BA88E]/5"></div>
             <div className="relative z-10 flex flex-col items-center">
               <div className="bg-[#8BA88E]/10 rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(139,168,142,0.2)] w-12 h-12">
-                <span className="material-symbols-outlined text-[#8BA88E] text-3xl">hourglass_empty</span>
+                {/* Icon removed as per instruction */}
               </div>
             </div>
           </motion.div>
@@ -46,9 +41,6 @@ export default function CooldownPage() {
 
           {/* Cooldown Card */}
           <motion.div {...fadeUp(0.3)} className="w-full glass-card p-lg rounded-xl space-y-sm flex flex-col items-center border border-white/10 bg-white/5 backdrop-blur-md">
-            <div className="flex items-center justify-center gap-2 text-[#8BA88E] mb-2">
-              <span className="material-symbols-outlined text-[24px]">calendar_today</span>
-            </div>
             <div className="text-xl font-medium text-[#dee2ec]">
               {TEXTS.cooldown.progressTemplate(cooldownDays)}
             </div>
@@ -67,7 +59,6 @@ export default function CooldownPage() {
               onClick={() => openAuthorContact()}
               className="w-full bg-[#8BA88E] text-[#1c3622] font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-transform"
             >
-              <span className="material-symbols-outlined">chat_bubble</span>
               {TEXTS.cooldown.btnContact}
             </button>
           </motion.div>
