@@ -82,27 +82,24 @@ function ResultContent() {
     const token = localStorage.getItem('eva_token')
     if (!token) {
       if (!hasLocalData) setLoading(false)
-      return
+    } else {
+      fetch('/api/test/results', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .then(r => r.json())
+      .then(json => {
+        if (json.success && json.data) {
+          setResult(json.data)
+          sessionStorage.setItem('eva_result', JSON.stringify(json.data))
+        }
+      })
+      .catch(err => console.error('[result] API fetch error:', err))
+      .finally(() => {
+        setLoading(false)
+      })
     }
 
-    fetch('/api/test/results', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    .then(r => r.json())
-    .then(json => {
-      if (json.success && json.data) {
-        setResult(json.data)
-        sessionStorage.setItem('eva_result', JSON.stringify(json.data))
-      }
-    })
-    .catch(err => console.error('[result] API fetch error:', err))
-    .finally(() => {
-      setLoading(false)
-    })
-
-    if (searchParams.get('referral') === '1') {
-      router.replace('/access')
-    }
+    // REMOVED: Auto-redirecting on referral=1 here can break the flow if user just finished test
   }, [searchParams, router])
 
   const handleSurprise = (val: 'yes' | 'no') => {
