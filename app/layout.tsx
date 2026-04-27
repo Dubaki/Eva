@@ -46,6 +46,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru" className={`dark ${newsreader.variable} ${manrope.variable}`} suppressHydrationWarning>
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+        />
+      </head>
       <body className="bg-[#0f141a] text-[#dee2ec] font-body-md min-h-screen">
         <AuthProvider>
           <Script

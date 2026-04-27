@@ -22,6 +22,13 @@ export default function ReferralPage() {
     setTgId(id)
   }, [])
 
+  const handleCopy = () => {
+    if (!tgId) return
+    navigator.clipboard.writeText(referralLink)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
   const handleShare = async () => {
     if (isSharing || !tgId) return
     setIsSharing(true)
@@ -49,46 +56,42 @@ export default function ReferralPage() {
   return (
     <div className="font-body-md bg-[#0f141a] text-[#dee2ec] min-h-screen flex flex-col selection:bg-[#b0ceb2]/30">
       <main className="flex-1 flex flex-col justify-center px-container-padding max-w-md mx-auto w-full pb-10">
-        {/* Decorative Visual */}
+
+        {/* Картинка */}
         <motion.div {...fadeUp(0.1)} className="flex justify-center mb-xl">
-          <div className="relative h-[150px] w-[150px] rounded-full overflow-hidden shadow-2xl shadow-[#b0ceb2]/20">
-            <Image 
-              src="/ref.png"
-              alt="Реферальная программа"
-              fill
-              className="object-contain"
-              priority
-              sizes="150px"
-            />
-          </div>
+          <Image
+            src="/ref.png"
+            alt="Реферальная программа"
+            width={150}
+            height={150}
+            className="h-[150px] w-auto object-contain rounded-full shadow-2xl shadow-[#b0ceb2]/20"
+            priority
+          />
         </motion.div>
 
-        {/* Referral Link Card */}
+        {/* Секция со ссылкой */}
         <motion.section
           {...fadeUp(0.2)}
-          className="p-lg bg-[#1b2027] rounded-xl border border-[#424842]/30 space-y-md shadow-xl w-full"
+          className="p-lg bg-[#1b2027] rounded-xl border border-[#424842]/30 space-y-md shadow-xl"
         >
+          {/* Подзаголовок */}
           <div className="flex items-center gap-sm">
             <span
-              className="material-symbols-outlined text-sm filled"
-              style={{ color: '#8BA88E', fontSize: '18px', fontVariationSettings: "'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24" }}
+              className="material-symbols-outlined"
+              style={{ fontSize: '18px', color: '#8BA88E', fontVariationSettings: "'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24" }}
             >stars</span>
             <span className="font-label-md" style={{ color: '#8BA88E' }}>
               {TEXTS.referral.subtitle}
             </span>
           </div>
 
-          <div className="relative group w-full">
+          {/* Поле со ссылкой + кнопка копирования */}
+          <div className="relative group">
             <div className="w-full p-md bg-[#30353d] rounded-lg border border-[#8c928b]/20 font-body-sm text-[#c2c8c0] truncate pr-12">
               {tgId ? referralLink : 'Загрузка ссылки...'}
             </div>
             <button
-              onClick={() => {
-                if (!tgId) return
-                navigator.clipboard.writeText(referralLink)
-                setCopied(true)
-                setTimeout(() => setCopied(false), 1500)
-              }}
+              onClick={handleCopy}
               className="absolute right-sm top-1/2 -translate-y-1/2 p-sm text-[#b0ceb2] hover:bg-[#b0ceb2]/10 rounded-md transition-colors active:scale-90"
             >
               <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
@@ -97,14 +100,16 @@ export default function ReferralPage() {
             </button>
           </div>
 
+          {/* Кнопка «Поделиться» */}
           <button
             onClick={handleShare}
             disabled={isSharing || !tgId}
-            className="w-full py-md bg-transparent border border-[#e2bebe] text-[#e2bebe] font-label-md rounded-xl hover:bg-[#e2bebe]/10 active:scale-[0.98] transition-all flex items-center justify-center gap-sm h-14 font-bold"
+            className="w-full py-md bg-transparent border border-[#e2bebe] text-[#e2bebe] font-label-md rounded-xl hover:bg-[#e2bebe]/10 active:scale-[0.98] transition-all flex items-center justify-center gap-sm h-14 font-bold disabled:opacity-60"
           >
             {isSharing ? 'Отправляю...' : TEXTS.referral.btnShare}
           </button>
 
+          {/* Подпись */}
           <div className="pt-sm border-t border-[#424842]/20">
             <div className="flex items-start gap-sm">
               <span className="material-symbols-outlined text-[#8c928b] mt-0.5" style={{ fontSize: '20px' }}>info</span>
@@ -114,6 +119,7 @@ export default function ReferralPage() {
             </div>
           </div>
         </motion.section>
+
       </main>
     </div>
   )
