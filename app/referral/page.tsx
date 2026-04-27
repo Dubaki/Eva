@@ -14,6 +14,7 @@ const fadeUp = (delay: number = 0) => ({
 export default function ReferralPage() {
   const [tgId, setTgId] = useState<number | null>(null)
   const [isSharing, setIsSharing] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     const WebApp = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp : null
@@ -63,38 +64,51 @@ export default function ReferralPage() {
         </motion.div>
 
         {/* Referral Link Card */}
-        <motion.section 
+        <motion.section
           {...fadeUp(0.2)}
           className="p-lg bg-[#1b2027] rounded-xl border border-[#424842]/30 space-y-md shadow-xl w-full"
         >
           <div className="flex items-center gap-sm">
-            <span className="font-label-md text-[#8BA88E] font-bold">
+            <span
+              className="material-symbols-outlined text-sm filled"
+              style={{ color: '#8BA88E', fontSize: '18px', fontVariationSettings: "'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24" }}
+            >stars</span>
+            <span className="font-label-md" style={{ color: '#8BA88E' }}>
               {TEXTS.referral.subtitle}
             </span>
           </div>
 
           <div className="relative group w-full">
-            <div 
-              onClick={() => {
-                navigator.clipboard.writeText(referralLink)
-              }}
-              className="w-full p-md bg-[#30353d] rounded-lg border border-[#8c928b]/20 font-body-sm text-[#c2c8c0] truncate pr-4 cursor-pointer active:bg-[#353941] transition-colors"
-            >
+            <div className="w-full p-md bg-[#30353d] rounded-lg border border-[#8c928b]/20 font-body-sm text-[#c2c8c0] truncate pr-12">
               {tgId ? referralLink : 'Загрузка ссылки...'}
             </div>
+            <button
+              onClick={() => {
+                if (!tgId) return
+                navigator.clipboard.writeText(referralLink)
+                setCopied(true)
+                setTimeout(() => setCopied(false), 1500)
+              }}
+              className="absolute right-sm top-1/2 -translate-y-1/2 p-sm text-[#b0ceb2] hover:bg-[#b0ceb2]/10 rounded-md transition-colors active:scale-90"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+                {copied ? 'check' : 'content_copy'}
+              </span>
+            </button>
           </div>
 
-          <button 
+          <button
             onClick={handleShare}
             disabled={isSharing || !tgId}
-            className="w-full py-md bg-transparent border border-[#e2bebe] text-[#e2bebe] font-label-md rounded-xl hover:bg-[#e2bebe]/10 active:scale-[0.98] transition-all flex items-center justify-center h-14 font-bold"
+            className="w-full py-md bg-transparent border border-[#e2bebe] text-[#e2bebe] font-label-md rounded-xl hover:bg-[#e2bebe]/10 active:scale-[0.98] transition-all flex items-center justify-center gap-sm h-14 font-bold"
           >
             {isSharing ? 'Отправляю...' : TEXTS.referral.btnShare}
           </button>
 
           <div className="pt-sm border-t border-[#424842]/20">
             <div className="flex items-start gap-sm">
-              <p className="font-body-sm text-[#8c928b] leading-tight italic">
+              <span className="material-symbols-outlined text-[#8c928b] mt-0.5" style={{ fontSize: '20px' }}>info</span>
+              <p className="font-body-sm text-[#8c928b] leading-tight">
                 {TEXTS.referral.description}
               </p>
             </div>

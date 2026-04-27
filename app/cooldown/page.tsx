@@ -25,8 +25,8 @@ export default function CooldownPage() {
             <div className="absolute inset-3 rounded-full border border-[#8BA88E]/10"></div>
             <div className="absolute inset-6 rounded-full border border-[#8BA88E]/5"></div>
             <div className="relative z-10 flex flex-col items-center">
-              <div className="bg-[#8BA88E]/10 rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(139,168,142,0.2)] w-12 h-12">
-                {/* Icon removed as per instruction */}
+              <div className="bg-[#8BA88E]/10 rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(139,168,142,0.2)] w-10 h-10">
+                <span className="material-symbols-outlined text-[#b0ceb2] text-2xl">hourglass_empty</span>
               </div>
             </div>
           </motion.div>
@@ -41,24 +41,28 @@ export default function CooldownPage() {
 
           {/* Cooldown Card */}
           <motion.div {...fadeUp(0.3)} className="w-full glass-card p-lg rounded-xl space-y-sm flex flex-col items-center border border-white/10 bg-white/5 backdrop-blur-md">
-            <div className="text-xl font-medium text-[#dee2ec]">
+            <div className="flex items-center justify-center gap-2 text-[#b0ceb2] mb-2">
+              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>calendar_today</span>
+            </div>
+            <div className="text-xl font-medium text-[#dee2ec] text-center">
               {TEXTS.cooldown.progressTemplate(cooldownDays)}
             </div>
             <div className="w-full bg-white/10 h-1 rounded-full overflow-hidden mt-md">
-              <motion.div 
+              <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${Math.max(5, (cooldownDays / 60) * 100)}%` }}
-                className="bg-[#8BA88E] h-full rounded-full transition-all duration-1000" 
+                className="bg-[#b0ceb2] h-full rounded-full transition-all duration-1000"
               />
             </div>
           </motion.div>
 
           {/* Action Button */}
           <motion.div {...fadeUp(0.4)} className="w-full pt-lg">
-            <button 
+            <button
               onClick={() => openAuthorContact()}
-              className="w-full bg-[#8BA88E] text-[#1c3622] font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-transform"
+              className="w-full bg-[#8ba88e] text-[#233d29] font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-transform"
             >
+              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>chat_bubble</span>
               {TEXTS.cooldown.btnContact}
             </button>
           </motion.div>
