@@ -30,11 +30,11 @@ export default function Home() {
 
   return (
     <div className="bg-[#0f141a] text-[#dee2ec] min-h-screen flex flex-col font-body-md overflow-x-hidden">
-      <main className="flex-1 flex flex-col px-container-padding max-w-lg mx-auto w-full pb-32 pt-10">
+      <main className="flex-1 flex flex-col px-container-padding max-w-lg mx-auto w-full pb-32 pt-0">
         {/* Main Narrative Card */}
         <motion.section 
           {...fadeUp(0.1)}
-          className="bg-[rgba(27,32,39,0.6)] backdrop-blur-[12px] border border-[rgba(140,146,139,0.1)] rounded-xl p-md shadow-[0_4px_20px_rgba(0,0,0,0.15)] relative overflow-hidden mt-md"
+          className="bg-[rgba(27,32,39,0.6)] backdrop-blur-[12px] border border-[rgba(140,146,139,0.1)] rounded-xl p-md shadow-[0_4px_20px_rgba(0,0,0,0.15)] relative overflow-hidden mt-0"
         >
           <div className="absolute top-0 left-0 w-1 h-full bg-[#8ba88e]"></div>
           <div className="flex flex-col gap-sm">
@@ -53,7 +53,7 @@ export default function Home() {
         {/* Visual Anchor / Decorative Image */}
         <motion.div 
           {...fadeUp(0.2)}
-          className="w-full rounded-xl overflow-hidden relative grayscale opacity-80 h-24 my-md"
+          className="w-full rounded-xl overflow-hidden relative grayscale opacity-80 h-20 my-sm"
         >
           <Image 
             alt="абстракция" 
@@ -67,7 +67,7 @@ export default function Home() {
         </motion.div>
 
         {/* Stats Bento Grid */}
-        <section className="grid grid-cols-2 gap-md mt-md">
+        <section className="grid grid-cols-2 gap-sm mt-sm">
           <motion.div 
             {...fadeUp(0.3)}
             className="bg-[#1b2027] rounded-xl py-sm px-md flex flex-col gap-xs items-center text-center border border-[#424842]/20"
@@ -91,7 +91,7 @@ export default function Home() {
         {/* Instructions Section */}
         <motion.section 
           {...fadeUp(0.5)}
-          className="flex flex-col gap-sm mt-md"
+          className="flex flex-col gap-sm mt-sm"
         >
           <h3 className="font-label-md text-[#cceace] uppercase tracking-widest flex items-center gap-2 text-[10px] font-bold">
             <span className="w-8 h-px bg-[#cceace]"></span> {TEXTS.start.instructionTitle}
