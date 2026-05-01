@@ -88,11 +88,32 @@ export default function TestPage() {
     const startTime = Date.now()
     try {
       const stored = localStorage.getItem('eva_token')
+      let actualToken = stored
+
+      if (!actualToken) {
+        try {
+          const initData = (window as any).Telegram?.WebApp?.initData
+          const authRes = await fetch('/api/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ initData }),
+          })
+          const authJson = await authRes.json()
+          if (authJson.success && authJson.data?.token) {
+            actualToken = authJson.data.token
+          } else {
+            throw new Error()
+          }
+        } catch (e) {
+          throw new Error('Не удалось получить токен авторизации')
+        }
+      }
+
       const res = await fetch('/api/test/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + (stored || ''),
+          Authorization: `Bearer ${actualToken}`,
         },
         body: JSON.stringify({ answers, tgId }),
       })
@@ -114,7 +135,10 @@ export default function TestPage() {
       }
     } catch (err) {
       console.error('Submit error:', err)
-      alert('Ошибка сети или сервера при сохранении теста.')
+      const errorMsg = err instanceof Error && err.message === 'Не удалось получить токен авторизации'
+        ? err.message
+        : 'Ошибка сети или сервера при сохранении теста.'
+      alert(errorMsg)
       setSubmitting(false)
     }
   }, [router, tgId])
