@@ -109,13 +109,40 @@ export default function TestPage() {
         }
       }
 
+      let finalAnswers = answers
+      if (finalAnswers.length < 25) {
+        try {
+          const progRes = await fetch(`/api/test/progress?tgId=${tgId}`, {
+            headers: { Authorization: `Bearer ${actualToken}` },
+          })
+          const progJson = await progRes.json()
+          if (progJson.success && progJson.data?.answers) {
+            const dbAnswers: Record<number, number> = progJson.data.answers
+            const mergedMap = { ...dbAnswers }
+            answers.forEach((a) => {
+              mergedMap[a.questionId] = a.score
+            })
+            finalAnswers = Object.entries(mergedMap).map(([qId, s]) => ({
+              questionId: Number(qId),
+              score: s as number,
+            }))
+          }
+          if (finalAnswers.length < 25) {
+            throw new Error('Не удалось восстановить данные сессии')
+          }
+        } catch (e) {
+          console.error('[test] JIT Fallback failed:', e)
+          throw e instanceof Error ? e : new Error('Ошибка восстановления прогресса')
+        }
+      }
+
       const res = await fetch('/api/test/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${actualToken}`,
         },
-        body: JSON.stringify({ answers, tgId }),
+        body: JSON.stringify({ answers: finalAnswers, tgId }),
       })
       const result = await res.json()
       console.log('[test] Submit response:', result)
